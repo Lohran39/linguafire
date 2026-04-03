@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinguaFire 🔥</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<!-- SPLASH -->
+<div class="screen active" id="splash">
+  <div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div>
+  <div class="hero-content">
+    <span class="flame">🔥</span>
+    <div class="logo-text">LinguaFire</div>
+    <div class="logo-sub">Inglês que vicia</div>
+    <div class="splash-h">Aprenda inglês como se fosse <span>vício</span></div>
+    <div class="splash-p">Nivelamento automático, músicas com tradução, XP e ranking. Sem enrolação.</div>
+    <div class="hero-actions">
+      <button class="btn-fire" id="startBtn" type="button">🔥 Começar agora</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div class="screen" id="login">
+  <div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div>
+  <div class="hero-content">
+    <span class="flame">🔥</span>
+    <div class="logo-text">LinguaFire</div>
+    <div class="logo-sub">Entrar na sua conta</div>
+    <div id="loginError" class="auth-error is-hidden"></div>
+    <input class="auth-input" id="loginEmail" type="email" placeholder="Seu email" autocomplete="email"/>
+    <input class="auth-input" id="loginPassword" type="password" placeholder="Sua senha" autocomplete="current-password"/>
+    <button class="btn-fire btn-block" id="loginBtn" type="button">🔐 Entrar</button>
+    <button class="btn-google btn-block" id="googleLoginBtn" type="button">
+      <span class="google-icon">G</span> Entrar com Google
+    </button>
+    <div class="auth-divider">ou</div>
+    <button class="btn-secondary btn-block" id="showRegisterBtn" type="button">Criar conta gratuita</button>
+    <button class="btn-ghost btn-block" id="backToSplashBtn" type="button">← Voltar</button>
+  </div>
+</div>
+
+<!-- REGISTER SCREEN -->
+<div class="screen" id="register">
+  <div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div>
+  <div class="hero-content">
+    <span class="flame">🔥</span>
+    <div class="logo-text">LinguaFire</div>
+    <div class="logo-sub">Criar sua conta</div>
+    <div id="registerError" class="auth-error is-hidden"></div>
+    <input class="auth-input" id="registerName" type="text" placeholder="Seu nome" autocomplete="name" maxlength="20"/>
+    <input class="auth-input" id="registerEmail" type="email" placeholder="Seu email" autocomplete="email"/>
+    <input class="auth-input" id="registerPassword" type="password" placeholder="Senha (mín. 6 caracteres)" autocomplete="new-password"/>
+    <input class="auth-input" id="registerConfirm" type="password" placeholder="Confirmar senha" autocomplete="new-password"/>
+    <button class="btn-fire btn-block" id="registerBtn" type="button">🔥 Criar conta</button>
+    <button class="btn-google btn-block" id="googleRegisterBtn" type="button">
+      <span class="google-icon">G</span> Entrar com Google
+    </button>
+    <div class="auth-divider">ou</div>
+    <button class="btn-secondary btn-block" id="showLoginBtn" type="button">Já tenho conta</button>
+    <button class="btn-ghost btn-block" id="backToSplashFromRegisterBtn" type="button">← Voltar</button>
+  </div>
+</div>
+
+<!-- PLACEMENT TEST -->
+<div class="screen" id="placement">
+  <div class="screen-shell">
+    <div class="pt-header" id="pt-title">🎯 Teste de Nivelamento</div>
+    <div class="pt-sub" id="pt-sub">Responda para descobrirmos seu nível (A1 a C1). Sem pressão!</div>
+    <div class="pt-bar-wrap" id="pt-progress-wrap">
+      <div class="pt-bar"><div class="pt-bar-fill" id="ptBar"></div></div>
+      <div class="pt-count" id="ptCount">0 / 15</div>
+    </div>
+    <div class="pt-question" id="pt-q-wrap">
+      <div class="pt-badge" id="pt-badge"></div>
+      <div class="pt-qtext" id="pt-qtext"></div>
+      <div class="pt-hint" id="pt-hint"></div>
+      <div class="pt-choices" id="pt-choices"></div>
+    </div>
+    <div class="level-result is-hidden" id="pt-result">
+      <span class="level-badge-big" id="res-emoji"></span>
+      <div class="level-name" id="res-level"></div>
+      <div class="level-desc" id="res-desc"></div>
+      <div class="level-score-row">
+        <div class="ls-item"><span class="ls-val metric-green" id="res-correct">0</span><span class="ls-label">Acertos</span></div>
+        <div class="ls-item"><span class="ls-val metric-xp" id="res-score">0%</span><span class="ls-label">Score</span></div>
+        <div class="ls-item"><span class="ls-val metric-cyan" id="res-time">0s</span><span class="ls-label">Tempo</span></div>
+      </div>
+      <button class="btn-fire btn-block" id="enterAppBtn" type="button">🔥 Entrar no LinguaFire</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="screen" id="app">
+  <div class="topbar">
+    <div class="topbar-logo">🔥 LinguaFire</div>
+    <div class="topbar-stats">
+      <div class="stat-pill">🔥 <span id="streakCount">0</span></div>
+      <div class="stat-pill">⚡ <span id="xpCount">0</span></div>
+      <div class="stat-pill">❤️ <span id="livesCount">5</span></div>
+    </div>
+  </div>
+  <div class="xp-bar-wrap">
+    <div class="xp-bar-info"><span id="levelLabel">Nível 1</span><span id="xpLabel">0/200 XP</span></div>
+    <div class="xp-bar"><div class="xp-fill" id="xpFill"></div></div>
+  </div>
+
+  <!-- HOME TAB -->
+  <div class="tab-content active" id="home-tab">
+    <div class="content">
+      <div class="streak-banner">
+        <div><div class="streak-num" id="bannerStreak">0</div><div class="streak-caption">dias seguidos</div></div>
+        <div class="streak-info"><h3 id="streakMsg">Comece sua ofensiva!</h3><p id="streakSub">Estude hoje para não perder.</p></div>
+        <div class="streak-days" id="streakDays"></div>
+      </div>
+      <div class="daily-challenge" data-action="start-lesson" data-lesson="daily">
+        <div class="dc-label">⚡ Desafio do dia</div>
+        <div class="dc-title">Missão Diária Desbloqueada!</div>
+        <div class="dc-sub">Complete antes da meia-noite para manter sua ofensiva</div>
+        <div class="dc-reward">🏆 +100 XP Bônus</div>
+      </div>
+      <div class="section-title">🎯 Continue aprendendo</div>
+      <div class="lesson-feed">
+        <div class="lesson-card new-card" data-action="start-lesson" data-lesson="basics">
+          <div class="card-top"><div class="card-icon card-icon-basics">🗣️</div><div class="card-meta"><h3>Frases do dia a dia</h3><p>Situações reais • 8 exercícios</p></div></div>
+          <div class="card-tags"><span class="tag green">Iniciante</span><span class="tag orange">+50 XP</span><span class="tag cyan">Tradução</span></div>
+        </div>
+        <div class="lesson-card" data-action="start-lesson" data-lesson="slang">
+          <div class="card-top"><div class="card-icon card-icon-slang">😎</div><div class="card-meta"><h3>Gírias que gringo usa</h3><p>Inglês real • 6 exercícios</p></div></div>
+          <div class="card-tags"><span class="tag cyan">Intermediário</span><span class="tag orange">+60 XP</span><span class="tag pink">Gírias</span></div>
+        </div>
+        <div class="lesson-card" data-action="start-lesson" data-lesson="travel">
+          <div class="card-top"><div class="card-icon card-icon-travel">✈️</div><div class="card-meta"><h3>Viagem e Turismo</h3><p>Situações reais • 10 exercícios</p></div></div>
+          <div class="card-tags"><span class="tag purple">Intermediário</span><span class="tag orange">+75 XP</span><span class="tag green">Vocabulário</span></div>
+        </div>
+        <div class="lesson-card locked">
+          <div class="card-top"><div class="card-icon card-icon-locked">🔒</div><div class="card-meta"><h3>Inglês nos Negócios</h3><p>Desbloqueie no nível 3</p></div></div>
+          <div class="card-tags"><span class="tag pink">Avançado</span><span class="tag orange">+100 XP</span></div>
+        </div>
+      </div>
+      <div class="section-title">⚡ Treino rápido</div>
+      <div class="quick-play-grid">
+        <div class="quick-card quick-card-cyan" data-action="start-lesson" data-lesson="flashcard"><span class="qc-icon">🃏</span><span class="qc-name">Flashcards</span><span class="qc-desc">Memorize palavras</span></div>
+        <div class="quick-card quick-card-pink" data-action="switch-tab" data-tab="music"><span class="qc-icon">🎵</span><span class="qc-name">Música</span><span class="qc-desc">Letra + tradução</span></div>
+        <div class="quick-card quick-card-green" data-action="start-lesson" data-lesson="speed"><span class="qc-icon">⚡</span><span class="qc-name">Speed Round</span><span class="qc-desc">60 segundos!</span></div>
+        <div class="quick-card quick-card-fire" data-action="start-lesson" data-lesson="boss"><span class="qc-icon">👹</span><span class="qc-name">Boss</span><span class="qc-desc">Nível difícil</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MUSIC TAB -->
+  <div class="tab-content" id="music-tab">
+    <div class="content">
+      <div class="section-title section-title-top-sm">🎵 Aprenda com Músicas</div>
+      <div class="music-tabs">
+        <button class="mtab active" id="mtab-search" type="button" data-action="switch-music-tab" data-music-tab="search">🔍 Buscar</button>
+        <button class="mtab" id="mtab-favs" type="button" data-action="switch-music-tab" data-music-tab="favs">❤️ Favoritas</button>
+      </div>
+      <div id="music-search-panel">
+        <span class="input-label">🔗 Cole o link do YouTube</span>
+        <div class="search-row">
+          <input class="music-input" id="ytLinkInput" placeholder="https://youtube.com/watch?v=..."/>
+          <button class="btn-pink" id="loadYoutubeBtn" type="button">▶</button>
+        </div>
+        <span class="input-label">🎤 Ou busque por nome da música</span>
+        <div class="search-row">
+          <input class="music-input" id="songSearchInput" placeholder="Ex: Blinding Lights, Shape of You..."/>
+          <button class="btn-pink" id="searchSongBtn" type="button">🔍</button>
+        </div>
+        <div class="section-title section-title-top-md">✨ Sugestões</div>
+        <div id="suggestions">
+          <div class="sugg-card" data-action="load-suggestion" data-song-key="blinding-lights"><div class="sugg-thumb">🌃</div><div class="sugg-meta"><div class="sugg-title">Blinding Lights</div><div class="sugg-artist">The Weeknd • Intermediário</div></div><span class="sugg-arrow">▶</span></div>
+          <div class="sugg-card" data-action="load-suggestion" data-song-key="shape-of-you"><div class="sugg-thumb">🎸</div><div class="sugg-meta"><div class="sugg-title">Shape of You</div><div class="sugg-artist">Ed Sheeran • Iniciante</div></div><span class="sugg-arrow">▶</span></div>
+          <div class="sugg-card" data-action="load-suggestion" data-song-key="someone-like-you"><div class="sugg-thumb">🎹</div><div class="sugg-meta"><div class="sugg-title">Someone Like You</div><div class="sugg-artist">Adele • Intermediário</div></div><span class="sugg-arrow">▶</span></div>
+          <div class="sugg-card" data-action="load-suggestion" data-song-key="stay"><div class="sugg-thumb">🎤</div><div class="sugg-meta"><div class="sugg-title">Stay</div><div class="sugg-artist">The Kid LAROI & Bieber • Iniciante</div></div><span class="sugg-arrow">▶</span></div>
+        </div>
+      </div>
+      <div id="music-favs-panel" class="is-hidden">
+        <div id="favsList"></div>
+        <div id="favsEmpty" class="empty-state is-hidden"><div class="empty-state-icon">❤️</div><div class="empty-state-title">Sem favoritas ainda</div><div class="empty-state-copy">Busque e salve músicas!</div></div>
+      </div>
+      <div id="music-player" class="is-hidden">
+        <div class="player-top">
+          <div class="player-info"><h2 id="playerTitle">—</h2><p id="playerArtist">—</p></div>
+          <div class="player-btns">
+            <button class="player-btn" id="favBtn" type="button">❤️ Salvar</button>
+            <button class="player-btn quiz-btn" id="musicQuizBtn" type="button">⚡ Quiz</button>
+          </div>
+        </div>
+        <div class="video-wrap" id="videoWrap"><div class="video-placeholder"><div class="vp-icon">🎵</div><p class="video-status">Carregando...</p></div></div>
+        <div class="lyrics-wrap">
+          <div class="lyrics-header">
+            <h3>📜 Letra</h3>
+            <div class="lyrics-toggle">
+              <button class="ltog active" id="tog-en" type="button" data-action="set-lyric-mode" data-lyric-mode="en">EN</button>
+              <button class="ltog" id="tog-pt" type="button" data-action="set-lyric-mode" data-lyric-mode="pt">PT</button>
+              <button class="ltog" id="tog-both" type="button" data-action="set-lyric-mode" data-lyric-mode="both">EN+PT</button>
+            </div>
+          </div>
+          <div class="lyrics-body" id="lyricsBody"></div>
+        </div>
+        <button class="btn-secondary btn-block btn-bottom-gap" id="closeMusicPlayerBtn" type="button">← Voltar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RANKING TAB -->
+  <div class="tab-content" id="ranking-tab">
+    <div class="content">
+      <div class="section-title section-title-top-lg">🏆 Ranking Semanal</div>
+      <div id="rankingList"></div>
+    </div>
+  </div>
+
+  <!-- PROFILE TAB -->
+  <div class="tab-content" id="profile-tab-content">
+    <div class="content">
+      <div class="section-title section-title-top-lg">👤 Perfil</div>
+      <div class="profile-card">
+        <div class="profile-avatar">🧑‍🚀</div>
+        <div id="profileName" class="profile-name"></div>
+        <div id="profileLevel" class="profile-level"></div>
+        <div id="profileEnLevel" class="profile-sublevel"></div>
+      </div>
+      <div class="profile-stats-grid">
+        <div class="profile-stat-card"><span class="profile-stat-value metric-fire2" id="totalXpStat">0</span><span class="profile-stat-label">XP Total</span></div>
+        <div class="profile-stat-card"><span class="profile-stat-value metric-fire" id="streakStat">0</span><span class="profile-stat-label">Streak</span></div>
+        <div class="profile-stat-card"><span class="profile-stat-value metric-green" id="correctStat">0</span><span class="profile-stat-label">Acertos</span></div>
+        <div class="profile-stat-card"><span class="profile-stat-value metric-cyan" id="lessonsStat">0</span><span class="profile-stat-label">Lições</span></div>
+      </div>
+      <div class="section-title">🏅 Conquistas</div>
+      <div class="achievements-grid" id="achievementsList"></div>
+      <div class="section-title">💾 Backup</div>
+      <div class="backup-card">
+        <div class="backup-copy">Exporte seu progresso em <strong class="text-strong">.json</strong> para nunca perder nada.</div>
+        <button class="action-btn action-btn-success" id="exportProgressBtn" type="button">📥 Exportar progresso</button>
+        <label class="action-btn action-btn-info" for="importProgressInput">📤 Importar progresso</label>
+        <input type="file" accept=".json" id="importProgressInput" class="visually-hidden"/>
+      </div>
+      <div class="spacer-lg"></div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <button class="nav-item active" id="nav-home" type="button" data-action="switch-tab" data-tab="home"><span class="nav-icon">🏠</span><span>Início</span></button>
+    <button class="nav-item" id="nav-music" type="button" data-action="switch-tab" data-tab="music"><span class="nav-icon">🎵</span><span>Música</span></button>
+    <button class="nav-item" id="nav-ranking" type="button" data-action="switch-tab" data-tab="ranking"><span class="nav-icon">🏆</span><span>Ranking</span></button>
+    <button class="nav-item" id="nav-profile" type="button" data-action="switch-tab" data-tab="profile"><span class="nav-icon">👤</span><span>Perfil</span></button>
+  </div>
+</div>
+
+<!-- LESSON -->
+<div class="screen" id="lesson">
+  <div class="lesson-header">
+    <button class="btn-back" id="exitLessonBtn" type="button">←</button>
+    <div class="lesson-progress"><div class="lesson-progress-fill" id="lessonBar"></div></div>
+    <div class="lesson-lives" id="lessonLives">❤️❤️❤️</div>
+  </div>
+  <div class="lesson-content">
+    <div class="question-type" id="qType"></div>
+    <div class="question-text" id="qText"></div>
+    <div class="question-hint" id="qHint"></div>
+    <div class="choices is-hidden" id="choicesArea"></div>
+    <div id="wordOrderArea" class="is-hidden">
+      <div class="answer-area" id="answerArea"><span class="answer-placeholder" id="answerPlaceholder">Toque nas palavras para montar a frase</span></div>
+      <div class="word-bank" id="wordBank"></div>
+    </div>
+    <div id="typingArea" class="is-hidden"><input class="type-input" id="typeInput" placeholder="Digite sua resposta..."/></div>
+    <button class="btn-submit" id="submitBtn" type="button" disabled>Verificar ✓</button>
+  </div>
+  <div class="feedback-overlay" id="feedbackOverlay">
+    <div class="fb-header"><span class="fb-icon" id="fbIcon"></span><span class="fb-title" id="fbTitle"></span></div>
+    <div class="fb-msg" id="fbMsg"></div>
+    <button class="btn-continue" id="continueBtn" type="button">Continuar →</button>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="result">
+  <span class="result-emoji" id="resultEmoji"></span>
+  <div class="result-title" id="resultTitle"></div>
+  <div class="result-sub" id="resultSub"></div>
+  <div class="result-stats">
+    <div class="rs-item"><span class="rs-val metric-xp" id="resXp">0</span><span class="rs-label">XP</span></div>
+    <div class="rs-item"><span class="rs-val metric-green" id="resAcc">0%</span><span class="rs-label">Precisão</span></div>
+    <div class="rs-item"><span class="rs-val metric-cyan" id="resTime">0s</span><span class="rs-label">Tempo</span></div>
+  </div>
+  <button class="btn-fire btn-block result-btn" id="returnHomeBtn" type="button">🏠 Início</button>
+  <div class="result-actions-spacer"></div>
+  <button class="btn-fire btn-block btn-purple" id="playAgainBtn" type="button">🔄 De novo</button>
+</div>
+
+<!-- QUIZ OVERLAY -->
+<div class="quiz-overlay is-hidden" id="quizOverlay">
+  <div class="quiz-box">
+    <div class="quiz-topbar">
+      <div class="quiz-kicker">🎵 Quiz da Música</div>
+      <button class="icon-button" id="closeQuizBtn" type="button">✕</button>
+    </div>
+    <div class="quiz-progress-row">
+      <div class="quiz-progress-track"><div id="quizBar" class="quiz-progress-fill"></div></div>
+      <span id="quizCount" class="quiz-count">1/5</span>
+    </div>
+    <div class="quiz-q" id="quizQ"></div>
+    <div class="quiz-choices" id="quizChoices"></div>
+    <div id="quizFeedback" class="quiz-feedback is-hidden"></div>
+    <button class="btn-fire btn-block is-hidden" id="quizNextBtn" type="button">Próxima →</button>
+  </div>
+</div>
+
+<!-- POPUPS -->
+<div class="xp-popup" id="xpPopup"><span class="xp-popup-val" id="xpPopupVal">+50</span><span class="xp-popup-label">XP Ganho!</span></div>
+<div class="streak-toast" id="streakToast">🔥 Ofensiva!</div>
+<div class="toast" id="toast"></div>
+
+<script src="./lyrics-service.js"></script>
+<script src="./auth-service.js"></script>
+<script src="./app.js"></script>
+<script src="./iframe-highlight.js"></script>
+</body>
+</html>

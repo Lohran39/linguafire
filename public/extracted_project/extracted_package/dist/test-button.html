@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teste Botão</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="screen active" id="splash">
+  <h1 style="font-size:2rem;margin-bottom:1rem;">LinguaFire - Teste</h1>
+  <input type="text" id="nameInput" placeholder="Seu nome" style="padding:12px;font-size:1rem;border-radius:10px;border:2px solid #2a2a40;background:#12121a;color:#fff;width:250px;text-align:center;margin-bottom:1rem;">
+  <button onclick="startTest()">🔥 Começar agora</button>
+</div>
+
+<div class="screen" id="placement">
+  <h2>🎯 Teste de Nivelamento</h2>
+  <div id="progress" style="margin:1rem;font-size:.9rem;color:#7070a0;">Pergunta 1/15</div>
+  <div class="question" id="questionText"></div>
+  <div class="choices" id="choicesArea"></div>
+</div>
+
+<script>
+// Banco de perguntas
+const QUESTIONS = [
+  {q:'What is "Casa" in English?', choices:['House','Car','Tree','Dog'], answer:0},
+  {q:'Choose: "I ___ a student."', choices:['am','is','are','be'], answer:0},
+  {q:'What does "Beautiful" mean?', choices:['Bonito/Linda','Feio','Grande','Pequeno'], answer:0},
+  {q:'How do you say "Água" in English?', choices:['Water','Fire','Food','Milk'], answer:0},
+  {q:'Complete: "The sky is ___"', choices:['blue','red','big','small'], answer:0},
+  {q:'What does "Happy" mean?', choices:['Feliz','Triste','Com raiva','Cansado'], answer:0},
+  {q:'Choose the correct: "She ___ a teacher."', choices:['is','are','am','be'], answer:0},
+  {q:'How do you say "Maçã" in English?', choices:['Apple','Orange','Banana','Grape'], answer:0},
+  {q:'What is "Book" in Portuguese?', choices:['Livro','Mesa','Cadeira','Porta'], answer:0},
+  {q:'Complete: "I have two ___"', choices:['cats','cat','the cat','catss'], answer:0},
+  {q:'What does "Mother" mean?', choices:['Mãe','Pai','Irmão','Irmã'], answer:0},
+  {q:'How do you say "Sol" in English?', choices:['Sun','Moon','Star','Sky'], answer:0},
+  {q:'Choose: "This is ___ apple."', choices:['an','a','the','is'], answer:0},
+  {q:'What does "School" mean?', choices:['Escola','Casa','Hospital','Loja'], answer:0},
+  {q:'Complete: "I ___ 25 years old."', choices:['am','is','are','be'], answer:0},
+];
+
+let current = 0;
+let correct = 0;
+
+function startTest() {
+  const name = document.getElementById('nameInput').value.trim();
+  if(!name) {
+    alert('Por favor, digite seu nome!');
+    return;
+  }
+  document.getElementById('splash').classList.remove('active');
+  document.getElementById('placement').classList.add('active');
+  showQuestion();
+}
+
+function showQuestion() {
+  const q = QUESTIONS[current];
+  document.getElementById('progress').textContent = `Pergunta ${current + 1}/${QUESTIONS.length}`;
+  document.getElementById('questionText').textContent = q.q;
+  const area = document.getElementById('choicesArea');
+  area.innerHTML = '';
+  const letters = ['A','B','C','D'];
+  q.choices.forEach((choice, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = `${letters[i]}) ${choice}`;
+    btn.onclick = () => selectAnswer(i, btn);
+    area.appendChild(btn);
+  });
+}
+
+function selectAnswer(idx, btn) {
+  const q = QUESTIONS[current];
+  if(idx === q.answer) {
+    correct++;
+    btn.classList.add('correct');
+  } else {
+    btn.style.borderColor = '#ff2d78';
+  }
+  setTimeout(() => {
+    current++;
+    if(current >= QUESTIONS.length) {
+      showResult();
+    } else {
+      showQuestion();
+    }
+  }, 1000);
+}
+
+function showResult() {
+  const pct = Math.round((correct / QUESTIONS.length) * 100);
+  let level = 'A1';
+  if(pct >= 90) level = 'C1';
+  else if(pct >= 73) level = 'B2';
+  else if(pct >= 53) level = 'B1';
+  else if(pct >= 33) level = 'A2';
+
+  document.getElementById('questionText').textContent = `🎉 Resultado: ${correct}/${QUESTIONS.length} (${pct}%)`;
+  document.getElementById('choicesArea').innerHTML = `<p style="font-size:1.5rem;">Nível: ${level}</p><button onclick="location.reload()">Recomeçar</button>`;
+}
+
+console.log('Script carregado com sucesso!');
+</script>
+</body>
+</html>
