@@ -2,7 +2,7 @@ services:
   - type: web
     name: linguafire
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm --prefix client ci && npm --prefix server ci && npm run build
     startCommand: npm start
     envVars:
