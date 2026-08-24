@@ -1,18 +1,45 @@
 // ==================== SERVIÇO DE AUTENTICAÇÃO ====================
 const API_BASE = '/api';
 
-// Armazenar token e userId
-let authToken = localStorage.getItem('linguafire_token');
+// Armazenar userId (o token agora fica no cookie HttpOnly)
+let authToken = null; // não mais usado para auth
 let currentUserId = localStorage.getItem('linguafire_userId');
 
-// Headers para requests autenticados
-function getAuthHeaders() {
-  return authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+function clearAuthSession() {
+  authToken = null;
+  currentUserId = null;
+  localStorage.removeItem('linguafire_userId');
+  // Limpa o cookie chamando logout no servidor
+  fetch(`${API_BASE}/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
 }
 
-// Verificar se está logado
-function isLoggedIn() {
-  return !!authToken;
+// Headers para requests autenticados. O cookie HttpOnly é enviado automaticamente.
+function getAuthHeaders() {
+  return {};
+}
+
+// Verificar se está logado via chamada ao servidor
+async function isLoggedIn() {
+  try {
+    const res = await fetch(`${API_BASE}/auth/session`, { credentials: 'include' });
+    if (!res.ok) {
+      currentUserId = null;
+      localStorage.removeItem('linguafire_userId');
+      return false;
+    }
+
+    const session = await res.json();
+    currentUserId = String(session.userId || currentUserId || '');
+    if (currentUserId) {
+      localStorage.setItem('linguafire_userId', currentUserId);
+    }
+
+    return true;
+  } catch {
+    currentUserId = null;
+    localStorage.removeItem('linguafire_userId');
+    return false;
+  }
 }
 
 // Login com email/senha
@@ -21,21 +48,20 @@ async function login(email, password) {
     const res = await fetch(`${API_BASE}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ email, password })
     });
-    
+
     const data = await res.json();
-    
+
     if (!res.ok) {
       throw new Error(data.error || 'Erro ao fazer login');
     }
-    
-    // Salvar token
-    authToken = data.token;
+
+    // O token agora está no cookie HttpOnly
     currentUserId = data.user.id;
-    localStorage.setItem('linguafire_token', authToken);
     localStorage.setItem('linguafire_userId', currentUserId);
-    
+
     return data.user;
   } catch (error) {
     throw error;
@@ -48,21 +74,20 @@ async function register(name, email, password) {
     const res = await fetch(`${API_BASE}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ name, email, password })
     });
-    
+
     const data = await res.json();
-    
+
     if (!res.ok) {
       throw new Error(data.error || 'Erro ao criar conta');
     }
-    
-    // Salvar token
-    authToken = data.token;
+
+    // O token agora está no cookie HttpOnly
     currentUserId = data.user.id;
-    localStorage.setItem('linguafire_token', authToken);
     localStorage.setItem('linguafire_userId', currentUserId);
-    
+
     return data.user;
   } catch (error) {
     throw error;
@@ -70,16 +95,28 @@ async function register(name, email, password) {
 }
 
 // Login com Google
-function loginWithGoogle() {
-  window.location.href = '/auth/google';
+function loginWithGoogle(mode = 'login') {
+  // Para mode='link', o cookie HttpOnly é enviado automaticamente na requisição
+  const params = new URLSearchParams();
+  if (mode === 'link') {
+    params.set('mode', 'link');
+  }
+
+  const query = params.toString();
+  window.location.href = query ? `/auth/google?${query}` : '/auth/google';
+}
+
+async function linkGoogleAccount() {
+  if (!await isLoggedIn()) {
+    throw new Error('Faça login antes de vincular o Google');
+  }
+
+  loginWithGoogle('link');
 }
 
 // Logout
 function logout() {
-  authToken = null;
-  currentUserId = null;
-  localStorage.removeItem('linguafire_token');
-  localStorage.removeItem('linguafire_userId');
+  clearAuthSession();
   localStorage.removeItem('linguafire_v2');
   window.location.reload();
 }
@@ -88,13 +125,20 @@ function logout() {
 async function getProfile() {
   try {
     const res = await fetch(`${API_BASE}/profile`, {
-      headers: getAuthHeaders()
+      credentials: 'include'
     });
-    
+
+    if (res.status === 403 || res.status === 401) {
+      // Sessão inválida/expirada — limpa sessão
+      clearAuthSession();
+      window.location.reload();
+      throw new Error('Sessão expirada');
+    }
+
     if (!res.ok) {
       throw new Error('Erro ao buscar perfil');
     }
-    
+
     const data = await res.json();
     return data.user;
   } catch (error) {
@@ -107,17 +151,17 @@ async function updateProfile(updates) {
   try {
     const res = await fetch(`${API_BASE}/profile`, {
       method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        ...getAuthHeaders()
+      headers: {
+        'Content-Type': 'application/json'
       },
+      credentials: 'include',
       body: JSON.stringify(updates)
     });
-    
+
     if (!res.ok) {
       throw new Error('Erro ao atualizar perfil');
     }
-    
+
     return await res.json();
   } catch (error) {
     throw error;
@@ -137,7 +181,7 @@ async function isGoogleOAuthConfigured() {
 
 // Sincronizar estado local com servidor
 async function syncStateToServer() {
-  if (!isLoggedIn()) return;
+  if (!await isLoggedIn()) return;
   
   try {
     await updateProfile({
@@ -149,7 +193,8 @@ async function syncStateToServer() {
       lessons_completed: state.totalLessons,
       english_level: state.englishLevel,
       achievements: state.achievements,
-      favorites: state.favorites
+      favorites: state.favorites,
+      theme: state.theme
     });
   } catch (e) {
     console.log('Erro ao sincronizar:', e);
@@ -158,10 +203,15 @@ async function syncStateToServer() {
 
 // Carregar estado do servidor
 async function loadStateFromServer() {
-  if (!isLoggedIn()) return false;
+  if (!await isLoggedIn()) return false;
   
   try {
+    isHydratingFromServer = true;
     const user = await getProfile();
+    currentUserId = String(user.id || currentUserId || '');
+    if (currentUserId) {
+      localStorage.setItem('linguafire_userId', currentUserId);
+    }
     
     state.name = user.name || '';
     state.level = user.level || 1;
@@ -172,40 +222,79 @@ async function loadStateFromServer() {
     state.englishLevel = user.english_level || '';
     state.achievements = user.achievements || [];
     state.favorites = user.favorites || [];
+    state.googleLinked = !!user.google_linked;
+    state.theme = user.theme || state.theme || 'default';
+    state.subscriptionActive = !!user.subscription_active;
+    state.subscriptionExpires = user.subscription_expires || 0;
+    state.aiUsesToday = user.ai_uses_today || 0;
     
-    saveState();
+    if (typeof applyTheme === 'function') {
+      applyTheme(state.theme, false);
+    }
+
+    saveState(false);
     return true;
   } catch (e) {
     console.log('Erro ao carregar do servidor:', e);
     return false;
+  } finally {
+    isHydratingFromServer = false;
   }
 }
 
 // Verificar callback do Google OAuth pela URL
-function checkGoogleCallback() {
+async function checkGoogleCallback() {
   const params = new URLSearchParams(window.location.search);
-  
+
   if (params.get('auth') === 'success') {
-    const token = params.get('token');
     const userId = params.get('userId');
-    
-    if (token && userId) {
-      authToken = token;
+
+    if (!userId) {
+      // Token agora está no cookie HttpOnly - buscar sessão
+      try {
+        const res = await fetch(`${API_BASE}/auth/session`, { credentials: 'include' });
+        if (res.ok) {
+          const session = await res.json();
+          currentUserId = String(session.userId);
+        }
+      } catch (_e) {}
+    } else {
       currentUserId = userId;
-      localStorage.setItem('linguafire_token', authToken);
-      localStorage.setItem('linguafire_userId', currentUserId);
-      
-      // Limpar URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-      
-      return true;
     }
+
+    if (currentUserId) {
+      localStorage.setItem('linguafire_userId', currentUserId);
+    }
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return true;
   }
-  
+
+  if (params.get('google') === 'linked') {
+    window.sessionStorage.setItem('linguafire_google_linked', '1');
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return false;
+  }
+
   if (params.get('error') === 'auth_failed') {
     alert('Falha na autenticação com Google. Tente novamente.');
     window.history.replaceState({}, document.title, window.location.pathname);
   }
-  
+
+  if (params.get('error') === 'google_link_failed') {
+    alert('Nao foi possivel vincular sua conta com Google.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  if (params.get('error') === 'google_already_linked') {
+    alert('Essa conta Google ja esta vinculada a outro usuario.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  if (params.get('error') === 'google_oauth_not_configured') {
+    alert('Login com Google indisponível no momento.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
   return false;
 }

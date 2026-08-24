@@ -1,418 +1,427 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
+const fs = require('fs');
 const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 require('dotenv').config();
 
+const { createGeminiService } = require('./services/minimax-service');
+const { createAgentTools } = require('./services/agent-tools');
+const { createMailService } = require('./services/mail-service');
+const { createMonitoringService } = require('./services/monitoring-service');
+const { createStripeService } = require('./services/stripe-service');
+const { createPushService } = require('./services/push-service');
+const { createRateLimiter } = require('./middleware/rate-limiter');
+const { createRequestLogger } = require('./middleware/request-logger');
+const { logger } = require('./logger');
+
+// ============ CONFIG ============
 const app = express();
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || (IS_PRODUCTION ? '0.0.0.0' : '127.0.0.1');
 const JWT_SECRET = process.env.JWT_SECRET || 'linguafire-super-secret-key-2024';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const GEMINI_BASE_URL = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+const OPENAI_MODEL_ALIAS = process.env.OPENAI_MODEL_ALIAS || GEMINI_MODEL;
+const PROXY_TIMEOUT_MS = Number(process.env.PROXY_TIMEOUT_MS || 60000);
+const AGENT_MAX_STEPS = Number(process.env.AGENT_MAX_STEPS || 8);
+const AGENT_CMD_TIMEOUT_MS = Number(process.env.AGENT_CMD_TIMEOUT_MS || 15000);
+const DEPLOY_CMD_TIMEOUT_MS = Number(process.env.DEPLOY_CMD_TIMEOUT_MS || 120000);
+const AGENT_ADMIN_TOKEN = process.env.AGENT_ADMIN_TOKEN || '';
+const PUSH_ADMIN_TOKEN = process.env.PUSH_ADMIN_TOKEN || '';
+const WORKSPACE_ROOT = path.resolve(__dirname, '..');
+const LEGACY_FRONTEND_DIR = path.join(WORKSPACE_ROOT, 'public/dist');
+const REACT_FRONTEND_DIR = path.join(WORKSPACE_ROOT, 'client/dist');
+const HAS_REACT_FRONTEND = fs.existsSync(path.join(REACT_FRONTEND_DIR, 'index.html'));
+const ACTIVE_FRONTEND_DIR = HAS_REACT_FRONTEND ? REACT_FRONTEND_DIR : LEGACY_FRONTEND_DIR;
+const ACTIVE_FRONTEND_KIND = HAS_REACT_FRONTEND ? 'react' : 'legacy';
+const runningServers = new Map();
+const monitoring = createMonitoringService({ logger });
+const stripeService = createStripeService(process.env);
+const pushService = createPushService(process.env, logger);
 
-// Middleware
-app.use(cors({
-  origin: true,
-  credentials: true
+if (IS_PRODUCTION && JWT_SECRET === 'linguafire-super-secret-key-2024') {
+  throw new Error('JWT_SECRET inseguro em produção. Defina uma chave aleatória grande no ambiente.');
+}
+
+if (IS_PRODUCTION && BASE_URL.startsWith('http://')) {
+  throw new Error('BASE_URL deve usar HTTPS em produção.');
+}
+
+if (IS_PRODUCTION && !HAS_REACT_FRONTEND) {
+  throw new Error('Build React não encontrado em client/dist. Rode npm run build antes de iniciar em produção.');
+}
+
+if (!global.__LINGUAFIRE_PROCESS_LOGGERS__) {
+  process.on('unhandledRejection', (reason) => {
+    logger.error('Unhandled promise rejection', { error: reason });
+  });
+
+  process.on('uncaughtException', (error) => {
+    logger.error('Uncaught exception', { error });
+  });
+
+  global.__LINGUAFIRE_PROCESS_LOGGERS__ = true;
+}
+
+const ALLOWED_CORS_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+function resolveCorsOrigin(origin, callback) {
+  if (!origin || ALLOWED_CORS_ORIGINS.includes(origin)) {
+    callback(null, true);
+    return;
+  }
+  if (!IS_PRODUCTION) {
+    try {
+      const { hostname } = new URL(origin);
+      if (hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '::1') {
+        callback(null, true);
+        return;
+      }
+    } catch (_error) {}
+  }
+  callback(new Error('Origem não permitida pelo CORS.'));
+}
+
+const { sendPasswordResetEmail } = createMailService(process.env);
+
+// ============ SUPABASE ============
+const {
+  supabase,
+  supabaseGetUserByEmail, supabaseGetUserById, supabaseFindUserByGoogleOrEmail, supabaseCreateUser, supabaseUpdateUser,
+  supabaseUpdateGoogleLink, supabaseSetPasswordResetToken, supabaseGetUserByResetToken, supabaseResetPassword,
+  supabaseGetPushSubscription, supabaseGetAllPushSubscriptions, supabaseSavePushSubscription, supabaseDeletePushSubscription,
+  supabaseGetUserRewards, supabaseAwardReward,
+  supabaseGetGrammarErrors, supabaseAddGrammarError,
+  supabaseGetFlashcards, supabaseUpsertFlashcard,
+  supabaseGetNativesCache, supabaseUpsertNativesCache,
+  supabaseGetLyricsCache, supabaseUpsertLyricsCache,
+  supabaseDeleteUser
+} = require('./db-supabase');
+
+// ============ MIDDLEWARE ============
+if (IS_PRODUCTION) {
+  app.set('trust proxy', 1);
+}
+
+// Politica de seguranca unica. O Helmet padrao bloquearia iframes/scripts do YouTube.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://www.youtube.com",
+        "https://www.youtube-nocookie.com",
+        "https://s.ytimg.com",
+        "https://www.googletagmanager.com"
+      ],
+      frameSrc: ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com"],
+      frameAncestors: ["'self'"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      connectSrc: [
+        "'self'",
+        "https://www.youtube.com",
+        "https://www.youtube-nocookie.com",
+        "https://noembed.com",
+        "https://lrclib.net",
+        "https://api.mymemory.translated.net",
+        "https://generativelanguage.googleapis.com",
+        "https://*.supabase.co",
+        "https://www.googletagmanager.com"
+      ],
+      mediaSrc: ["'self'", "blob:", "https://*.youtube.com"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"]
+    }
+  },
+  crossOriginEmbedderPolicy: false
 }));
-app.use(express.json());
+app.use(cors({ origin: resolveCorsOrigin, credentials: true }));
+app.use(express.json({
+  limit: process.env.JSON_BODY_LIMIT || '1mb',
+  verify: (req, _res, buf) => {
+    if (req.originalUrl === '/api/subscription/webhook') {
+      req.rawBody = Buffer.from(buf);
+    }
+  }
+}));
 
-// Session middleware for passport
+// Session + Passport
 app.use(session({
+  name: 'linguafire_session',
   secret: JWT_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+  cookie: {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: IS_PRODUCTION || BASE_URL.startsWith('https://'),
+    maxAge: 24 * 60 * 60 * 1000
+  }
 }));
-
-// Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Serve static files from public/dist
-app.use(express.static(path.join(__dirname, '../public/dist')));
+// Arquivos do frontend compilado. Durante a migracao, /legacy preserva o app antigo.
+app.use('/legacy', express.static(LEGACY_FRONTEND_DIR));
+app.use(express.static(ACTIVE_FRONTEND_DIR));
+app.use(express.static(LEGACY_FRONTEND_DIR, { index: false }));
 
-// Database setup
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'linguafire.db');
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) {
-    console.error('Erro ao conectar ao banco de dados:', err);
-  } else {
-    console.log('✅ Conectado ao banco de dados SQLite');
-    initDatabase();
-    initPassport();
-  }
-});
+app.use(createRequestLogger({ logger, monitoring }));
+app.use(createRateLimiter());
 
-// Initialize database tables
-function initDatabase() {
-  db.serialize(() => {
-    // Users table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        level INTEGER DEFAULT 1,
-        xp INTEGER DEFAULT 0,
-        streak INTEGER DEFAULT 0,
-        correct_answers INTEGER DEFAULT 0,
-        lessons_completed INTEGER DEFAULT 0,
-        english_level TEXT DEFAULT 'A1',
-        achievements TEXT DEFAULT '[]',
-        favorites TEXT DEFAULT '[]',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `, (err) => {
-      if (err) console.error('Erro ao criar tabela users:', err);
-      else console.log('✅ Tabela users criada');
-    });
+// ============ AUTH UTILS ============
+const { getCookieToken, setAuthCookie, clearAuthCookie } = require('./utils/auth');
 
-    // Daily progress table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS daily_progress (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        date TEXT NOT NULL,
-        xp_earned INTEGER DEFAULT 0,
-        lessons_done INTEGER DEFAULT 0,
-        streak_maintained INTEGER DEFAULT 0,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      )
-    `, (err) => {
-      if (err) console.error('Erro ao criar tabela daily_progress:', err);
-      else console.log('✅ Tabela daily_progress criada');
-    });
-  });
-}
-
-// Initialize Passport with Google OAuth
-function initPassport() {
-  passport.serializeUser((user, done) => {
-    done(null, user.id);
-  });
-
-  passport.deserializeUser((id, done) => {
-    db.get('SELECT * FROM users WHERE id = ?', [id], (err, user) => {
-      done(err, user);
-    });
-  });
-
-  passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: `${process.env.BASE_URL}/auth/google/callback`
-  }, (accessToken, refreshToken, profile, done) => {
-    const email = profile.emails[0].value;
-    const name = profile.displayName;
-    const googleId = profile.id;
-
-    db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
-      if (err) return done(err);
-      
-      if (user) {
-        return done(null, user);
-      }
-
-      db.run(
-        'INSERT INTO users (name, email, password, google_id) VALUES (?, ?, ?, ?)',
-        [name, email, '', googleId],
-        function(err) {
-          if (err) return done(err);
-          const newUser = { id: this.lastID, name, email, level: 1, xp: 0, streak: 0 };
-          return done(null, newUser);
-        }
-      );
-    });
-  }));
-}
-
-// Auth middleware
+// ============ AUTHENTICATE TOKEN ============
 function authenticateToken(req, res, next) {
+  const cookieToken = getCookieToken(req);
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const headerToken = authHeader && authHeader.split(' ')[1];
+  const token = cookieToken || headerToken;
 
   if (!token) {
     return res.status(401).json({ error: 'Token não fornecido' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Token inválido' });
-    }
+  require('jsonwebtoken').verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Token inválido' });
     req.user = user;
     next();
   });
 }
 
-// ============ AUTH ROUTES ============
+// ============ AI USAGE LIMIT ============
+const FREE_DAILY_LIMIT = 10;
 
-// Register
-app.post('/api/register', async (req, res) => {
-  const { name, email, password } = req.body;
-
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
-  }
-
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres' });
-  }
+async function checkAILimit(req, res, next) {
+  const today = new Date().toDateString();
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    db.run(
-      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-      [name, email, hashedPassword],
-      function(err) {
-        if (err) {
-          if (err.message.includes('UNIQUE constraint failed')) {
-            return res.status(400).json({ error: 'Este email já está cadastrado' });
-          }
-          return res.status(500).json({ error: 'Erro ao criar conta' });
-        }
+    const user = await supabaseGetUserById(req.user.id);
+    if (!user) return res.status(500).json({ error: 'Erro interno' });
 
-        const userId = this.lastID;
-        const token = jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: '7d' });
+    if (user.ai_uses_date !== today) {
+      await supabaseUpdateUser(req.user.id, { ai_uses_today: 0, ai_uses_date: today });
+      return next();
+    }
 
-        res.json({
-          success: true,
-          token,
-          user: {
-            id: userId,
-            name,
-            email,
-            level: 1,
-            xp: 0,
-            streak: 0,
-            correct_answers: 0,
-            lessons_completed: 0,
-            english_level: 'A1'
-          }
-        });
-      }
-    );
+    if (user.subscription_active && user.subscription_expires > Date.now()) {
+      return next();
+    }
+
+    if (user.ai_uses_today >= FREE_DAILY_LIMIT) {
+      return res.status(403).json({
+        error: 'limit_reached',
+        message: 'Limite diário de IA atingido',
+        uses: user.ai_uses_today,
+        limit: FREE_DAILY_LIMIT,
+        upgradeUrl: '/subscription'
+      });
+    }
+
+    await supabaseUpdateUser(req.user.id, { ai_uses_today: (user.ai_uses_today || 0) + 1 });
+    next();
   } catch (error) {
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    return res.status(500).json({ error: 'Erro interno' });
   }
+}
+
+// ============ HELPER FUNCTIONS ============
+function parseJsonField(value, fallback = []) {
+  if (value == null || value === '') return fallback;
+  if (Array.isArray(value) || typeof value === 'object') return value;
+  try { return JSON.parse(value); } catch (_e) { return fallback; }
+}
+
+function getBearerToken(req) {
+  const authorization = req.headers.authorization || '';
+  if (!authorization.toLowerCase().startsWith('bearer ')) return '';
+  return authorization.slice(7).trim();
+}
+
+// ============ AI SERVICES ============
+const { callMiniMaxChat } = createGeminiService({
+  geminiBaseUrl: GEMINI_BASE_URL,
+  geminiModel: GEMINI_MODEL,
+  openaiModelAlias: OPENAI_MODEL_ALIAS,
+  proxyTimeoutMs: PROXY_TIMEOUT_MS
 });
 
-// Login
-app.post('/api/login', (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email e senha são obrigatórios' });
-  }
-
-  db.get(
-    'SELECT * FROM users WHERE email = ?',
-    [email],
-    async (err, user) => {
-      if (err) {
-        return res.status(500).json({ error: 'Erro interno do servidor' });
-      }
-
-      if (!user) {
-        return res.status(401).json({ error: 'Email ou senha incorretos' });
-      }
-
-      const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) {
-        return res.status(401).json({ error: 'Email ou senha incorretos' });
-      }
-
-      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-
-      res.json({
-        success: true,
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          level: user.level,
-          xp: user.xp,
-          streak: user.streak,
-          correct_answers: user.correct_answers,
-          lessons_completed: user.lessons_completed,
-          english_level: user.english_level,
-          achievements: JSON.parse(user.achievements || '[]'),
-          favorites: JSON.parse(user.favorites || '[]')
-        }
-      });
-    }
-  );
+const agentTools = createAgentTools({
+  workspaceRoot: WORKSPACE_ROOT,
+  commandTimeoutMs: AGENT_CMD_TIMEOUT_MS,
+  deployTimeoutMs: DEPLOY_CMD_TIMEOUT_MS,
+  runningServers
 });
 
-// Get user profile
-app.get('/api/profile', authenticateToken, (req, res) => {
-  db.get(
-    'SELECT id, name, email, level, xp, streak, correct_answers, lessons_completed, english_level, achievements, favorites, created_at FROM users WHERE id = ?',
-    [req.user.id],
-    (err, user) => {
-      if (err) {
-        return res.status(500).json({ error: 'Erro interno do servidor' });
-      }
+// ============ ROUTES ============
+const { registerLyricsRoutes } = require('./routes/lyrics-routes');
+const { registerNativesRoutes } = require('./routes/natives-routes');
+const { setupAuthRoutes } = require('./routes/auth-routes');
+const { setupProfileRoutes } = require('./routes/profile-routes');
+const { setupSubscriptionRoutes } = require('./routes/subscription-routes');
+const { setupStreakRoutes } = require('./routes/streak-routes');
+const { setupShopRoutes } = require('./routes/shop-routes');
+const { setupFlashcardRoutes } = require('./routes/flashcard-routes');
+const { setupConversationRoutes, setupGrammarRoutes } = require('./routes/conversation-routes');
+const { setupPushRoutes } = require('./routes/push-routes');
+const { setupAIRoutes } = require('./routes/ai-routes');
+const { setupAgentRoutes } = require('./routes/agent-routes');
+const { setupGoogleAuthRoutes } = require('./routes/google-auth-routes');
+const { setupMiscRoutes } = require('./routes/misc-routes');
 
-      if (!user) {
-        return res.status(404).json({ error: 'Usuário não encontrado' });
-      }
-
-      res.json({
-        user: {
-          ...user,
-          achievements: JSON.parse(user.achievements || '[]'),
-          favorites: JSON.parse(user.favorites || '[]')
-        }
-      });
-    }
-  );
+// Auth routes (register, login, forgot-password, reset-password, session, logout)
+setupAuthRoutes(app, {
+  supabaseGetUserByEmail, supabaseGetUserById, supabaseCreateUser, supabaseGetUserByResetToken,
+  supabaseSetPasswordResetToken, supabaseResetPassword, JWT_SECRET, BASE_URL, IS_PRODUCTION, sendPasswordResetEmail, logger, supabase, parseJsonField
 });
 
-// Update user profile
-app.put('/api/profile', authenticateToken, (req, res) => {
-  const { name, level, xp, streak, correct_answers, lessons_completed, english_level, achievements, favorites } = req.body;
-
-  db.run(
-    `UPDATE users SET 
-      name = COALESCE(?, name),
-      level = COALESCE(?, level),
-      xp = COALESCE(?, xp),
-      streak = COALESCE(?, streak),
-      correct_answers = COALESCE(?, correct_answers),
-      lessons_completed = COALESCE(?, lessons_completed),
-      english_level = COALESCE(?, english_level),
-      achievements = COALESCE(?, achievements),
-      favorites = COALESCE(?, favorites)
-    WHERE id = ?`,
-    [name, level, xp, streak, correct_answers, lessons_completed, english_level, 
-     achievements ? JSON.stringify(achievements) : null,
-     favorites ? JSON.stringify(favorites) : null,
-     req.user.id],
-    (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Erro ao atualizar perfil' });
-      }
-      res.json({ success: true, message: 'Perfil atualizado com sucesso' });
-    }
-  );
+// Profile routes
+setupProfileRoutes(app, {
+  authenticateToken, supabaseGetUserById, supabaseUpdateUser, parseJsonField
 });
 
-// Change password
-app.put('/api/change-password', authenticateToken, async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'Senhas são obrigatórias' });
-  }
-
-  if (newPassword.length < 6) {
-    return res.status(400).json({ error: 'Nova senha deve ter pelo menos 6 caracteres' });
-  }
-
-  db.get('SELECT password FROM users WHERE id = ?', [req.user.id], async (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Erro interno do servidor' });
-    }
-
-    const validPassword = await bcrypt.compare(currentPassword, user.password);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Senha atual incorreta' });
-    }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, req.user.id], (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Erro ao alterar senha' });
-      }
-      res.json({ success: true, message: 'Senha alterada com sucesso' });
-    });
-  });
+// Subscription routes
+setupSubscriptionRoutes(app, {
+  authenticateToken,
+  supabaseGetUserById,
+  supabaseUpdateUser,
+  isProduction: IS_PRODUCTION,
+  allowFakeSubscriptions: process.env.ALLOW_FAKE_SUBSCRIPTIONS === 'true',
+  stripeService,
+  logger
 });
 
-// Delete account
-app.delete('/api/account', authenticateToken, (req, res) => {
-  db.run('DELETE FROM daily_progress WHERE user_id = ?', [req.user.id], (err) => {
-    if (err) console.error('Erro ao deletar progress:', err);
-    
-    db.run('DELETE FROM users WHERE id = ?', [req.user.id], (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Erro ao deletar conta' });
-      }
-      res.json({ success: true, message: 'Conta deletada com sucesso' });
-    });
-  });
+// Streak routes
+setupStreakRoutes(app, {
+  authenticateToken, supabaseGetUserById, supabaseGetUserRewards, supabaseAwardReward, supabaseUpdateUser, parseJsonField
 });
 
-// ============ GOOGLE AUTH ROUTES ============
-
-// Google Auth routes
-app.get('/auth/google', passport.authenticate('google', { 
-  scope: ['profile', 'email'],
-  prompt: 'select_account'
-}));
-
-app.get('/auth/google/callback', 
-  passport.authenticate('google', { failureRedirect: '/?error=auth_failed' }),
-  (req, res) => {
-    const user = req.user;
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    
-    res.redirect(`${process.env.BASE_URL}/?auth=success&token=${token}&userId=${user.id}`);
-  }
-);
-
-// Check if Google OAuth is configured
-app.get('/api/auth/google/configured', (req, res) => {
-  const configured = process.env.GOOGLE_CLIENT_ID && 
-                     process.env.GOOGLE_CLIENT_ID !== 'SUA_CLIENT_ID_DO_GOOGLE' &&
-                     process.env.GOOGLE_CLIENT_SECRET &&
-                     process.env.GOOGLE_CLIENT_SECRET !== 'SUA_CLIENT_SECRET_DO_GOOGLE';
-  res.json({ configured });
+// Shop routes
+setupShopRoutes(app, {
+  authenticateToken, supabaseGetUserById, supabaseUpdateUser, parseJsonField
 });
 
-// ============ STATS ROUTES ============
-
-// Get leaderboard
-app.get('/api/leaderboard', (req, res) => {
-  db.all(
-    'SELECT name, xp, level, streak FROM users ORDER BY xp DESC LIMIT 20',
-    [],
-    (err, users) => {
-      if (err) {
-        return res.status(500).json({ error: 'Erro ao buscar ranking' });
-      }
-      res.json({ leaderboard: users });
-    }
-  );
+// Flashcard routes
+setupFlashcardRoutes(app, {
+  authenticateToken, supabaseGetFlashcards, supabaseUpsertFlashcard
 });
 
-// Get user rank
-app.get('/api/rank', authenticateToken, (req, res) => {
-  db.get('SELECT xp FROM users WHERE id = ?', [req.user.id], (err, user) => {
-    if (err || !user) {
-      return res.status(500).json({ error: 'Erro interno' });
-    }
-
-    db.get('SELECT COUNT(*) + 1 as rank FROM users WHERE xp > ?', [user.xp], (err, result) => {
-      res.json({ rank: result.rank });
-    });
-  });
+// Conversation routes
+setupConversationRoutes(app, {
+  authenticateToken, checkAILimit, callMiniMaxChat, OPENAI_MODEL_ALIAS, AI_API_KEY: GEMINI_API_KEY
 });
 
-// Serve app for all other routes (must be last)
+// Grammar routes
+setupGrammarRoutes(app, {
+  authenticateToken, supabaseAddGrammarError, supabaseGetGrammarErrors, callMiniMaxChat, OPENAI_MODEL_ALIAS, AI_API_KEY: GEMINI_API_KEY, supabase
+});
+
+// Push routes
+setupPushRoutes(app, {
+  authenticateToken,
+  supabaseGetPushSubscription,
+  supabaseGetAllPushSubscriptions,
+  supabaseSavePushSubscription,
+  supabaseDeletePushSubscription,
+  pushService,
+  pushAdminToken: PUSH_ADMIN_TOKEN
+});
+
+// Lyrics routes
+registerLyricsRoutes(app, { logger, supabaseGetLyricsCache, supabaseUpsertLyricsCache });
+
+// Natives routes
+registerNativesRoutes(app, { supabaseGetNativesCache, supabaseUpsertNativesCache, logger });
+
+// Google OAuth routes
+setupGoogleAuthRoutes(app, {
+  passport,
+  GoogleStrategy,
+  jwtSecret: JWT_SECRET,
+  baseUrl: BASE_URL,
+  isProduction: IS_PRODUCTION,
+  getCookieToken,
+  setAuthCookie,
+  supabaseFindUserByGoogleOrEmail,
+  supabaseGetUserById,
+  supabaseCreateUser,
+  supabaseUpdateGoogleLink,
+  logger
+});
+
+// Misc public/profile routes
+setupMiscRoutes(app, {
+  authenticateToken,
+  clearAuthCookie,
+  aiProvider: 'gemini',
+  aiBaseUrl: GEMINI_BASE_URL,
+  aiModel: GEMINI_MODEL,
+  openaiModelAlias: OPENAI_MODEL_ALIAS,
+  activeFrontend: ACTIVE_FRONTEND_KIND,
+  supabase,
+  supabaseGetUserById,
+  supabaseDeleteUser,
+  monitoring
+});
+
+// OpenAI-compatible and agent routes
+
+setupAIRoutes(app, {
+  authenticateToken,
+  checkAILimit,
+  callMiniMaxChat,
+  getBearerToken,
+  aiApiKey: GEMINI_API_KEY,
+  openaiModelAlias: OPENAI_MODEL_ALIAS
+});
+
+setupAgentRoutes(app, {
+  callMiniMaxChat,
+  getBearerToken,
+  agentTools,
+  aiApiKey: GEMINI_API_KEY,
+  openaiModelAlias: OPENAI_MODEL_ALIAS,
+  agentMaxSteps: AGENT_MAX_STEPS,
+  port: PORT,
+  agentAdminToken: AGENT_ADMIN_TOKEN,
+  isProduction: IS_PRODUCTION
+});
+
+app.use((err, req, res, next) => {
+  monitoring.recordError(err, req);
+  if (res.headersSent) return next(err);
+  return res.status(500).json({ error: 'Erro interno do servidor' });
+});
+
+// ============ APP SHELL ============
 app.use((req, res) => {
-  res.sendFile(path.join(__dirname, '../public/dist/index.html'));
+  res.sendFile(path.join(ACTIVE_FRONTEND_DIR, 'index.html'));
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  console.log(`📱 Acesse em: http://localhost:${PORT}`);
-});
+// ============ START SERVER ============
+if (require.main === module) {
+  app.listen(PORT, HOST, () => {
+    logger.info('Servidor iniciado', {
+      port: PORT,
+      host: HOST,
+      url: `http://localhost:${PORT}`
+    });
+  });
+}
+
+module.exports = app;

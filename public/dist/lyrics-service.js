@@ -1,8 +1,10 @@
 // ==================== LYRICS SERVICE ====================
 // LRCLIB + Musixmatch fallback - sem IA para gerar letras
 
-const LRCLIB_BASE = 'https://lrclib.net/api/get';
-const LRCLIB_SEARCH = 'https://lrclib.net/api/search';
+const LRCLIB_BASE = '/api/lyrics/lrclib/get';
+const LRCLIB_SEARCH = '/api/lyrics/lrclib/search';
+const LYRICS_FIND = '/api/lyrics/find';
+const MIN_BACKEND_LYRICS_CONFIDENCE = 190;
 
 /**
  * Normaliza texto para busca (remove acentos, caracteres especiais, etc)
@@ -29,8 +31,8 @@ function parseYouTubeTitle(title) {
   let track = title;
   let artist = '';
   
-  // Tenta padrão "Artist - Track (Official Video)"
-  const dashMatch = title.match(/^(.+?)\s*-\s*(.+?)\s*[\(\[]/);
+  // Tenta padrão "Artist - Track" com ou sem sufixos
+  const dashMatch = title.match(/^(.+?)\s*-\s*(.+)$/);
   if (dashMatch) {
     artist = dashMatch[1].trim();
     track = dashMatch[2].trim();
@@ -54,52 +56,148 @@ function parseYouTubeTitle(title) {
   };
 }
 
+function normalizeYouTubeAuthorName(author = '') {
+  return String(author)
+    .replace(/\b(official|channel|music|records|vevo|topic)\b/gi, ' ')
+    .replace(/[-–—|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildReliableYouTubeMetadata(title = '', author = '') {
+  const parsed = parseYouTubeTitle(title);
+  const fallbackArtist = normalizeYouTubeAuthorName(author);
+
+  if (!parsed.artistOriginal && fallbackArtist) {
+    parsed.artistOriginal = fallbackArtist;
+    parsed.artist = normalizeForSearch(fallbackArtist);
+  }
+
+  return parsed;
+}
+
+function hasReliableYouTubeMetadata(parsed = {}) {
+  const track = normalizeForSearch(parsed.trackOriginal || parsed.track || '');
+  const artist = normalizeForSearch(parsed.artistOriginal || parsed.artist || '');
+
+  if (!track || !artist) return false;
+  if (artist.length < 3) return false;
+  if (/(unknown|topic|various artists)/i.test(artist)) return false;
+  if (track.length < 3) return false;
+  return true;
+}
+
+function overlapScore(baseText = '', candidateText = '') {
+  const baseWords = normalizeForSearch(baseText).split(' ').filter(Boolean);
+  const candidateWords = normalizeForSearch(candidateText).split(' ').filter(Boolean);
+  if (!baseWords.length || !candidateWords.length) return 0;
+  const matched = baseWords.filter(word => candidateWords.includes(word)).length;
+  return matched / baseWords.length;
+}
+
+function scoreLyricsCandidate(result, track, artist = '') {
+  const resultTrack = result?.trackName || result?.name || '';
+  const resultArtist = result?.artistName || result?.artist || '';
+  const normalizedTrack = normalizeForSearch(track);
+  const normalizedArtist = normalizeForSearch(artist);
+  const candidateTrack = normalizeForSearch(resultTrack);
+  const candidateArtist = normalizeForSearch(resultArtist);
+
+  let score = 0;
+
+  if (candidateTrack === normalizedTrack) score += 100;
+  else if (candidateTrack.includes(normalizedTrack) || normalizedTrack.includes(candidateTrack)) score += 70;
+  else score += overlapScore(normalizedTrack, candidateTrack) * 60;
+
+  if (normalizedArtist) {
+    if (candidateArtist === normalizedArtist) score += 80;
+    else if (candidateArtist.includes(normalizedArtist) || normalizedArtist.includes(candidateArtist)) score += 45;
+    else score += overlapScore(normalizedArtist, candidateArtist) * 35;
+  }
+
+  if (result?.syncedLyrics) score += 8;
+  if (result?.duration) score += 2;
+
+  return score;
+}
+
+function isReliableLyricsMatch(result, track, artist = '') {
+  const resultTrack = result?.trackName || result?.name || '';
+  const resultArtist = result?.artistName || result?.artist || '';
+  const normalizedTrack = normalizeForSearch(track);
+  const normalizedArtist = normalizeForSearch(artist);
+  const candidateTrack = normalizeForSearch(resultTrack);
+  const candidateArtist = normalizeForSearch(resultArtist);
+
+  const trackOverlap = overlapScore(normalizedTrack, candidateTrack);
+  const artistOverlap = normalizedArtist ? overlapScore(normalizedArtist, candidateArtist) : 1;
+
+  if (!candidateTrack || !normalizedTrack) return false;
+
+  const exactTrack =
+    candidateTrack === normalizedTrack ||
+    candidateTrack.includes(normalizedTrack) ||
+    normalizedTrack.includes(candidateTrack);
+
+  if (exactTrack && artistOverlap >= 0.65) return true;
+  if (trackOverlap >= 0.9 && artistOverlap >= 0.65) return true;
+  if (!normalizedArtist && trackOverlap >= 0.95) return true;
+
+  return false;
+}
+
+function normalizeLyricsPayload(data) {
+  if (!data) return null;
+
+  if (data.success === true) {
+    const confidence = Number(data.confidence || 0);
+    if (confidence < MIN_BACKEND_LYRICS_CONFIDENCE || !data.trackName || !data.artistName) {
+      return null;
+    }
+  }
+
+  if (data.syncedLyrics) {
+    return {
+      source: 'LRCLIB',
+      synced: true,
+      syncedLyrics: data.syncedLyrics,
+      plainLyrics: data.plainLyrics || null,
+      duration: data.duration,
+      trackName: data.trackName || '',
+      artistName: data.artistName || '',
+      confidence: Number(data.confidence || 0)
+    };
+  }
+
+  if (data.plainLyrics) {
+    return {
+      source: 'LRCLIB',
+      synced: false,
+      syncedLyrics: null,
+      plainLyrics: data.plainLyrics,
+      duration: data.duration,
+      trackName: data.trackName || '',
+      artistName: data.artistName || '',
+      confidence: Number(data.confidence || 0)
+    };
+  }
+
+  return null;
+}
+
 /**
  * Busca letra no LRCLIB por track e artist
  */
 async function fetchLyricsFromLRCLIB(track, artist = '') {
   try {
-    // Primeiro tenta busca por track + artist
-    let url = `${LRCLIB_BASE}?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(track)}`;
-    
-    let response = await fetch(url);
-    let data = null;
-    
-    // Se não encontrou, tenta só track
-    if (!response.ok) {
-      url = `${LRCLIB_SEARCH}?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(track)}`;
-      response = await fetch(url);
-      
-      if (response.ok) {
-        const results = await response.json();
-        if (results && results.length > 0) {
-          // Pega o primeiro resultado com maior similaridade
-          data = results[0];
-        }
-      }
-    } else {
-      data = await response.json();
-    }
-    
-    if (data && data.syncedLyrics) {
-      return {
-        source: 'LRCLIB',
-        synced: true,
-        syncedLyrics: data.syncedLyrics,
-        plainLyrics: data.plainLyrics || null,
-        duration: data.duration
-      };
-    } else if (data && data.plainLyrics) {
-      return {
-        source: 'LRCLIB',
-        synced: false,
-        syncedLyrics: null,
-        plainLyrics: data.plainLyrics,
-        duration: data.duration
-      };
-    }
-    
-    return null;
+    const url = `${LYRICS_FIND}?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(track)}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (!data?.success) return null;
+
+    return normalizeLyricsPayload(data);
   } catch (err) {
     console.warn('LRCLIB error:', err);
     return null;
@@ -184,8 +282,9 @@ async function fetchLyrics(track, artist = '', youtubeId = null) {
 /**
  * Wrapper para buscar letra de um vídeo YouTube
  */
-async function fetchLyricsForYouTube(youtubeId, videoTitle) {
-  const { track, artist } = parseYouTubeTitle(videoTitle);
+async function fetchLyricsForYouTube(youtubeId, videoTitle, channelName = '') {
+  const parsed = buildReliableYouTubeMetadata(videoTitle, channelName);
+  const { track, artist } = parsed;
   
   if (!track) {
     return {
@@ -193,8 +292,37 @@ async function fetchLyricsForYouTube(youtubeId, videoTitle) {
       reason: 'não consegui extrair o nome da música do título'
     };
   }
+
+  if (!hasReliableYouTubeMetadata(parsed)) {
+    return {
+      success: false,
+      reason: 'não consegui identificar com confiança artista e música pelo título do vídeo',
+      track,
+      artist
+    };
+  }
   
-  const result = await fetchLyrics(track, artist, youtubeId);
+  let result = null;
+  let backendReason = '';
+
+  try {
+    const url = `${LYRICS_FIND}?video_title=${encodeURIComponent(videoTitle || '')}&channel_name=${encodeURIComponent(channelName || '')}`;
+    const response = await fetch(url);
+    const data = await response.json().catch(() => null);
+    if (response.ok) {
+      if (data?.success) {
+        result = normalizeLyricsPayload(data);
+      }
+    } else if (data?.reason) {
+      backendReason = data.reason;
+    }
+  } catch (error) {
+    console.warn('Backend lyrics lookup error:', error);
+  }
+
+  if (!result) {
+    result = await fetchLyrics(track, artist, youtubeId);
+  }
   
   if (result) {
     return {
@@ -209,7 +337,7 @@ async function fetchLyricsForYouTube(youtubeId, videoTitle) {
   
   return {
     success: false,
-    reason: `letra não encontrada para "${track}"${artist ? ` de ${artist}` : ''}`,
+    reason: backendReason || `letra não encontrada para "${track}"${artist ? ` de ${artist}` : ''}`,
     track,
     artist
   };
@@ -222,7 +350,7 @@ async function translateText(text, from = 'en', to = 'pt') {
   if (!text || text.length > 500) return text;
   try {
     const encoded = encodeURIComponent(text);
-    const response = await fetch(`https://api.mymemory.translated.net/get?q=${encoded}&langpair=${from}|${to}`);
+    const response = await fetch(`/api/translate?q=${encoded}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
     if (response.ok) {
       const data = await response.json();
       if (data.responseStatus === 200 && data.responseData) {
@@ -250,7 +378,8 @@ async function convertToAppLyrics(lyricsResult, maxLines = 100) {
       return {
         en: text,
         pt: '', // Será preenchido depois
-        explain: `<em>Fonte: ${lyricsResult.source}</em>`
+        explain: `<em>Fonte: ${lyricsResult.source}</em>`,
+        time: typeof line === 'object' && typeof line.time === 'number' ? line.time : null
       };
     });
   
@@ -281,7 +410,8 @@ function convertToAppLyricsSync(lyricsResult, maxLines = 100) {
       return {
         en: text,
         pt: '', // Tradução será carregada depois
-        explain: `<em>Fonte: ${lyricsResult.source}</em>`
+        explain: `<em>Fonte: ${lyricsResult.source}</em>`,
+        time: typeof line === 'object' && typeof line.time === 'number' ? line.time : null
       };
     });
 }
@@ -304,6 +434,7 @@ window.LyricsService = {
   fetchLyrics,
   fetchLyricsForYouTube,
   parseYouTubeTitle,
+  buildReliableYouTubeMetadata,
   normalizeForSearch,
   convertToAppLyrics,
   convertToAppLyricsSync,

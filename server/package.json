@@ -4,21 +4,31 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "node index.js",
+    "check": "node --check *.js && node --check routes/*.js && node --check services/*.js && node --check middleware/*.js && node --check utils/*.js",
+    "test": "node --test",
+    "test:e2e": "RUN_PLAYWRIGHT_E2E=1 node --test test/e2e/*.test.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@supabase/supabase-js": "^2.103.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.0",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^9.0.5",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
-    "sqlite3": "^6.0.1"
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "playwright": "^1.60.0"
   }
 }

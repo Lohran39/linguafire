@@ -1,0 +1,17 @@
+{
+  "name": "LinguaFire",
+  "short_name": "LinguaFire",
+  "description": "Aprenda inglês que vicia",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#ff4d00",
+  "icons": [
+    {
+      "src": "/dist/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+import { useMemo, useState } from 'react';
+import { levelResults, placementQuestions, resolvePlacementLevel, type PlacementLevel } from '../data/placement';
+import { updateProfile, type UserProfile } from '../services/auth';
+
+type PlacementTabProps = {
+  user: UserProfile;
+  onProfileRefresh: (user: UserProfile) => void;
+};
+
+export function PlacementTab({ user, onProfileRefresh }: PlacementTabProps) {
+  const [started, setStarted] = useState(false);
+  const [index, setIndex] = useState(0);
+  const [correct, setCorrect] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [result, setResult] = useState<PlacementLevel | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const question = placementQuestions[index];
+  const progress = useMemo(() => Math.round((index / placementQuestions.length) * 100), [index]);
+
+  function start() {
+    setStarted(true);
+    setIndex(0);
+    setCorrect(0);
+    setSelected(null);
+    setResult(null);
+  }
+
+  async function answer(choiceIndex: number) {
+    if (selected !== null || !question) return;
+
+    const isCorrect = choiceIndex === question.correct;
+    const nextCorrect = correct + (isCorrect ? 1 : 0);
+    setSelected(choiceIndex);
+    setCorrect(nextCorrect);
+
+    window.setTimeout(async () => {
+      const nextIndex = index + 1;
+      if (nextIndex >= placementQuestions.length) {
+        const score = Math.round((nextCorrect / placementQuestions.length) * 100);
+        const level = resolvePlacementLevel(score);
+        setResult(level);
+        setStarted(false);
+        setIsSaving(true);
+        try {
+          await updateProfile({ english_level: level });
+          onProfileRefresh({ ...user, english_level: level });
+        } finally {
+          setIsSaving(false);
+        }
+        return;
+      }
+
+      setIndex(nextIndex);
+      setSelected(null);
+    }, 650);
+  }
+
+  if (result) {
+    const info = levelResults[result];
+    const score = Math.round((correct / placementQuestions.length) * 100);
+    return (
+      <section className="placement-layout result" aria-label="Resultado do nivelamento">
+        <p className="kicker">Resultado</p>
+        <h1 style={{ color: info.color }}>{info.name}</h1>
+        <p className="lead">{info.desc}</p>
+        <div className="placement-score">
+          <article>
+            <span>{correct}</span>
+            <strong>Acertos</strong>
+          </article>
+          <article>
+            <span>{score}%</span>
+            <strong>Score</strong>
+          </article>
+          <article>
+            <span>{isSaving ? '...' : 'OK'}</span>
+            <strong>Salvo</strong>
+          </article>
+        </div>
+        <button className="primary-button" type="button" onClick={start}>
+          Refazer teste
+        </button>
+      </section>
+    );
+  }
+
+  if (!started) {
+    return (
+      <section className="placement-layout" aria-label="Teste de nivelamento">
+        <p className="kicker">Nivelamento</p>
+        <h1>Descubra seu nível de inglês</h1>
+        <p className="lead">Responda 15 perguntas rápidas. O resultado será salvo no seu perfil.</p>
+        <div className="placement-current">
+          <span>{user.english_level || 'A1'}</span>
+          <strong>Nível atual</strong>
+        </div>
+        <button className="primary-button" type="button" onClick={start}>
+          Começar teste
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="placement-layout active" aria-label="Pergunta de nivelamento">
+      <div className="progress-track" aria-label={`Progresso ${progress}%`}>
+        <div style={{ width: `${progress}%` }} />
+      </div>
+      <div className="placement-count">
+        {index + 1}/{placementQuestions.length}
+      </div>
+      <span className="placement-badge">{question.level}</span>
+      <h1>{question.text}</h1>
+      {question.hint && <p className="lead">{question.hint}</p>}
+      <div className="placement-choices">
+        {question.choices.map((choice, choiceIndex) => {
+          const isSelected = selected === choiceIndex;
+          const isCorrect = selected !== null && choiceIndex === question.correct;
+          return (
+            <button
+              className={`${isSelected ? 'selected' : ''} ${isCorrect ? 'correct' : ''}`}
+              disabled={selected !== null}
+              key={choice}
+              type="button"
+              onClick={() => answer(choiceIndex)}
+            >
+              {choice}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}

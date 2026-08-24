@@ -100,10 +100,16 @@
 <div class="screen" id="app">
   <div class="topbar">
     <div class="topbar-logo">🔥 LinguaFire</div>
-    <div class="topbar-stats">
+    <div class="topbar-actions">
+      <button class="theme-toggle" id="themeToggleBtn" type="button" aria-label="Alternar tema">
+        <span class="theme-toggle-icon" id="themeToggleIcon">🌙</span>
+        <span class="theme-toggle-text" id="themeToggleText">Tema padrao</span>
+      </button>
+      <div class="topbar-stats">
       <div class="stat-pill">🔥 <span id="streakCount">0</span></div>
       <div class="stat-pill">⚡ <span id="xpCount">0</span></div>
       <div class="stat-pill">❤️ <span id="livesCount">5</span></div>
+      </div>
     </div>
   </div>
   <div class="xp-bar-wrap">
@@ -174,12 +180,7 @@
           <button class="btn-pink" id="searchSongBtn" type="button">🔍</button>
         </div>
         <div class="section-title section-title-top-md">✨ Sugestões</div>
-        <div id="suggestions">
-          <div class="sugg-card" data-action="load-suggestion" data-song-key="blinding-lights"><div class="sugg-thumb">🌃</div><div class="sugg-meta"><div class="sugg-title">Blinding Lights</div><div class="sugg-artist">The Weeknd • Intermediário</div></div><span class="sugg-arrow">▶</span></div>
-          <div class="sugg-card" data-action="load-suggestion" data-song-key="shape-of-you"><div class="sugg-thumb">🎸</div><div class="sugg-meta"><div class="sugg-title">Shape of You</div><div class="sugg-artist">Ed Sheeran • Iniciante</div></div><span class="sugg-arrow">▶</span></div>
-          <div class="sugg-card" data-action="load-suggestion" data-song-key="someone-like-you"><div class="sugg-thumb">🎹</div><div class="sugg-meta"><div class="sugg-title">Someone Like You</div><div class="sugg-artist">Adele • Intermediário</div></div><span class="sugg-arrow">▶</span></div>
-          <div class="sugg-card" data-action="load-suggestion" data-song-key="stay"><div class="sugg-thumb">🎤</div><div class="sugg-meta"><div class="sugg-title">Stay</div><div class="sugg-artist">The Kid LAROI & Bieber • Iniciante</div></div><span class="sugg-arrow">▶</span></div>
-        </div>
+        <div id="suggestions"></div>
       </div>
       <div id="music-favs-panel" class="is-hidden">
         <div id="favsList"></div>
@@ -191,6 +192,7 @@
           <div class="player-btns">
             <button class="player-btn" id="favBtn" type="button">❤️ Salvar</button>
             <button class="player-btn quiz-btn" id="musicQuizBtn" type="button">⚡ Quiz</button>
+            <button class="player-btn" id="musicKaraokeBtn" type="button">🎤 Karaokê</button>
           </div>
         </div>
         <div class="video-wrap" id="videoWrap"><div class="video-placeholder"><div class="vp-icon">🎵</div><p class="video-status">Carregando...</p></div></div>
@@ -199,13 +201,96 @@
             <h3>📜 Letra</h3>
             <div class="lyrics-toggle">
               <button class="ltog active" id="tog-en" type="button" data-action="set-lyric-mode" data-lyric-mode="en">EN</button>
-              <button class="ltog" id="tog-pt" type="button" data-action="set-lyric-mode" data-lyric-mode="pt">PT</button>
               <button class="ltog" id="tog-both" type="button" data-action="set-lyric-mode" data-lyric-mode="both">EN+PT</button>
             </div>
           </div>
           <div class="lyrics-body" id="lyricsBody"></div>
         </div>
         <button class="btn-secondary btn-block btn-bottom-gap" id="closeMusicPlayerBtn" type="button">← Voltar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASHCARD TAB -->
+  <div class="tab-content" id="flashcard-tab">
+    <div class="content">
+      <div class="section-title section-title-top-lg">🃏 Flashcards</div>
+      <div id="srStats" class="backup-card"></div>
+      <button class="btn-fire btn-block" id="srStartBtn" type="button">Começar revisão</button>
+      <div id="srCard" class="backup-card is-hidden">
+        <h3 id="srWord"></h3>
+        <p id="srTranslation" class="is-hidden"></p>
+        <button class="btn-secondary btn-block" id="srRevealBtn" type="button">Revelar resposta</button>
+        <div class="quick-play-grid" id="srQualityBtns">
+          <button class="quick-card sr-q-btn" type="button" data-quality="1">Difícil</button>
+          <button class="quick-card sr-q-btn" type="button" data-quality="3">Ok</button>
+          <button class="quick-card sr-q-btn" type="button" data-quality="4">Bom</button>
+          <button class="quick-card sr-q-btn" type="button" data-quality="5">Fácil</button>
+        </div>
+      </div>
+      <div id="srDone" class="empty-state is-hidden">
+        <div class="empty-state-title">Sessão concluída</div>
+        <button class="btn-secondary btn-block" id="srDoneBackBtn" type="button">Voltar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOP TAB -->
+  <div class="tab-content" id="shop-tab">
+    <div class="content">
+      <div class="section-title section-title-top-lg">🛒 Loja</div>
+      <div id="shopList"></div>
+      <div id="shopMessage" class="toast"></div>
+    </div>
+  </div>
+
+  <!-- CONVERSATION TAB -->
+  <div class="tab-content" id="conversation-tab">
+    <div class="content">
+      <button class="btn-ghost btn-block" id="convBackBtn" type="button">← Voltar</button>
+      <div class="section-title section-title-top-lg">💬 Conversar</div>
+      <div id="convTopics"></div>
+      <div id="convMessages"></div>
+      <div class="search-row">
+        <input class="music-input" id="convInput" placeholder="Type your answer in English..."/>
+        <button class="btn-pink" id="convSendBtn" type="button">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUESTS TAB -->
+  <div class="tab-content" id="quests-tab">
+    <div class="content">
+      <div class="section-title section-title-top-lg">🎯 Missões</div>
+      <div class="music-tabs">
+        <button class="mtab active" type="button" data-action="switch-quest-tab" data-tab="daily">Diárias</button>
+        <button class="mtab" type="button" data-action="switch-quest-tab" data-tab="weekly">Semanais</button>
+      </div>
+      <div id="questsList"></div>
+    </div>
+  </div>
+
+  <!-- NATIVES TAB -->
+  <div class="tab-content" id="natives-tab">
+    <div class="content">
+      <div class="section-title section-title-top-lg">🎬 Nativos</div>
+      <div id="nativesSearchArea">
+        <span class="input-label">Expressão em inglês</span>
+        <input class="music-input" id="nativesInput" placeholder="Ex: look forward to"/>
+        <select class="music-input" id="nativesLang">
+          <option value="english">English</option>
+          <option value="english-us">American English</option>
+          <option value="english-uk">British English</option>
+        </select>
+        <button class="btn-pink btn-block" id="nativesSearchBtn" type="button">Buscar</button>
+        <div id="nativesSugTags" class="card-tags"></div>
+      </div>
+      <div id="nativesResult" class="natives-result is-hidden">
+        <div class="player-top">
+          <div class="player-info"><h2 id="nativesResultWord"></h2><p>Contexto real em vídeo curto</p></div>
+          <button class="player-btn" id="nativesNewSearchBtn" type="button">Nova busca</button>
+        </div>
+        <div id="yg-widget"></div>
       </div>
     </div>
   </div>
@@ -236,12 +321,10 @@
       </div>
       <div class="section-title">🏅 Conquistas</div>
       <div class="achievements-grid" id="achievementsList"></div>
-      <div class="section-title">💾 Backup</div>
+      <div class="section-title">🔐 Sessão</div>
       <div class="backup-card">
-        <div class="backup-copy">Exporte seu progresso em <strong class="text-strong">.json</strong> para nunca perder nada.</div>
-        <button class="action-btn action-btn-success" id="exportProgressBtn" type="button">📥 Exportar progresso</button>
-        <label class="action-btn action-btn-info" for="importProgressInput">📤 Importar progresso</label>
-        <input type="file" accept=".json" id="importProgressInput" class="visually-hidden"/>
+        <div class="backup-copy">Seu progresso e salvo automaticamente na conta enquanto voce usa o app.</div>
+        <button class="action-btn action-btn-danger" id="logoutBtn" type="button">🚪 Sair da conta</button>
       </div>
       <div class="spacer-lg"></div>
     </div>
@@ -250,6 +333,11 @@
   <div class="bottom-nav">
     <button class="nav-item active" id="nav-home" type="button" data-action="switch-tab" data-tab="home"><span class="nav-icon">🏠</span><span>Início</span></button>
     <button class="nav-item" id="nav-music" type="button" data-action="switch-tab" data-tab="music"><span class="nav-icon">🎵</span><span>Música</span></button>
+    <button class="nav-item" id="nav-flashcard" type="button" data-action="switch-tab" data-tab="flashcard"><span class="nav-icon">🃏</span><span>Flash</span></button>
+    <button class="nav-item" id="nav-conversation" type="button" data-action="switch-tab" data-tab="conversation"><span class="nav-icon">💬</span><span>Conversar</span></button>
+    <button class="nav-item" id="nav-natives" type="button" data-action="switch-tab" data-tab="natives"><span class="nav-icon">🎬</span><span>Nativos</span></button>
+    <button class="nav-item" id="nav-shop" type="button" data-action="switch-tab" data-tab="shop"><span class="nav-icon">🛒</span><span>Loja</span></button>
+    <button class="nav-item" id="nav-quests" type="button" data-action="switch-tab" data-tab="quests"><span class="nav-icon">🎯</span><span>Missões</span></button>
     <button class="nav-item" id="nav-ranking" type="button" data-action="switch-tab" data-tab="ranking"><span class="nav-icon">🏆</span><span>Ranking</span></button>
     <button class="nav-item" id="nav-profile" type="button" data-action="switch-tab" data-tab="profile"><span class="nav-icon">👤</span><span>Perfil</span></button>
   </div>
@@ -319,8 +407,22 @@
 <div class="streak-toast" id="streakToast">🔥 Ofensiva!</div>
 <div class="toast" id="toast"></div>
 
+<script src="./app-utils.js"></script>
 <script src="./lyrics-service.js"></script>
 <script src="./auth-service.js"></script>
+<script src="./auth-module.js"></script>
+<script src="./music-module.js"></script>
+<script src="./music-player-module.js"></script>
+<script src="./lesson-module.js"></script>
+<script src="./placement-module.js"></script>
+<script src="./natives-module.js"></script>
+<script src="./runtime-module.js"></script>
+<script src="./home-module.js"></script>
+<script src="./profile-module.js"></script>
+<script src="./conversation-module.js"></script>
+<script src="./practice-module.js"></script>
+<script src="./shop-module.js"></script>
+<script src="./notifications-module.js"></script>
 <script src="./app.js"></script>
 <script src="./iframe-highlight.js"></script>
 </body>

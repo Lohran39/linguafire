@@ -4,7 +4,19 @@
   "description": "Plataforma de inglês gamificada",
   "main": "server/index.js",
   "scripts": {
-    "start": "node server/index.js"
+    "dev": "npm run dev:client",
+    "dev:client": "npm --prefix client run dev",
+    "dev:server": "npm --prefix server run dev",
+    "build": "npm run build:client",
+    "build:client": "npm --prefix client run build",
+    "preview": "npm run preview:client",
+    "preview:client": "npm --prefix client run preview",
+    "start": "npm --prefix server start",
+    "check": "npm --prefix server run check",
+    "test": "npm --prefix server test",
+    "test:e2e": "npm --prefix server run test:e2e",
+    "verify": "npm run build && npm run check && npm test",
+    "release:check": "npm run verify && npm run test:e2e"
   },
   "keywords": [],
   "author": "",
