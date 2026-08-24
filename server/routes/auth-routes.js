@@ -34,6 +34,7 @@ function setupAuthRoutes(app, deps = {}) {
         if (result.error.includes('UNIQUE') || result.error.includes('duplicate')) {
           return res.status(400).json({ error: 'Este email já está cadastrado' });
         }
+        logger.error?.('Failed to create Supabase user', { error: result.error });
         return res.status(500).json({ error: 'Erro ao criar conta' });
       }
 
@@ -63,6 +64,7 @@ function setupAuthRoutes(app, deps = {}) {
         }
       });
     } catch (error) {
+      logger.error?.('Unexpected register error', { error: error.message });
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
   });
