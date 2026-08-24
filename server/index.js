@@ -75,6 +75,10 @@ const ALLOWED_CORS_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:3000
   .map(origin => origin.trim())
   .filter(Boolean);
 
+if (BASE_URL) {
+  ALLOWED_CORS_ORIGINS.push(BASE_URL.replace(/\/$/, ''));
+}
+
 function resolveCorsOrigin(origin, callback) {
   if (!origin || ALLOWED_CORS_ORIGINS.includes(origin)) {
     callback(null, true);
