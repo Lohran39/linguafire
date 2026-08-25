@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, forgotPasswordSchema, validateBody } = require('../validation');
 const { getCookieToken, setAuthCookie, clearAuthCookie } = require('../utils/auth');
+const { verifyEmailCanReceiveMail: defaultVerifyEmailCanReceiveMail } = require('../utils/email-verifier');
 
 const router = express.Router();
 
@@ -19,7 +20,8 @@ function setupAuthRoutes(app, deps = {}) {
     IS_PRODUCTION = false,
     sendPasswordResetEmail = async () => {},
     logger = console,
-    parseJsonField = (value, fallback) => fallback
+    parseJsonField = (value, fallback) => fallback,
+    verifyEmailCanReceiveMail = defaultVerifyEmailCanReceiveMail
   } = deps;
 
   // Register
@@ -27,6 +29,11 @@ function setupAuthRoutes(app, deps = {}) {
     const { name, email, password } = req.validatedBody;
 
     try {
+      const canReceiveMail = await verifyEmailCanReceiveMail(email);
+      if (!canReceiveMail) {
+        return res.status(400).json({ error: 'Use um email valido que consiga receber mensagens.' });
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
       const result = await supabaseCreateUser({ name, email, password: hashedPassword });
 

@@ -96,6 +96,7 @@ test('register endpoint returns complete default profile shape', async () => {
   setupAuthRoutes(app, {
     JWT_SECRET: 'unit-test-secret',
     parseJsonField,
+    verifyEmailCanReceiveMail: async () => true,
     supabaseCreateUser: async ({ name, email, password }) => ({
       data: { id: 'new-user', name, email, password },
       error: null
@@ -122,6 +123,38 @@ test('register endpoint returns complete default profile shape', async () => {
     assert.equal(body.user.has_free_hint, 0);
     assert.equal(body.user.xp_multiplier, 1);
     assert.equal(body.user.xp_multiplier_until, 0);
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('register endpoint rejects email domains that cannot receive mail', async () => {
+  const app = express();
+  app.use(express.json());
+  let createUserCalled = false;
+
+  setupAuthRoutes(app, {
+    JWT_SECRET: 'unit-test-secret',
+    parseJsonField,
+    verifyEmailCanReceiveMail: async () => false,
+    supabaseCreateUser: async () => {
+      createUserCalled = true;
+      return { data: { id: 'should-not-create' }, error: null };
+    }
+  });
+
+  const { server, baseUrl } = await startTestServer(app);
+  try {
+    const response = await fetch(`${baseUrl}/api/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'New User', email: 'new@invalid.test', password: 'secret123' })
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error, 'Use um email valido que consiga receber mensagens.');
+    assert.equal(createUserCalled, false);
   } finally {
     await stopTestServer(server);
   }
