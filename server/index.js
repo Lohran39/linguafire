@@ -181,7 +181,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    sameSite: 'strict',
+    sameSite: 'lax',
     secure: IS_PRODUCTION || BASE_URL.startsWith('https://'),
     maxAge: 24 * 60 * 60 * 1000
   }

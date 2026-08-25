@@ -364,6 +364,7 @@ export function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [resetToken, setResetToken] = useState('');
+  const [authNotice, setAuthNotice] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -377,6 +378,23 @@ export function App() {
           setResetToken(token);
           setScreen('reset');
           return;
+        }
+
+        const authError = params.get('error') || '';
+        if (authError === 'google_oauth_not_configured') {
+          setAuthNotice('Login com Google ainda nao esta configurado.');
+          window.history.replaceState({}, '', '/');
+        } else if (authError === 'auth_failed') {
+          setAuthNotice('Nao foi possivel entrar com Google.');
+          window.history.replaceState({}, '', '/');
+        } else if (authError === 'google_link_failed') {
+          setAuthNotice('Nao foi possivel vincular sua conta Google.');
+          window.history.replaceState({}, '', '/');
+        } else if (authError === 'google_already_linked') {
+          setAuthNotice('Esta conta Google ja esta vinculada a outro usuario.');
+          window.history.replaceState({}, '', '/');
+        } else if (params.get('auth') === 'success') {
+          window.history.replaceState({}, '', '/');
         }
 
         const session = await getSession();
@@ -504,6 +522,7 @@ export function App() {
             Criar conta
           </button>
         </div>
+        {authNotice && <div className="form-error">{authNotice}</div>}
       </section>
     </main>
   );

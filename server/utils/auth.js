@@ -10,7 +10,7 @@ function setAuthCookie(res, token) {
   const isProd = process.env.NODE_ENV === 'production';
   const cookieOptions = [
     'HttpOnly',
-    'SameSite=Strict',
+    'SameSite=Lax',
     'Path=/',
     'Max-Age=604800'
   ];
@@ -25,7 +25,7 @@ function setAuthCookie(res, token) {
 function clearAuthCookie(res) {
   const cookieOptions = [
     'HttpOnly',
-    'SameSite=Strict',
+    'SameSite=Lax',
     'Path=/',
     'Max-Age=0'
   ];
