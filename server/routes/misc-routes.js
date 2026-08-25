@@ -29,7 +29,8 @@ function setupMiscRoutes(app, deps = {}) {
     supabase,
     supabaseGetUserById,
     supabaseDeleteUser,
-    monitoring
+    monitoring,
+    supabaseKeyRole = 'unknown'
   } = deps;
 
   app.get('/api/leaderboard', async (_req, res) => {
@@ -84,6 +85,7 @@ function setupMiscRoutes(app, deps = {}) {
       ai_model: providerModel,
       minimax_base: providerBaseUrl,
       minimax_model: providerModel,
+      supabase_key_role: supabaseKeyRole,
       frontend: activeFrontend,
       monitoring: monitoring?.snapshot?.() || null
     });

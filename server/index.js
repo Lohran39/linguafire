@@ -46,6 +46,16 @@ const monitoring = createMonitoringService({ logger });
 const stripeService = createStripeService(process.env);
 const pushService = createPushService(process.env, logger);
 
+function getJwtRole(token = '') {
+  try {
+    const [, payload] = String(token).split('.');
+    if (!payload) return 'invalid';
+    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')).role || 'unknown';
+  } catch (_error) {
+    return 'invalid';
+  }
+}
+
 if (IS_PRODUCTION && JWT_SECRET === 'linguafire-super-secret-key-2024') {
   throw new Error('JWT_SECRET inseguro em produção. Defina uma chave aleatória grande no ambiente.');
 }
@@ -380,7 +390,8 @@ setupMiscRoutes(app, {
   supabase,
   supabaseGetUserById,
   supabaseDeleteUser,
-  monitoring
+  monitoring,
+  supabaseKeyRole: getJwtRole(process.env.SUPABASE_SERVICE_ROLE_KEY || '')
 });
 
 // OpenAI-compatible and agent routes
