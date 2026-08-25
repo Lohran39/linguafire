@@ -35,7 +35,7 @@ function setupAuthRoutes(app, deps = {}) {
           return res.status(400).json({ error: 'Este email já está cadastrado' });
         }
         logger.error?.('Failed to create Supabase user', { error: result.error });
-        return res.status(500).json({ error: 'Erro ao criar conta' });
+        return res.status(500).json({ error: 'Erro ao criar conta', detail: result.error });
       }
 
       const userId = result.data.id;
