@@ -45,6 +45,22 @@ CREATE TABLE IF NOT EXISTS public.users (
 
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAULT '';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT DEFAULT '';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS google_id TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT 'default';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS lives INTEGER DEFAULT 5;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS xp_multiplier INTEGER DEFAULT 1;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS xp_multiplier_until INTEGER DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_quest_reset TEXT DEFAULT '';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_active INTEGER DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_expires INTEGER DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS ai_uses_today INTEGER DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS ai_uses_date TEXT DEFAULT '';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS titles TEXT DEFAULT '[]';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS active_title TEXT DEFAULT '';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS streak_freeze_active INTEGER DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS has_free_hint INTEGER DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_reset_token TEXT DEFAULT '';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_reset_expires INTEGER DEFAULT 0;
 
 -- ============================================
 -- DAILY PROGRESS TABLE
