@@ -122,9 +122,9 @@ a {
 .splash-screen::before {
   content: '';
   position: absolute;
-  inset: 24% 8% 25%;
-  opacity: 0.26;
-  background: url('/assets/world-map-dots.svg') center / contain no-repeat;
+  inset: 23% 3% 24%;
+  opacity: 0.34;
+  background: url('/assets/world-map-dots.png') center / contain no-repeat;
   pointer-events: none;
 }
 
@@ -2535,8 +2535,8 @@ body[data-theme='light'] .placement-layout.result {
   }
 
   .splash-screen::before {
-    inset: 23% 1rem 24%;
-    opacity: 0.22;
+    inset: 24% -7rem 25%;
+    opacity: 0.26;
   }
 
   .splash-flag {
@@ -2795,8 +2795,8 @@ body[data-theme='light'] .placement-layout.result {
   }
 
   .splash-screen::before {
-    inset: 22% -5rem 26%;
-    opacity: 0.18;
+    inset: 23% -8rem 27%;
+    opacity: 0.22;
   }
 
   .splash-screen .hero {
