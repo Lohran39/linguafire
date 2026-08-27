@@ -502,12 +502,12 @@ export function App() {
       <section className="hero" aria-labelledby="hero-title">
         <div className="brand-mark">LF</div>
         <h1 id="hero-title">LinguaFire</h1>
-        <p className="kicker">Ingles que vicia</p>
+        <p className="kicker">Inglês que vicia</p>
         <h2>
-          Aprenda ingles com <span>musica</span>, contexto real e pratica diaria
+          Aprenda inglês com <span>música</span>, contexto real e prática diária
         </h2>
         <p className="lead">
-          Uma experiencia em React + TypeScript para estudar com licoes curtas, musica, flashcards, conversas e contexto real.
+          Uma experiência em React + TypeScript para estudar com lições curtas, música, flashcards, conversas e contexto real.
         </p>
 
         <div className="highlight-grid">
@@ -522,7 +522,7 @@ export function App() {
 
         <div className="actions">
           <button className="primary-button" type="button" onClick={() => setScreen('login')}>
-            Comecar agora
+            Começar agora
           </button>
         </div>
         {authNotice && <div className="form-error">{authNotice}</div>}
