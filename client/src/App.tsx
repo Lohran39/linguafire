@@ -141,7 +141,7 @@ function AuthForm({
           </button>
         )}
         <button className="google-button" type="button" onClick={() => loginWithGoogle('login')}>
-          <span>G</span>
+          <img src="/assets/google-g.svg" alt="" aria-hidden="true" />
           {isLogin ? 'Entrar com Google' : 'Criar conta com Google'}
         </button>
         <button className="secondary-button" type="button" onClick={onSwitch}>
