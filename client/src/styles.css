@@ -476,9 +476,7 @@ h2 span {
 }
 
 .splash-flag-us span {
-  background:
-    linear-gradient(90deg, #283e73 0 42%, transparent 42%),
-    repeating-linear-gradient(180deg, #be2638 0 10%, #f3efe5 10% 20%);
+  background: url('/assets/flag-us.svg') center / cover no-repeat;
 }
 
 @media (max-height: 840px) and (min-width: 681px) {
