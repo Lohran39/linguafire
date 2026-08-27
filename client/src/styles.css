@@ -122,13 +122,9 @@ a {
 .splash-screen::before {
   content: '';
   position: absolute;
-  inset: 15% 8% 22%;
-  opacity: 0.18;
-  background:
-    radial-gradient(circle at 28% 46%, rgb(198 232 222 / 72%) 0 1.6px, transparent 1.8px),
-    radial-gradient(circle at 72% 48%, rgb(198 232 222 / 72%) 0 1.6px, transparent 1.8px);
-  background-size: 9px 9px, 9px 9px;
-  clip-path: polygon(4% 28%, 21% 19%, 34% 30%, 40% 50%, 32% 68%, 17% 62%, 7% 48%, 56% 25%, 78% 18%, 94% 32%, 90% 58%, 76% 70%, 58% 58%);
+  inset: 24% 8% 25%;
+  opacity: 0.26;
+  background: url('/assets/world-map-dots.svg') center / contain no-repeat;
   pointer-events: none;
 }
 
@@ -2539,7 +2535,8 @@ body[data-theme='light'] .placement-layout.result {
   }
 
   .splash-screen::before {
-    inset: 20% 0 24%;
+    inset: 23% 1rem 24%;
+    opacity: 0.22;
   }
 
   .splash-flag {
@@ -2795,6 +2792,11 @@ body[data-theme='light'] .placement-layout.result {
 
   .splash-screen {
     padding: 4.25rem 0.75rem 0.75rem;
+  }
+
+  .splash-screen::before {
+    inset: 22% -5rem 26%;
+    opacity: 0.18;
   }
 
   .splash-screen .hero {
