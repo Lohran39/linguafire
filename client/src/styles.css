@@ -52,6 +52,14 @@ body[data-theme='light'] .auth-screen {
     var(--bg);
 }
 
+body[data-theme='light'] .splash-screen {
+  background:
+    radial-gradient(ellipse 44% 38% at 50% 38%, rgb(0 199 255 / 14%), transparent 72%),
+    radial-gradient(ellipse 24% 28% at 14% 24%, rgb(0 212 255 / 18%), transparent 70%),
+    radial-gradient(ellipse 24% 28% at 86% 24%, rgb(0 212 255 / 18%), transparent 70%),
+    linear-gradient(180deg, #053342 0%, #052432 42%, #03121b 100%);
+}
+
 body[data-theme='light'] .auth-screen {
   background:
     linear-gradient(90deg, rgb(0 0 0 / 12%), rgb(0 0 0 / 2%) 35%, rgb(0 0 0 / 2%) 65%, rgb(0 0 0 / 18%)),
@@ -96,6 +104,27 @@ a {
   background:
     radial-gradient(ellipse 150% 80% at 50% 0%, #3a1200, #1a0800 55%, #0d0505 100%),
     var(--bg);
+}
+
+.splash-screen {
+  background:
+    radial-gradient(ellipse 44% 38% at 50% 38%, rgb(0 199 255 / 14%), transparent 72%),
+    radial-gradient(ellipse 24% 28% at 14% 24%, rgb(0 212 255 / 18%), transparent 70%),
+    radial-gradient(ellipse 24% 28% at 86% 24%, rgb(0 212 255 / 18%), transparent 70%),
+    linear-gradient(180deg, #053342 0%, #052432 42%, #03121b 100%);
+}
+
+.splash-screen::before {
+  content: '';
+  position: absolute;
+  inset: 15% 8% 22%;
+  opacity: 0.18;
+  background:
+    radial-gradient(circle at 28% 46%, rgb(198 232 222 / 72%) 0 1.6px, transparent 1.8px),
+    radial-gradient(circle at 72% 48%, rgb(198 232 222 / 72%) 0 1.6px, transparent 1.8px);
+  background-size: 9px 9px, 9px 9px;
+  clip-path: polygon(4% 28%, 21% 19%, 34% 30%, 40% 50%, 32% 68%, 17% 62%, 7% 48%, 56% 25%, 78% 18%, 94% 32%, 90% 58%, 76% 70%, 58% 58%);
+  pointer-events: none;
 }
 
 .auth-screen {
@@ -175,6 +204,51 @@ a {
   z-index: 1;
   width: min(100%, 720px);
   text-align: center;
+}
+
+.splash-screen .hero {
+  width: min(100%, 760px);
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.splash-screen .brand-mark {
+  margin-bottom: 0.15rem;
+  font-size: clamp(3.7rem, 9vw, 5.4rem);
+  color: #ffc3a4;
+}
+
+.splash-screen h1 {
+  font-size: clamp(3.1rem, 8vw, 6.1rem);
+  letter-spacing: 0;
+  text-shadow: 0 0 28px rgb(255 77 0 / 24%);
+}
+
+.splash-screen .kicker {
+  margin-top: 0.12rem;
+  color: #c9dedb;
+  font-size: clamp(0.62rem, 1.5vw, 0.78rem);
+  letter-spacing: 0.1em;
+}
+
+.splash-screen h2 {
+  max-width: 600px;
+  margin-top: clamp(1.3rem, 3.2vw, 2rem);
+  color: #fff;
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: 0.98;
+  text-shadow: 0 4px 18px rgb(0 0 0 / 42%);
+}
+
+.splash-screen h2 span {
+  color: var(--fire-2);
+}
+
+.splash-screen .lead {
+  max-width: 520px;
+  margin-top: 1rem;
+  color: #d0e0dc;
+  font-size: clamp(0.88rem, 1.6vw, 1rem);
+  line-height: 1.5;
 }
 
 .auth-panel {
@@ -280,6 +354,20 @@ h2 span {
   background: linear-gradient(145deg, rgb(255 255 255 / 6%), rgb(255 255 255 / 2%));
 }
 
+.splash-screen .highlight-grid {
+  max-width: 620px;
+  margin-top: clamp(1.2rem, 3vw, 1.6rem);
+}
+
+.splash-screen .highlight-card {
+  min-height: 98px;
+  padding: 0.8rem;
+  border-color: rgb(156 226 216 / 14%);
+  background: linear-gradient(145deg, rgb(17 48 57 / 70%), rgb(6 25 34 / 54%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+  backdrop-filter: blur(3px);
+}
+
 .highlight-card span,
 .highlight-card strong,
 .highlight-card small {
@@ -298,9 +386,21 @@ h2 span {
   font-weight: 900;
 }
 
+.splash-screen .highlight-card span {
+  width: 28px;
+  height: 28px;
+  color: #171109;
+  background: linear-gradient(135deg, var(--fire), var(--fire-2));
+}
+
 .highlight-card strong {
   font-size: 0.92rem;
   font-weight: 900;
+}
+
+.splash-screen .highlight-card strong {
+  color: #fff;
+  font-size: 0.82rem;
 }
 
 .highlight-card small {
@@ -309,6 +409,69 @@ h2 span {
   font-size: 0.78rem;
   font-weight: 700;
   line-height: 1.35;
+}
+
+.splash-screen .highlight-card small {
+  color: #c7d5d2;
+  font-size: 0.72rem;
+  line-height: 1.28;
+}
+
+.splash-screen .actions {
+  margin-top: 1.2rem;
+}
+
+.splash-screen .primary-button {
+  min-width: 170px;
+  min-height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--fire), var(--fire-2));
+  box-shadow: 0 16px 36px rgb(255 77 0 / 30%);
+}
+
+.splash-flag {
+  position: absolute;
+  z-index: 1;
+  width: clamp(110px, 16vw, 190px);
+  aspect-ratio: 1.48;
+  padding: 0.35rem;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #e8e4dc, #aaa59b);
+  box-shadow: 0 16px 34px rgb(0 0 0 / 40%), 0 0 24px rgb(255 255 255 / 12%);
+  transform: rotate(-10deg);
+}
+
+.splash-flag span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 18%);
+}
+
+.splash-flag-uk {
+  top: clamp(2.2rem, 9vh, 5rem);
+  left: clamp(1rem, 8vw, 6rem);
+}
+
+.splash-flag-uk span {
+  background:
+    linear-gradient(90deg, transparent 42%, #c9152e 42% 58%, transparent 58%),
+    linear-gradient(0deg, transparent 38%, #c9152e 38% 62%, transparent 62%),
+    #f2f0e8;
+}
+
+.splash-flag-us {
+  top: clamp(2.3rem, 9vh, 5rem);
+  right: clamp(1rem, 8vw, 6rem);
+  transform: rotate(10deg);
+}
+
+.splash-flag-us span {
+  background:
+    linear-gradient(90deg, #283e73 0 42%, transparent 42%),
+    repeating-linear-gradient(180deg, #be2638 0 10%, #f3efe5 10% 20%);
 }
 
 .actions {
@@ -2268,6 +2431,30 @@ body[data-theme='light'] .placement-layout.result {
     overflow-y: auto;
   }
 
+  .splash-screen {
+    min-height: 100dvh;
+    padding-top: clamp(1.2rem, 6vw, 2rem);
+  }
+
+  .splash-screen::before {
+    inset: 20% 0 24%;
+  }
+
+  .splash-flag {
+    width: clamp(78px, 24vw, 110px);
+    border-radius: 10px;
+  }
+
+  .splash-flag-uk {
+    top: 1rem;
+    left: 0.8rem;
+  }
+
+  .splash-flag-us {
+    top: 1rem;
+    right: 0.8rem;
+  }
+
   .hero,
   .auth-panel {
     align-self: start;
@@ -2438,6 +2625,22 @@ body[data-theme='light'] .placement-layout.result {
     padding: 0.85rem;
   }
 
+  .splash-screen {
+    padding-top: 4.5rem;
+  }
+
+  .splash-screen .hero {
+    padding: 0;
+  }
+
+  .splash-screen h2 {
+    max-width: 340px;
+  }
+
+  .splash-screen .lead {
+    max-width: 320px;
+  }
+
   .auth-panel {
     padding: 1rem;
     border-radius: 28px;
@@ -2521,6 +2724,14 @@ body[data-theme='light'] .placement-layout.result {
 }
 
 @media (max-width: 360px) {
+  .splash-screen {
+    padding-top: 4rem;
+  }
+
+  .splash-flag {
+    width: 72px;
+  }
+
   .topbar,
   .home-layout,
   .placeholder-panel,

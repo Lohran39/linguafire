@@ -492,6 +492,12 @@ export function App() {
       <div className="orb orb-one" />
       <div className="orb orb-two" />
       <div className="orb orb-three" />
+      <div className="splash-flag splash-flag-uk" aria-hidden="true">
+        <span />
+      </div>
+      <div className="splash-flag splash-flag-us" aria-hidden="true">
+        <span />
+      </div>
 
       <section className="hero" aria-labelledby="hero-title">
         <div className="brand-mark">LF</div>
@@ -517,9 +523,6 @@ export function App() {
         <div className="actions">
           <button className="primary-button" type="button" onClick={() => setScreen('login')}>
             Comecar agora
-          </button>
-          <button className="secondary-button" type="button" onClick={() => setScreen('register')}>
-            Criar conta
           </button>
         </div>
         {authNotice && <div className="form-error">{authNotice}</div>}
