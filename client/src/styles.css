@@ -36,6 +36,7 @@ html {
 }
 
 body {
+  overflow-x: hidden;
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
@@ -54,6 +55,7 @@ body[data-theme='light'] .app-screen {
 
 button,
 input {
+  max-width: 100%;
   font: inherit;
 }
 
@@ -89,6 +91,7 @@ a {
 
 .app-screen {
   display: block;
+  overflow: visible;
   background:
     radial-gradient(ellipse 120% 50% at 50% -10%, #341204, transparent 62%),
     var(--bg);
@@ -2164,9 +2167,97 @@ body[data-theme='light'] .placement-layout.result {
 }
 
 @media (max-width: 680px) {
+  .splash-screen,
+  .auth-screen {
+    align-items: start;
+    place-items: start center;
+    overflow-y: auto;
+  }
+
+  .hero,
+  .auth-panel {
+    align-self: start;
+  }
+
   .highlight-grid,
-  .metric-grid {
+  .metric-grid,
+  .flash-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .topbar,
+  .home-layout,
+  .placeholder-panel,
+  .profile-layout,
+  .music-layout,
+  .lesson-layout,
+  .flash-layout,
+  .conversation-layout,
+  .conversation-room,
+  .natives-layout,
+  .shop-layout,
+  .placement-layout {
+    padding-right: 0.85rem;
+    padding-left: 0.85rem;
+  }
+
+  .topbar {
+    min-height: auto;
+  }
+
+  .topbar > strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-nav {
+    width: 100%;
+    scrollbar-width: none;
+  }
+
+  .app-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .reward-panel,
+  .music-actions,
+  .lesson-runner-head,
+  .room-header,
+  .panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reward-panel .primary-button,
+  .music-actions .secondary-button,
+  .music-actions .primary-button,
+  .lesson-runner-head > strong,
+  .room-header .secondary-button {
+    width: 100%;
+  }
+
+  .lesson-runner,
+  .flash-card,
+  .conversation-room {
+    min-height: auto;
+  }
+
+  .conversation-room {
+    grid-template-rows: auto auto minmax(280px, 52vh) auto;
+  }
+
+  .message-list {
+    max-height: 52vh;
+  }
+
+  .message {
+    max-width: 92%;
+    overflow-wrap: anywhere;
+  }
+
+  .native-thumbs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -2187,7 +2278,8 @@ body[data-theme='light'] .placement-layout.result {
   .home-layout,
   .music-layout,
   .lesson-layout,
-  .flash-layout {
+  .flash-layout,
+  .profile-layout {
     grid-template-columns: 1fr;
   }
 
@@ -2217,10 +2309,72 @@ body[data-theme='light'] .placement-layout.result {
   }
 }
 
+@media (min-width: 901px) and (max-width: 1180px) {
+  .topbar,
+  .home-layout,
+  .placeholder-panel,
+  .profile-layout,
+  .music-layout,
+  .lesson-layout,
+  .flash-layout,
+  .conversation-layout,
+  .conversation-room,
+  .natives-layout,
+  .shop-layout {
+    width: min(100%, calc(100vw - 2rem));
+  }
+
+  .home-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  }
+
+  .metric-grid,
+  .quest-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .topic-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 420px) {
   .splash-screen,
   .auth-screen {
+    padding: 0.85rem;
+  }
+
+  .auth-panel {
     padding: 1rem;
+    border-radius: 18px;
+  }
+
+  .brand-mark {
+    width: 62px;
+    height: 62px;
+    border-radius: 18px;
+    font-size: 1.15rem;
+  }
+
+  h1,
+  .auth-panel h1 {
+    font-size: 2.35rem;
+    line-height: 1;
+  }
+
+  h2,
+  .welcome-panel h1,
+  .placeholder-panel h1,
+  .profile-hero h1,
+  .music-header h1,
+  .lesson-sidebar h1,
+  .conversation-hero h1,
+  .room-header h1,
+  .natives-hero h1,
+  .shop-hero h1,
+  .placement-layout h1 {
+    font-size: 2rem;
+    line-height: 1.06;
   }
 
   .highlight-card {
@@ -2233,7 +2387,9 @@ body[data-theme='light'] .placement-layout.result {
   }
 
   .primary-button,
-  .secondary-link {
+  .secondary-link,
+  .secondary-button,
+  .google-button {
     width: 100%;
   }
 
@@ -2254,7 +2410,9 @@ body[data-theme='light'] .placement-layout.result {
   .quality-grid,
   .topic-grid,
   .quest-list,
-  .shop-grid {
+  .shop-grid,
+  .highlight-grid,
+  .native-thumbs {
     grid-template-columns: 1fr;
   }
 
@@ -2262,12 +2420,52 @@ body[data-theme='light'] .placement-layout.result {
     max-width: 100%;
   }
 
-  .native-thumbs {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .profile-actions .secondary-button,
   .profile-actions .primary-button {
     width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .topbar,
+  .home-layout,
+  .placeholder-panel,
+  .profile-layout,
+  .music-layout,
+  .lesson-layout,
+  .flash-layout,
+  .conversation-layout,
+  .conversation-room,
+  .natives-layout,
+  .shop-layout,
+  .placement-layout {
+    padding-right: 0.65rem;
+    padding-left: 0.65rem;
+  }
+
+  .auth-panel {
+    padding: 0.85rem;
+  }
+
+  .field,
+  .primary-button,
+  .secondary-button,
+  .google-button {
+    min-height: 48px;
+    padding-right: 0.8rem;
+    padding-left: 0.8rem;
+  }
+}
+
+@media (max-height: 720px) and (min-width: 421px) {
+  .splash-screen,
+  .auth-screen {
+    align-items: start;
+    place-items: start center;
+    overflow-y: auto;
+  }
+
+  .auth-panel {
+    margin: 0 auto;
   }
 }
