@@ -85,8 +85,14 @@ a {
 
 .auth-screen {
   background:
-    radial-gradient(ellipse 120% 70% at 50% 0%, #2d0e04, #130806 62%, #09090d 100%),
+    linear-gradient(90deg, rgb(0 0 0 / 20%), rgb(0 0 0 / 8%) 35%, rgb(0 0 0 / 8%) 65%, rgb(0 0 0 / 24%)),
+    radial-gradient(ellipse 46% 72% at 50% 48%, rgb(0 0 0 / 26%), transparent 68%),
+    url('/assets/auth-global-pathways.png') center / cover no-repeat,
     var(--bg);
+}
+
+.auth-screen .orb {
+  display: none;
 }
 
 .app-screen {
@@ -141,13 +147,13 @@ a {
 }
 
 .auth-panel {
-  width: min(100%, 430px);
-  padding: clamp(1.25rem, 3vw, 1.8rem);
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 24px;
-  background: linear-gradient(180deg, rgb(21 21 31 / 82%), rgb(21 21 31 / 54%));
-  box-shadow: 0 24px 80px rgb(0 0 0 / 30%);
-  backdrop-filter: blur(10px);
+  width: min(100%, 380px);
+  padding: clamp(1.25rem, 3vw, 1.65rem);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 34px;
+  background: linear-gradient(180deg, rgb(15 15 19 / 94%), rgb(14 14 18 / 90%));
+  box-shadow: 0 28px 90px rgb(0 0 0 / 44%), inset 0 1px 0 rgb(255 255 255 / 6%);
+  backdrop-filter: blur(5px);
 }
 
 .brand-mark {
@@ -180,7 +186,8 @@ h1 {
 }
 
 .auth-panel h1 {
-  font-size: clamp(2.35rem, 8vw, 3.6rem);
+  font-size: clamp(3rem, 8vw, 4.45rem);
+  text-shadow: 0 0 24px rgb(255 77 0 / 40%);
 }
 
 .kicker,
@@ -305,11 +312,11 @@ h2 span {
 
 .field {
   width: 100%;
-  min-height: 52px;
-  margin-top: 0.75rem;
-  padding: 0.95rem 1rem;
+  min-height: 46px;
+  margin-top: 0.62rem;
+  padding: 0.78rem 1rem;
   border: 2px solid var(--border);
-  border-radius: 14px;
+  border-radius: 10px;
   outline: none;
   color: var(--text);
   background: var(--surface);
@@ -324,7 +331,7 @@ h2 span {
 .secondary-button,
 .ghost-button {
   width: 100%;
-  margin-top: 0.75rem;
+  margin-top: 0.62rem;
 }
 
 .google-button {
