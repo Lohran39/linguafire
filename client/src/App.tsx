@@ -507,7 +507,7 @@ export function App() {
           Aprenda inglês com <span>música</span>, contexto real e prática diária
         </h2>
         <p className="lead">
-          Uma experiência em React + TypeScript para estudar com lições curtas, música, flashcards, conversas e contexto real.
+          Uma experiência interativa de aprendizado: estude através de lições curtas, recursos musicais, flashcards e diálogos reais.
         </p>
 
         <div className="highlight-grid">
