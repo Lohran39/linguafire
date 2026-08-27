@@ -46,10 +46,17 @@ body {
 }
 
 body[data-theme='light'] .splash-screen,
-body[data-theme='light'] .auth-screen,
-body[data-theme='light'] .app-screen {
+body[data-theme='light'] .auth-screen {
   background:
     radial-gradient(ellipse 120% 55% at 50% -10%, #ffd8b4, transparent 62%),
+    var(--bg);
+}
+
+body[data-theme='light'] .app-screen {
+  background:
+    linear-gradient(90deg, rgb(255 245 231 / 56%), rgb(255 250 240 / 24%) 36%, rgb(255 250 240 / 24%) 64%, rgb(255 245 231 / 56%)),
+    radial-gradient(ellipse 74% 60% at 50% 32%, rgb(255 248 234 / 32%), transparent 70%),
+    url('/assets/app-global-pathways.png') center top / cover no-repeat,
     var(--bg);
 }
 
@@ -99,8 +106,24 @@ a {
   display: block;
   overflow: visible;
   background:
-    radial-gradient(ellipse 120% 50% at 50% -10%, #341204, transparent 62%),
+    linear-gradient(90deg, rgb(6 7 10 / 20%), rgb(6 7 10 / 4%) 36%, rgb(6 7 10 / 4%) 64%, rgb(6 7 10 / 20%)),
+    radial-gradient(ellipse 74% 60% at 50% 32%, rgb(6 7 10 / 24%), transparent 70%),
+    url('/assets/app-global-pathways.png') center top / cover no-repeat,
     var(--bg);
+}
+
+.app-screen::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: rgb(4 5 8 / 16%);
+}
+
+.app-screen > * {
+  position: relative;
+  z-index: 1;
 }
 
 .orb {
@@ -410,13 +433,16 @@ h2 span {
 
 .topbar {
   display: flex;
-  width: min(100%, 1080px);
+  width: 100%;
   min-height: 72px;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   margin: 0 auto;
   padding: 1rem clamp(1rem, 4vw, 2rem);
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  background: rgb(9 10 12 / 78%);
+  backdrop-filter: blur(8px);
 }
 
 .topbar strong {
@@ -489,7 +515,8 @@ h2 span {
 .placeholder-panel {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: linear-gradient(145deg, rgb(21 21 31 / 94%), rgb(31 31 45 / 82%));
+  background: linear-gradient(145deg, rgb(16 16 24 / 82%), rgb(31 29 35 / 66%));
+  backdrop-filter: blur(3px);
 }
 
 .welcome-panel,
@@ -686,7 +713,8 @@ h2 span {
   padding: 1rem;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: linear-gradient(145deg, rgb(21 21 31 / 94%), rgb(31 31 45 / 82%));
+  background: linear-gradient(145deg, rgb(16 16 24 / 82%), rgb(31 29 35 / 66%));
+  backdrop-filter: blur(3px);
 }
 
 .quest-list {
@@ -846,7 +874,8 @@ h2 span {
 .profile-settings {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: linear-gradient(145deg, rgb(21 21 31 / 94%), rgb(31 31 45 / 82%));
+  background: linear-gradient(145deg, rgb(16 16 24 / 82%), rgb(31 29 35 / 66%));
+  backdrop-filter: blur(3px);
 }
 
 body[data-theme='light'] .profile-hero,
@@ -967,7 +996,8 @@ body[data-theme='light'] .placement-layout.result {
   padding: clamp(1rem, 3vw, 1.25rem);
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: linear-gradient(145deg, rgb(21 21 31 / 94%), rgb(31 31 45 / 82%));
+  background: linear-gradient(145deg, rgb(16 16 24 / 82%), rgb(31 29 35 / 66%));
+  backdrop-filter: blur(3px);
 }
 
 .search-row {
@@ -1519,7 +1549,8 @@ body[data-theme='light'] .placement-layout.result {
   border-radius: 8px;
   background:
     radial-gradient(ellipse 90% 55% at 50% 0%, rgb(255 140 0 / 12%), transparent),
-    linear-gradient(145deg, rgb(21 21 31 / 96%), rgb(31 31 45 / 86%));
+    linear-gradient(145deg, rgb(16 16 24 / 84%), rgb(31 29 35 / 68%));
+  backdrop-filter: blur(3px);
   text-align: center;
 }
 
@@ -1629,7 +1660,8 @@ body[data-theme='light'] .placement-layout.result {
 .grammar-panel {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: linear-gradient(145deg, rgb(21 21 31 / 94%), rgb(31 31 45 / 82%));
+  background: linear-gradient(145deg, rgb(16 16 24 / 82%), rgb(31 29 35 / 66%));
+  backdrop-filter: blur(3px);
 }
 
 .conversation-hero {
@@ -1818,7 +1850,8 @@ body[data-theme='light'] .placement-layout.result {
 .natives-fallback {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: linear-gradient(145deg, rgb(21 21 31 / 94%), rgb(31 31 45 / 82%));
+  background: linear-gradient(145deg, rgb(16 16 24 / 82%), rgb(31 29 35 / 66%));
+  backdrop-filter: blur(3px);
 }
 
 .natives-hero,
@@ -1947,7 +1980,8 @@ body[data-theme='light'] .placement-layout.result {
 .shop-card {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: linear-gradient(145deg, rgb(21 21 31 / 94%), rgb(31 31 45 / 82%));
+  background: linear-gradient(145deg, rgb(16 16 24 / 82%), rgb(31 29 35 / 66%));
+  backdrop-filter: blur(3px);
 }
 
 .shop-hero {
@@ -2062,7 +2096,8 @@ body[data-theme='light'] .placement-layout.result {
   margin-top: clamp(1rem, 4vw, 2rem);
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: linear-gradient(145deg, rgb(21 21 31 / 94%), rgb(31 31 45 / 82%));
+  background: linear-gradient(145deg, rgb(16 16 24 / 82%), rgb(31 29 35 / 66%));
+  backdrop-filter: blur(3px);
 }
 
 .placement-layout h1 {

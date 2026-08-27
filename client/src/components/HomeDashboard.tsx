@@ -116,7 +116,7 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
       <div className="home-main">
         <section className="welcome-panel">
           <p className="kicker">Conta conectada</p>
-          <h1>Ola, {user.name || 'estudante'}</h1>
+          <h1>Olá, {user.name || 'estudante'}</h1>
           <p className="lead">
             Sua trilha React ja concentra licoes, musica, flashcards, conversa, nativos, loja e perfil.
           </p>
