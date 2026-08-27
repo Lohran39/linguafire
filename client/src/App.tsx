@@ -90,13 +90,13 @@ function AuthForm({
       <form className="auth-panel" aria-label={isLogin ? 'Entrar na conta' : 'Criar conta'} onSubmit={handleSubmit}>
         <div className="brand-mark">LF</div>
         <h1>LinguaFire</h1>
-        <p>{isLogin ? 'Entrar na sua conta' : 'Criar sua conta'}</p>
+        <p>{isLogin ? 'Vamos nessa! Entra na tua conta' : 'Vamos nessa! Cria tua conta'}</p>
 
         {!isLogin && (
           <input
             className="field"
             type="text"
-            placeholder="Seu nome"
+            placeholder="Nome"
             autoComplete="name"
             maxLength={20}
             value={name}
@@ -106,7 +106,7 @@ function AuthForm({
         <input
           className="field"
           type="email"
-          placeholder="Seu email"
+          placeholder="Email"
           autoComplete="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
@@ -114,7 +114,7 @@ function AuthForm({
         <input
           className="field"
           type="password"
-          placeholder={isLogin ? 'Sua senha' : 'Senha (min. 6 caracteres)'}
+          placeholder={isLogin ? 'Senha' : 'Senha (min. 6 caracteres)'}
           autoComplete={isLogin ? 'current-password' : 'new-password'}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
