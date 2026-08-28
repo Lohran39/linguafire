@@ -38,6 +38,8 @@ type ApiErrorBody = {
   message?: string;
 };
 
+const PASSWORD_RESET_TIMEOUT_MS = 20000;
+
 async function parseJson<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as T & ApiErrorBody;
 
@@ -192,15 +194,28 @@ export async function logout(): Promise<void> {
 }
 
 export async function requestPasswordReset(email: string): Promise<{ message: string; resetLink?: string | null }> {
-  const data = await parseJson<{ message: string; resetLink?: string | null }>(
-    await fetch(`${API_BASE}/auth/forgot-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    })
-  );
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), PASSWORD_RESET_TIMEOUT_MS);
 
-  return data;
+  try {
+    const data = await parseJson<{ message: string; resetLink?: string | null }>(
+      await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({ email })
+      })
+    );
+
+    return data;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('O envio demorou demais. Confira a configuracao SMTP no Render e tente novamente.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 export async function resetPassword(token: string, newPassword: string): Promise<{ message: string }> {

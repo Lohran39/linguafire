@@ -36,6 +36,8 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
+      - key: SMTP_TIMEOUT_MS
+        value: 10000
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_BASE_URL

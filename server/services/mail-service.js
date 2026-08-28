@@ -16,6 +16,9 @@ function createMailTransporter(env = process.env) {
     host: env.SMTP_HOST,
     port: Number(env.SMTP_PORT || 587),
     secure: env.SMTP_SECURE === 'true',
+    connectionTimeout: Number(env.SMTP_TIMEOUT_MS || 10000),
+    greetingTimeout: Number(env.SMTP_TIMEOUT_MS || 10000),
+    socketTimeout: Number(env.SMTP_TIMEOUT_MS || 10000),
     auth: env.SMTP_USER && env.SMTP_PASS
       ? {
           user: env.SMTP_USER,
