@@ -360,7 +360,7 @@ function AppHome({
 }
 
 export function App() {
-  const [screen, setScreen] = useState<Screen>('login');
+  const [screen, setScreen] = useState<Screen>('splash');
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [resetToken, setResetToken] = useState('');
