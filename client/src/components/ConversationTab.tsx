@@ -8,6 +8,7 @@ import {
   type GrammarError
 } from '../services/conversation';
 import type { UserProfile } from '../services/auth';
+import { englishLevelIndex, normalizeEnglishLevel } from '../data/levels';
 
 type ConversationTabProps = {
   user: UserProfile;
@@ -22,6 +23,22 @@ const hints: Record<string, string[]> = {
   shopping: ['Pergunte preços', 'Busque outro tamanho', 'Peça troco']
 };
 
+const topicLevels: Record<string, string> = {
+  small_talk: 'A1',
+  shopping: 'A2',
+  restaurant: 'A2',
+  airport: 'B1',
+  job_interview: 'B2'
+};
+
+function sortTopicsForLevel(topics: ConversationTopic[], userLevel: string) {
+  return [...topics].sort((a, b) => {
+    const aDistance = Math.abs(englishLevelIndex(topicLevels[a.id] || 'A1') - englishLevelIndex(userLevel));
+    const bDistance = Math.abs(englishLevelIndex(topicLevels[b.id] || 'A1') - englishLevelIndex(userLevel));
+    return aDistance - bDistance;
+  });
+}
+
 function topicLabel(topic: ConversationTopic) {
   return topic.name.replace(/^\S+\s*/, '');
 }
@@ -35,6 +52,8 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
   const [notice, setNotice] = useState('');
   const [grammarErrors, setGrammarErrors] = useState<GrammarError[]>([]);
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const englishLevel = normalizeEnglishLevel(user.english_level);
+  const recommendedTopics = useMemo(() => sortTopicsForLevel(topics, englishLevel), [topics, englishLevel]);
 
   const aiRemaining = useMemo(() => {
     if (user.subscription_active) return Infinity;
@@ -87,7 +106,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
     setIsSending(true);
 
     try {
-      const reply = await sendConversationMessage(activeTopic.id, trimmed, nextMessages);
+      const reply = await sendConversationMessage(activeTopic.id, trimmed, nextMessages, englishLevel);
       setMessages([...nextMessages, { role: 'assistant', content: reply }]);
       onProfileRefresh({ ...user, ai_uses_today: Number(user.ai_uses_today || 0) + 1 });
     } catch (error) {
@@ -120,7 +139,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
           <p className="kicker">Conversar</p>
           <h1>Pratique ingles em cenarios reais</h1>
           <p className="lead">
-            Escolha um contexto e responda em ingles. A IA conduz a conversa e pode analisar erros gramaticais ao final.
+            Contextos e respostas ajustados para {englishLevel}. A IA conduz a conversa e pode analisar erros gramaticais ao final.
           </p>
           <div className={aiRemaining <= 3 ? 'ai-counter warning' : 'ai-counter'}>
             {user.subscription_active ? 'Conversas ilimitadas' : `${aiRemaining}/10 usos de IA hoje`}
@@ -143,11 +162,11 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
         )}
 
         <div className="topic-grid">
-          {topics.map((topic) => (
+          {recommendedTopics.map((topic) => (
             <button className="topic-card" key={topic.id} type="button" onClick={() => startTopic(topic)}>
               <span>{topic.name.split(' ')[0]}</span>
               <strong>{topicLabel(topic)}</strong>
-              <small>{hints[topic.id]?.[0] || 'Pratique ingles com IA'}</small>
+              <small>{topicLevels[topic.id]} · {hints[topic.id]?.[0] || 'Pratique ingles com IA'}</small>
             </button>
           ))}
         </div>

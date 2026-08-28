@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getAvailableFlashcards, getFlashcardStats, reviewFlashcard, type Flashcard, type FlashcardStats } from '../services/flashcards';
 import { updateProfile, type UserProfile } from '../services/auth';
+import { normalizeEnglishLevel, sortByEnglishLevel } from '../data/levels';
 
 type FlashcardTabProps = {
   user: UserProfile;
@@ -24,6 +25,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
   const [notice, setNotice] = useState('');
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [sessionXp, setSessionXp] = useState(0);
+  const englishLevel = normalizeEnglishLevel(user.english_level);
 
   const currentCard = cards[index] || null;
   const sessionDone = cards.length > 0 && index >= cards.length;
@@ -66,7 +68,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
     setIsLoading(true);
 
     try {
-      const available = await getAvailableFlashcards();
+      const available = sortByEnglishLevel(await getAvailableFlashcards(), englishLevel);
       setCards(available);
       setIndex(0);
       setRevealed(false);
@@ -126,7 +128,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
         <section className="side-panel">
           <div className="panel-heading">
             <h2>Revisao espacada</h2>
-            <span>SM-2</span>
+            <span>{englishLevel}</span>
           </div>
           <div className="flash-stats">
             <article>
@@ -171,7 +173,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
             <p className="kicker">Flashcards</p>
             <h1>Treine vocabulario em ciclos curtos</h1>
             <p className="lead">
-              O backend entrega cards vencidos e novas palavras. Revele a resposta e classifique o quanto lembrou.
+              A sessao prioriza palavras do seu nivel e revisoes vencidas. Revele a resposta e classifique o quanto lembrou.
             </p>
             <button className="primary-button" type="button" onClick={startSession} disabled={isLoading}>
               Comecar agora

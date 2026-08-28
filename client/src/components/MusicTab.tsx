@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { findSong, getSongByKey, SONGS, SUGGESTIONS, type LyricLine, type Song } from '../data/music';
+import { englishLevelDistance, normalizeEnglishLevel } from '../data/levels';
 import { updateProfile, type FavoriteSong, type UserProfile } from '../services/auth';
 import { extractYouTubeId, fetchSongLyrics, fetchYouTubeMetadata } from '../services/lyrics';
 
@@ -38,6 +39,22 @@ function createQuiz(song: Song): QuizQuestion[] {
     });
 }
 
+function songLevelToEnglishLevel(level: string) {
+  const normalized = level.toLowerCase();
+  if (normalized.includes('iniciante')) return 'A1';
+  if (normalized.includes('intermedi')) return 'B1';
+  if (normalized.includes('avanc')) return 'C1';
+  return 'A2';
+}
+
+function sortSongsForLevel(songs: Song[], userLevel: string) {
+  return [...songs].sort((a, b) => {
+    const aLevel = songLevelToEnglishLevel(a.level);
+    const bLevel = songLevelToEnglishLevel(b.level);
+    return englishLevelDistance(aLevel, userLevel) - englishLevelDistance(bLevel, userLevel);
+  });
+}
+
 function YouTubeFrame({ song }: { song: Song }) {
   return (
     <div className="video-frame">
@@ -52,8 +69,10 @@ function YouTubeFrame({ song }: { song: Song }) {
 }
 
 export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
+  const englishLevel = normalizeEnglishLevel(user.english_level);
+  const suggestedSongs = useMemo(() => sortSongsForLevel(SUGGESTIONS as Song[], englishLevel), [englishLevel]);
   const [query, setQuery] = useState('');
-  const [activeSong, setActiveSong] = useState<Song>(SONGS[0]);
+  const [activeSong, setActiveSong] = useState<Song>(suggestedSongs[0] || SONGS[0]);
   const [lyricMode, setLyricMode] = useState<'both' | 'en' | 'pt'>('both');
   const [expandedLine, setExpandedLine] = useState<number | null>(0);
   const [notice, setNotice] = useState('');
@@ -68,6 +87,12 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   const isFavorite = favorites.some((favorite) => favorite.key === activeSong.key || favorite.ytId === activeSong.ytId);
   const currentQuestion = quiz[quizIndex] || null;
   const quizDone = quiz.length > 0 && quizIndex >= quiz.length;
+
+  useEffect(() => {
+    if (activeSong.key === SONGS[0].key) {
+      setActiveSong(suggestedSongs[0] || SONGS[0]);
+    }
+  }, [activeSong.key, suggestedSongs]);
 
   function openSong(song: Song) {
     setActiveSong(song);
@@ -222,10 +247,10 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
         <section className="side-panel">
           <div className="panel-heading">
             <h2>Sugestoes</h2>
-            <span>catalogo</span>
+            <span>{englishLevel}</span>
           </div>
           <div className="song-list">
-            {SUGGESTIONS.map((song) => (
+            {suggestedSongs.map((song) => (
               <button
                 className={activeSong.key === song.key ? 'song-row active' : 'song-row'}
                 key={song.key}

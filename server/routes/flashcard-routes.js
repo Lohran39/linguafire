@@ -4,8 +4,16 @@ function setupFlashcardRoutes(app, deps = {}) {
   const {
     authenticateToken = (req, res, next) => next(),
     supabaseGetFlashcards = async () => [],
-    supabaseUpsertFlashcard = async () => ({ error: 'not configured' })
+    supabaseUpsertFlashcard = async () => ({ error: 'not configured' }),
+    supabaseGetUserById = async () => null
   } = deps;
+
+  const levelOrder = ['A1', 'A2', 'B1', 'B2', 'C1'];
+  const normalizeLevel = (level) => {
+    const normalized = String(level || 'A1').toUpperCase();
+    return levelOrder.includes(normalized) ? normalized : 'A1';
+  };
+  const levelDistance = (level, target) => Math.abs(levelOrder.indexOf(normalizeLevel(level)) - levelOrder.indexOf(normalizeLevel(target)));
 
   const FLASHCARD_VOCAB = [
     { word: 'awkward', translation: 'Constrangedor/Desajeitado', level: 'B1' },
@@ -42,9 +50,14 @@ function setupFlashcardRoutes(app, deps = {}) {
       const seen = due.map(d => d.word);
 
       if (due.length < 10) {
+        const user = await supabaseGetUserById(req.user.id).catch(() => null);
+        const userLevel = normalizeLevel(user?.english_level);
         const upcoming = flashcards.filter(f => f.next_review && f.next_review > now);
         seen.push(...upcoming.map(u => u.word));
-        const newWords = FLASHCARD_VOCAB.filter(v => !seen.includes(v.word)).slice(0, 10 - due.length);
+        const newWords = FLASHCARD_VOCAB
+          .filter(v => !seen.includes(v.word))
+          .sort((a, b) => levelDistance(a.level, userLevel) - levelDistance(b.level, userLevel))
+          .slice(0, 10 - due.length);
         const newItems = newWords.map(w => ({ ...w, ease_factor: 2.5, interval_days: 1, next_review: now, repetitions: 0, isNew: true }));
         res.json({ cards: [...due, ...newItems] });
       } else {

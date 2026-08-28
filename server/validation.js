@@ -241,6 +241,7 @@ const conversationSchema = objectSchema((data, output, issues) => {
   required(data, 'topicId', topicValidator, output, issues, 'Topico obrigatorio');
   required(data, 'message', stringValidator({ min: 1, max: 2000, message: 'Mensagem obrigatoria' }), output, issues, 'Mensagem obrigatoria');
   optional(data, 'history', arrayValidator(messageValidator, { max: 20 }), output, issues);
+  optional(data, 'englishLevel', englishLevelValidator, output, issues);
 });
 
 const grammarAnalyzeSchema = objectSchema((data, output, issues) => {

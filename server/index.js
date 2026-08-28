@@ -332,7 +332,7 @@ setupShopRoutes(app, {
 
 // Flashcard routes
 setupFlashcardRoutes(app, {
-  authenticateToken, supabaseGetFlashcards, supabaseUpsertFlashcard
+  authenticateToken, supabaseGetFlashcards, supabaseUpsertFlashcard, supabaseGetUserById
 });
 
 // Conversation routes

@@ -5,9 +5,10 @@ import { updateProfile, type UserProfile } from '../services/auth';
 type PlacementTabProps = {
   user: UserProfile;
   onProfileRefresh: (user: UserProfile) => void;
+  onContinue?: () => void;
 };
 
-export function PlacementTab({ user, onProfileRefresh }: PlacementTabProps) {
+export function PlacementTab({ user, onProfileRefresh, onContinue }: PlacementTabProps) {
   const [started, setStarted] = useState(false);
   const [index, setIndex] = useState(0);
   const [correct, setCorrect] = useState(0);
@@ -81,6 +82,11 @@ export function PlacementTab({ user, onProfileRefresh }: PlacementTabProps) {
         <button className="primary-button" type="button" onClick={start}>
           Refazer teste
         </button>
+        {onContinue && (
+          <button className="secondary-button" type="button" onClick={onContinue}>
+            Ver licoes do meu nivel
+          </button>
+        )}
       </section>
     );
   }

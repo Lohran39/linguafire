@@ -8,6 +8,14 @@ const CONVERSATION_TOPICS = [
   { id: 'shopping', name: '🛍️ Compras', systemPrompt: 'You are a shop assistant. Help the user practice shopping vocabulary. Correct grammar gently. Keep responses under 3 sentences.' },
 ];
 
+const LEVEL_GUIDES = {
+  A1: 'Use very simple English, short sentences, present tense, and basic vocabulary. Ask one direct question at a time.',
+  A2: 'Use simple English with everyday vocabulary, short replies, and common phrases. Correct only the most important mistakes.',
+  B1: 'Use natural but clear English, everyday idioms, and follow-up questions. Keep corrections gentle and practical.',
+  B2: 'Use more natural English with useful expressions, collocations, and slightly longer answers. Challenge the user moderately.',
+  C1: 'Use advanced natural English, nuanced corrections, idioms, and richer vocabulary while staying concise.'
+};
+
 function setupConversationRoutes(app, deps = {}) {
   const {
     authenticateToken = (req, res, next) => next(),
@@ -24,12 +32,12 @@ function setupConversationRoutes(app, deps = {}) {
 
   // Send message
   app.post('/api/conversation', authenticateToken, checkAILimit, validateBody(conversationSchema), async (req, res) => {
-    const { topicId, message, history = [] } = req.validatedBody;
+    const { topicId, message, history = [], englishLevel = 'A1' } = req.validatedBody;
     const topic = CONVERSATION_TOPICS.find(t => t.id === topicId);
     if (!topic) return res.status(400).json({ error: 'Tópico inválido' });
 
     const messages = [
-      { role: 'system', content: topic.systemPrompt },
+      { role: 'system', content: `${topic.systemPrompt}\nStudent level: ${englishLevel}. ${LEVEL_GUIDES[englishLevel] || LEVEL_GUIDES.A1}` },
       ...history.slice(-10),
       { role: 'user', content: message }
     ];

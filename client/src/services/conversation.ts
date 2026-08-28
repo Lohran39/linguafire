@@ -31,14 +31,15 @@ export async function getConversationTopics(): Promise<ConversationTopic[]> {
 export async function sendConversationMessage(
   topicId: ConversationTopic['id'],
   message: string,
-  history: ConversationMessage[]
+  history: ConversationMessage[],
+  englishLevel?: string
 ): Promise<string> {
   const data = await parseJson<{ reply: string }>(
     await fetch('/api/conversation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ topicId, message, history })
+      body: JSON.stringify({ topicId, message, history, englishLevel })
     })
   );
 

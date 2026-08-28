@@ -355,7 +355,9 @@ function AppHome({
       )}
       {activeTab === 'natives' && <NativesTab />}
       {activeTab === 'shop' && <ShopTab user={user} onProfileRefresh={onProfileRefresh} />}
-      {activeTab === 'placement' && <PlacementTab user={user} onProfileRefresh={onProfileRefresh} />}
+      {activeTab === 'placement' && (
+        <PlacementTab user={user} onProfileRefresh={onProfileRefresh} onContinue={() => setActiveTab('lessons')} />
+      )}
       {activeTab === 'profile' && <ProfileTab user={user} onProfileRefresh={onProfileRefresh} />}
     </main>
   );

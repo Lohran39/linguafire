@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { APP_LEVELS } from '../data/levels';
+import { useEffect, useMemo, useState } from 'react';
+import { APP_LEVELS, isRecommendedEnglishLevel, normalizeEnglishLevel, sortByEnglishLevel } from '../data/levels';
 import { lessonSets, type LessonSet } from '../data/lessons';
 import { updateProfile, type UserProfile } from '../services/auth';
 
@@ -14,7 +14,8 @@ function resolveLevel(xp: number) {
 }
 
 export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
-  const [activeLesson, setActiveLesson] = useState<LessonSet>(lessonSets[0]);
+  const recommendedLessons = useMemo(() => sortByEnglishLevel(lessonSets, user.english_level), [user.english_level]);
+  const [activeLesson, setActiveLesson] = useState<LessonSet>(recommendedLessons[0]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [answers, setAnswers] = useState<boolean[]>([]);
@@ -28,6 +29,11 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const isComplete = answers.length === activeLesson.questions.length;
   const progress = Math.round((answers.length / activeLesson.questions.length) * 100);
   const earnedXp = correctCount * 12 + (correctCount === activeLesson.questions.length ? activeLesson.xp : 0);
+  const englishLevel = normalizeEnglishLevel(user.english_level);
+
+  useEffect(() => {
+    startLesson(recommendedLessons[0]);
+  }, [recommendedLessons[0]?.id]);
 
   function startLesson(lesson: LessonSet) {
     setActiveLesson(lesson);
@@ -97,17 +103,17 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
       <div className="lesson-sidebar">
         <span className="section-kicker">Trilha de pratica</span>
         <h1>Licoes rapidas para ganhar XP</h1>
-        <p className="lead">Escolha um tema, responda em sequencia e salve o resultado no seu perfil.</p>
+        <p className="lead">Conteudo recomendado para {englishLevel}; os outros temas continuam liberados para treino.</p>
 
         <div className="lesson-grid">
-          {lessonSets.map((lesson) => (
+          {recommendedLessons.map((lesson) => (
             <button
               className={activeLesson.id === lesson.id ? 'lesson-card active' : 'lesson-card'}
               key={lesson.id}
               type="button"
               onClick={() => startLesson(lesson)}
             >
-              <span>{lesson.level}</span>
+              <span>{isRecommendedEnglishLevel(lesson.level, englishLevel) ? `${lesson.level} recomendado` : lesson.level}</span>
               <strong>{lesson.title}</strong>
               <small>{lesson.focus}</small>
             </button>
