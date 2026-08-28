@@ -38,7 +38,7 @@ function AuthForm({
   onSwitch
 }: {
   mode: 'login' | 'register';
-  onAuthenticated: (user: UserProfile) => void;
+  onAuthenticated: (user: UserProfile, openPlacement?: boolean) => void;
   onBack: () => void;
   onForgot: () => void;
   onSwitch: () => void;
@@ -75,7 +75,7 @@ function AuthForm({
       const user = isLogin
         ? await login(email.trim(), password)
         : await register(name.trim(), email.trim(), password);
-      onAuthenticated(user);
+      onAuthenticated(user, !isLogin);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Erro ao autenticar.');
     } finally {
@@ -304,16 +304,18 @@ const appTabs: Array<{ id: AppTab; label: string }> = [
 
 function AppHome({
   user,
+  initialTab = 'home',
   onLogout,
   onProfileRefresh,
   onLoadProfile
 }: {
   user: UserProfile;
+  initialTab?: AppTab;
   onLogout: () => void;
   onProfileRefresh: (user: UserProfile) => void;
   onLoadProfile: () => Promise<UserProfile>;
 }) {
-  const [activeTab, setActiveTab] = useState<AppTab>('home');
+  const [activeTab, setActiveTab] = useState<AppTab>(initialTab);
 
   return (
     <main className="app-screen">
@@ -363,6 +365,7 @@ export function App() {
   const [screen, setScreen] = useState<Screen>('splash');
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isBooting, setIsBooting] = useState(true);
+  const [initialAppTab, setInitialAppTab] = useState<AppTab>('home');
   const [resetToken, setResetToken] = useState('');
   const [authNotice, setAuthNotice] = useState('');
 
@@ -394,6 +397,9 @@ export function App() {
           setAuthNotice('Esta conta Google ja esta vinculada a outro usuario.');
           window.history.replaceState({}, '', '/');
         } else if (params.get('auth') === 'success') {
+          if (params.get('placement') === '1') {
+            setInitialAppTab('placement');
+          }
           window.history.replaceState({}, '', '/');
         }
 
@@ -421,14 +427,16 @@ export function App() {
     };
   }, []);
 
-  function handleAuthenticated(nextUser: UserProfile) {
+  function handleAuthenticated(nextUser: UserProfile, openPlacement = false) {
     setUser(nextUser);
+    setInitialAppTab(openPlacement ? 'placement' : 'home');
     setScreen('app');
   }
 
   async function handleLogout() {
     await logout();
     setUser(null);
+    setInitialAppTab('home');
     setScreen('splash');
   }
 
@@ -448,6 +456,7 @@ export function App() {
     return (
       <AppHome
         user={user}
+        initialTab={initialAppTab}
         onLogout={handleLogout}
         onLoadProfile={getProfile}
         onProfileRefresh={(nextUser) => setUser(nextUser)}

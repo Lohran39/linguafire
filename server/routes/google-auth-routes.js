@@ -120,6 +120,7 @@ function setupGoogleAuthRoutes(app, deps = {}) {
         return redirectWithBaseUrl(res, baseUrl, { google: 'linked' });
       }
 
+      let isNewUser = false;
       let user = await supabaseFindUserByGoogleOrEmail(googleUser.googleId, googleUser.email);
       if (!user) {
         user = await supabaseCreateUser({
@@ -130,13 +131,18 @@ function setupGoogleAuthRoutes(app, deps = {}) {
         });
         if (user.error) throw new Error(user.error);
         user = user.data;
+        isNewUser = true;
       } else if (!user.google_id) {
         await supabaseUpdateGoogleLink(user.id, googleUser.googleId);
       }
 
       const token = jwt.sign({ id: user.id, email: user.email }, jwtSecret, { expiresIn: '7d' });
       setAuthCookie(res, token);
-      return redirectWithBaseUrl(res, baseUrl, { auth: 'success', userId: user.id });
+      return redirectWithBaseUrl(res, baseUrl, {
+        auth: 'success',
+        userId: user.id,
+        ...(isNewUser ? { placement: '1' } : {})
+      });
     } catch (error) {
       if (!isProduction) logger.error?.('Google OAuth callback failed', { error });
       return redirectWithBaseUrl(res, baseUrl, { error: 'auth_failed' });
