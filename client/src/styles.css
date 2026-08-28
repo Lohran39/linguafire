@@ -2667,6 +2667,43 @@ body[data-theme='light'] .placement-layout.result {
     display: none;
   }
 
+  .app-screen {
+    background:
+      linear-gradient(180deg, rgb(5 7 10 / 10%), rgb(5 7 10 / 18%) 42%, rgb(5 7 10 / 32%)),
+      radial-gradient(ellipse 86% 48% at 50% 24%, rgb(255 102 0 / 8%), transparent 72%),
+      url('/assets/app-global-pathways-mobile.png') center top / cover repeat-y,
+      var(--bg);
+  }
+
+  .app-screen::before {
+    background: rgb(4 5 8 / 8%);
+  }
+
+  .welcome-panel,
+  .streak-panel,
+  .reward-panel,
+  .side-panel,
+  .placeholder-panel,
+  .quests-panel,
+  .profile-hero,
+  .profile-settings,
+  .music-player-panel,
+  .flash-card,
+  .conversation-hero,
+  .conversation-room,
+  .grammar-panel,
+  .natives-hero,
+  .natives-search,
+  .natives-result,
+  .natives-fallback,
+  .shop-hero,
+  .shop-card,
+  .placement-layout.active,
+  .placement-layout.result {
+    background: linear-gradient(145deg, rgb(16 16 24 / 72%), rgb(31 29 35 / 54%));
+    backdrop-filter: blur(2px);
+  }
+
   .reward-panel,
   .music-actions,
   .lesson-runner-head,
