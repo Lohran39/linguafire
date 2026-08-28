@@ -136,6 +136,7 @@ function setupAuthRoutes(app, deps = {}) {
 
       const result = await supabaseSetPasswordResetToken(user.id, resetToken, resetExpires);
       if (result.error) {
+        logger.error?.('Failed to store password reset token', { error: result.error });
         return res.status(500).json({ error: 'Erro ao gerar token de recuperação' });
       }
 
@@ -145,10 +146,14 @@ function setupAuthRoutes(app, deps = {}) {
         try {
           await sendPasswordResetEmail(email, resetUrl, user.name);
         } catch (emailErr) {
-          // Silently fail - não expor detalhes
+          logger.error?.('Failed to send password reset email', { error: emailErr.message });
+          return res.status(500).json({ error: 'Erro ao enviar email de recuperação' });
         }
       } else if (!IS_PRODUCTION && process.env.ALLOW_DEV_RESET_LINK === 'true') {
         logger.info?.('Password reset link generated in development mode');
+      } else if (IS_PRODUCTION) {
+        logger.error?.('Password reset email requested without SMTP_HOST configured');
+        return res.status(500).json({ error: 'Email de recuperação não configurado' });
       }
 
       res.json({
