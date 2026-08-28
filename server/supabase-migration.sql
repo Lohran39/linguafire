@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS public.users (
   theme TEXT DEFAULT 'default',
   lives INTEGER DEFAULT 5,
   xp_multiplier INTEGER DEFAULT 1,
-  xp_multiplier_until INTEGER DEFAULT 0,
+  xp_multiplier_until BIGINT DEFAULT 0,
   last_quest_reset TEXT DEFAULT '',
   subscription_active INTEGER DEFAULT 0,
-  subscription_expires INTEGER DEFAULT 0,
+  subscription_expires BIGINT DEFAULT 0,
   stripe_customer_id TEXT DEFAULT '',
   stripe_subscription_id TEXT DEFAULT '',
   ai_uses_today INTEGER DEFAULT 0,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   streak_freeze_active INTEGER DEFAULT 0,
   has_free_hint INTEGER DEFAULT 0,
   password_reset_token TEXT DEFAULT '',
-  password_reset_expires INTEGER DEFAULT 0,
+  password_reset_expires BIGINT DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -49,10 +49,10 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS google_id TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT 'default';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS lives INTEGER DEFAULT 5;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS xp_multiplier INTEGER DEFAULT 1;
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS xp_multiplier_until INTEGER DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS xp_multiplier_until BIGINT DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_quest_reset TEXT DEFAULT '';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_active INTEGER DEFAULT 0;
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_expires INTEGER DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_expires BIGINT DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS ai_uses_today INTEGER DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS ai_uses_date TEXT DEFAULT '';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS titles TEXT DEFAULT '[]';
@@ -60,7 +60,11 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS active_title TEXT DEFAULT '';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS streak_freeze_active INTEGER DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS has_free_hint INTEGER DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_reset_token TEXT DEFAULT '';
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_reset_expires INTEGER DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_reset_expires BIGINT DEFAULT 0;
+
+ALTER TABLE public.users ALTER COLUMN xp_multiplier_until TYPE BIGINT USING xp_multiplier_until::BIGINT;
+ALTER TABLE public.users ALTER COLUMN subscription_expires TYPE BIGINT USING subscription_expires::BIGINT;
+ALTER TABLE public.users ALTER COLUMN password_reset_expires TYPE BIGINT USING password_reset_expires::BIGINT;
 
 -- ============================================
 -- DAILY PROGRESS TABLE
