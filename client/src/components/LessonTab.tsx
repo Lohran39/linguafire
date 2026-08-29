@@ -101,9 +101,9 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   return (
     <section className="lesson-layout">
       <div className="lesson-sidebar">
-        <span className="section-kicker">Trilha de pratica</span>
-        <h1>Licoes rapidas para ganhar XP</h1>
-        <p className="lead">Conteudo recomendado para {englishLevel}; os outros temas continuam liberados para treino.</p>
+        <span className="section-kicker">Trilha de prática</span>
+        <h1>Lições rápidas para ganhar XP</h1>
+        <p className="lead">Conteúdo recomendado para {englishLevel}; os outros temas continuam liberados para treino.</p>
 
         <div className="lesson-grid">
           {recommendedLessons.map((lesson) => (
@@ -113,7 +113,10 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
               type="button"
               onClick={() => startLesson(lesson)}
             >
-              <span>{isRecommendedEnglishLevel(lesson.level, englishLevel) ? `${lesson.level} recomendado` : lesson.level}</span>
+              <span className="lesson-level-badge">
+                <strong>{lesson.level}</strong>
+                {isRecommendedEnglishLevel(lesson.level, englishLevel) && <em>recomendado</em>}
+              </span>
               <strong>{lesson.title}</strong>
               <small>{lesson.focus}</small>
             </button>

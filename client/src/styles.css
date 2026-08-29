@@ -1559,16 +1559,31 @@ body[data-theme='light'] .placement-layout.result {
   background: rgb(255 140 0 / 11%);
 }
 
-.lesson-card span {
-  display: grid;
-  width: 42px;
-  height: 32px;
-  place-items: center;
+.lesson-level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 0.3rem 0.55rem;
   border-radius: 8px;
   color: #120602;
   background: var(--fire-3);
-  font-size: 0.8rem;
   font-weight: 900;
+}
+
+.lesson-card .lesson-level-badge strong {
+  color: inherit;
+  font-size: 0.86rem;
+  line-height: 1;
+}
+
+.lesson-card .lesson-level-badge em {
+  color: inherit;
+  font-size: 0.68rem;
+  font-style: normal;
+  line-height: 1;
 }
 
 .lesson-card strong {
