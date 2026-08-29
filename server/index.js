@@ -106,7 +106,7 @@ function resolveCorsOrigin(origin, callback) {
   callback(new Error('Origem não permitida pelo CORS.'));
 }
 
-const { sendPasswordResetEmail } = createMailService(process.env);
+const { sendPasswordResetEmail, isPasswordResetEmailConfigured } = createMailService(process.env);
 
 // ============ SUPABASE ============
 const {
@@ -301,7 +301,8 @@ const { setupMiscRoutes } = require('./routes/misc-routes');
 // Auth routes (register, login, forgot-password, reset-password, session, logout)
 setupAuthRoutes(app, {
   supabaseGetUserByEmail, supabaseGetUserById, supabaseCreateUser, supabaseGetUserByResetToken,
-  supabaseSetPasswordResetToken, supabaseResetPassword, JWT_SECRET, BASE_URL, IS_PRODUCTION, sendPasswordResetEmail, logger, supabase, parseJsonField
+  supabaseSetPasswordResetToken, supabaseResetPassword, JWT_SECRET, BASE_URL, IS_PRODUCTION,
+  sendPasswordResetEmail, isPasswordResetEmailConfigured, logger, supabase, parseJsonField
 });
 
 // Profile routes

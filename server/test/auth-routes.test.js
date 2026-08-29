@@ -28,6 +28,7 @@ function startTestServer(app) {
 
 function stopTestServer(server) {
   return new Promise((resolve, reject) => {
+    server.closeAllConnections?.();
     server.close((error) => (error ? reject(error) : resolve()));
   });
 }
@@ -210,7 +211,7 @@ test('forgot password stores reset token and sends email when SMTP is configured
   }
 });
 
-test('forgot password reports missing SMTP in production after token is stored', async () => {
+test('forgot password reports missing email provider in production after token is stored', async () => {
   const app = express();
   app.use(express.json());
   let logged = false;
@@ -222,7 +223,7 @@ test('forgot password reports missing SMTP in production after token is stored',
     IS_PRODUCTION: true,
     logger: {
       error(message) {
-        if (message === 'Password reset email requested without SMTP_HOST configured') logged = true;
+        if (message === 'Password reset email requested without email provider configured') logged = true;
       },
       info() {}
     },

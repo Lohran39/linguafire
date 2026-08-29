@@ -19,6 +19,7 @@ function setupAuthRoutes(app, deps = {}) {
     BASE_URL = 'http://localhost:3000',
     IS_PRODUCTION = false,
     sendPasswordResetEmail = async () => {},
+    isPasswordResetEmailConfigured = () => !!process.env.SMTP_HOST,
     logger = console,
     parseJsonField = (value, fallback) => fallback,
     verifyEmailCanReceiveMail = defaultVerifyEmailCanReceiveMail
@@ -142,7 +143,7 @@ function setupAuthRoutes(app, deps = {}) {
 
       const resetUrl = `${BASE_URL}/reset-password?token=${resetToken}`;
 
-      if (process.env.SMTP_HOST) {
+      if (isPasswordResetEmailConfigured()) {
         try {
           await sendPasswordResetEmail(email, resetUrl, user.name);
         } catch (emailErr) {
@@ -152,7 +153,7 @@ function setupAuthRoutes(app, deps = {}) {
       } else if (!IS_PRODUCTION && process.env.ALLOW_DEV_RESET_LINK === 'true') {
         logger.info?.('Password reset link generated in development mode');
       } else if (IS_PRODUCTION) {
-        logger.error?.('Password reset email requested without SMTP_HOST configured');
+        logger.error?.('Password reset email requested without email provider configured');
         return res.status(500).json({ error: 'Email de recuperação não configurado' });
       }
 
