@@ -1,4 +1,9 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 function escapeHtml(value = '') {
   return String(value)
@@ -16,6 +21,7 @@ function createMailTransporter(env = process.env) {
     host: env.SMTP_HOST,
     port: Number(env.SMTP_PORT || 587),
     secure: env.SMTP_SECURE === 'true',
+    family: env.SMTP_FORCE_IPV4 === 'false' ? undefined : 4,
     connectionTimeout: Number(env.SMTP_TIMEOUT_MS || 10000),
     greetingTimeout: Number(env.SMTP_TIMEOUT_MS || 10000),
     socketTimeout: Number(env.SMTP_TIMEOUT_MS || 10000),

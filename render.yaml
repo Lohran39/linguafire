@@ -27,9 +27,9 @@ services:
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
-        value: 587
+        value: 465
       - key: SMTP_SECURE
-        value: false
+        value: true
       - key: SMTP_USER
         sync: false
       - key: SMTP_PASS
@@ -37,7 +37,9 @@ services:
       - key: SMTP_FROM
         sync: false
       - key: SMTP_TIMEOUT_MS
-        value: 10000
+        value: 20000
+      - key: SMTP_FORCE_IPV4
+        value: true
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_BASE_URL
