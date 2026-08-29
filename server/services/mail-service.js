@@ -61,7 +61,38 @@ function createPasswordResetMessage(to, resetUrl, name = '') {
   };
 }
 
+function createWelcomeMessage(to, name = '') {
+  const safeName = String(name || 'aluno').trim();
+  const safeHtmlName = escapeHtml(safeName);
+
+  return {
+    to,
+    subject: 'Bem-vindo ao LinguaFire',
+    text: [
+      `Olá, ${safeName}.`,
+      '',
+      'Sua conta no LinguaFire foi criada com sucesso.',
+      'Você já pode começar sua trilha com música, contexto real e prática diária.',
+      '',
+      'Bons estudos!'
+    ].join('\n'),
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111">
+        <h2>Bem-vindo ao LinguaFire</h2>
+        <p>Olá, ${safeHtmlName}.</p>
+        <p>Sua conta foi criada com sucesso.</p>
+        <p>Você já pode começar sua trilha com música, contexto real e prática diária.</p>
+        <p>Bons estudos!</p>
+      </div>
+    `
+  };
+}
+
 function isPasswordResetEmailConfigured(env = process.env) {
+  return !!(env.RESEND_API_KEY || env.SMTP_HOST);
+}
+
+function isTransactionalEmailConfigured(env = process.env) {
   return !!(env.RESEND_API_KEY || env.SMTP_HOST);
 }
 
@@ -98,9 +129,7 @@ async function sendWithResend(env, message) {
 }
 
 function createMailService(env = process.env) {
-  async function sendPasswordResetEmail(to, resetUrl, name = '') {
-    const message = createPasswordResetMessage(to, resetUrl, name);
-
+  async function sendMessage(message) {
     if (env.RESEND_API_KEY) {
       await sendWithResend(env, message);
       return;
@@ -125,13 +154,28 @@ function createMailService(env = process.env) {
     });
   }
 
-  return { sendPasswordResetEmail, isPasswordResetEmailConfigured: () => isPasswordResetEmailConfigured(env) };
+  async function sendPasswordResetEmail(to, resetUrl, name = '') {
+    await sendMessage(createPasswordResetMessage(to, resetUrl, name));
+  }
+
+  async function sendWelcomeEmail(to, name = '') {
+    await sendMessage(createWelcomeMessage(to, name));
+  }
+
+  return {
+    sendPasswordResetEmail,
+    sendWelcomeEmail,
+    isPasswordResetEmailConfigured: () => isPasswordResetEmailConfigured(env),
+    isTransactionalEmailConfigured: () => isTransactionalEmailConfigured(env)
+  };
 }
 
 module.exports = {
   createMailService,
   createMailTransporter,
   createPasswordResetMessage,
+  createWelcomeMessage,
   isPasswordResetEmailConfigured,
+  isTransactionalEmailConfigured,
   escapeHtml
 };

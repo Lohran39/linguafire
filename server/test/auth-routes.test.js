@@ -94,6 +94,7 @@ test('login endpoint returns stored profile arrays and shop bonuses', async () =
 test('register endpoint returns complete default profile shape', async () => {
   const app = express();
   app.use(express.json());
+  let welcomeEmail = null;
   setupAuthRoutes(app, {
     JWT_SECRET: 'unit-test-secret',
     parseJsonField,
@@ -101,7 +102,11 @@ test('register endpoint returns complete default profile shape', async () => {
     supabaseCreateUser: async ({ name, email, password }) => ({
       data: { id: 'new-user', name, email, password },
       error: null
-    })
+    }),
+    isTransactionalEmailConfigured: () => true,
+    sendWelcomeEmail: async (email, name) => {
+      welcomeEmail = { email, name };
+    }
   });
 
   const { server, baseUrl } = await startTestServer(app);
@@ -124,6 +129,7 @@ test('register endpoint returns complete default profile shape', async () => {
     assert.equal(body.user.has_free_hint, 0);
     assert.equal(body.user.xp_multiplier, 1);
     assert.equal(body.user.xp_multiplier_until, 0);
+    assert.deepEqual(welcomeEmail, { email: 'new@example.com', name: 'New User' });
   } finally {
     await stopTestServer(server);
   }

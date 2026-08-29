@@ -19,7 +19,9 @@ function setupAuthRoutes(app, deps = {}) {
     BASE_URL = 'http://localhost:3000',
     IS_PRODUCTION = false,
     sendPasswordResetEmail = async () => {},
+    sendWelcomeEmail = async () => {},
     isPasswordResetEmailConfigured = () => !!process.env.SMTP_HOST,
+    isTransactionalEmailConfigured = () => !!process.env.SMTP_HOST,
     logger = console,
     parseJsonField = (value, fallback) => fallback,
     verifyEmailCanReceiveMail = defaultVerifyEmailCanReceiveMail
@@ -49,6 +51,12 @@ function setupAuthRoutes(app, deps = {}) {
       const userId = result.data.id;
       const token = jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: '7d' });
       setAuthCookie(res, token);
+
+      if (isTransactionalEmailConfigured()) {
+        sendWelcomeEmail(email, name).catch((emailErr) => {
+          logger.error?.('Failed to send welcome email', { error: emailErr.message });
+        });
+      }
 
       res.json({
         success: true,

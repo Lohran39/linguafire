@@ -106,7 +106,12 @@ function resolveCorsOrigin(origin, callback) {
   callback(new Error('Origem não permitida pelo CORS.'));
 }
 
-const { sendPasswordResetEmail, isPasswordResetEmailConfigured } = createMailService(process.env);
+const {
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+  isPasswordResetEmailConfigured,
+  isTransactionalEmailConfigured
+} = createMailService(process.env);
 
 // ============ SUPABASE ============
 const {
@@ -302,7 +307,8 @@ const { setupMiscRoutes } = require('./routes/misc-routes');
 setupAuthRoutes(app, {
   supabaseGetUserByEmail, supabaseGetUserById, supabaseCreateUser, supabaseGetUserByResetToken,
   supabaseSetPasswordResetToken, supabaseResetPassword, JWT_SECRET, BASE_URL, IS_PRODUCTION,
-  sendPasswordResetEmail, isPasswordResetEmailConfigured, logger, supabase, parseJsonField
+  sendPasswordResetEmail, sendWelcomeEmail, isPasswordResetEmailConfigured,
+  isTransactionalEmailConfigured, logger, supabase, parseJsonField
 });
 
 // Profile routes
@@ -376,6 +382,8 @@ setupGoogleAuthRoutes(app, {
   supabaseGetUserById,
   supabaseCreateUser,
   supabaseUpdateGoogleLink,
+  sendWelcomeEmail,
+  isTransactionalEmailConfigured,
   logger
 });
 

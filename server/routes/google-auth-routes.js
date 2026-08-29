@@ -44,6 +44,8 @@ function setupGoogleAuthRoutes(app, deps = {}) {
     supabaseGetUserById,
     supabaseCreateUser,
     supabaseUpdateGoogleLink,
+    sendWelcomeEmail = async () => {},
+    isTransactionalEmailConfigured = () => false,
     logger = console,
     env = process.env
   } = deps;
@@ -132,6 +134,11 @@ function setupGoogleAuthRoutes(app, deps = {}) {
         if (user.error) throw new Error(user.error);
         user = user.data;
         isNewUser = true;
+        if (isTransactionalEmailConfigured()) {
+          sendWelcomeEmail(user.email, user.name).catch((emailErr) => {
+            logger.error?.('Failed to send welcome email', { error: emailErr.message });
+          });
+        }
       } else if (!user.google_id) {
         await supabaseUpdateGoogleLink(user.id, googleUser.googleId);
       }
