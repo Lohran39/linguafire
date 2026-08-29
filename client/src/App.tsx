@@ -19,6 +19,7 @@ import { NativesTab } from './components/NativesTab';
 import { ShopTab } from './components/ShopTab';
 import { PlacementTab } from './components/PlacementTab';
 import { LessonTab } from './components/LessonTab';
+import { applyTheme, getStoredTheme } from './theme';
 
 type Screen = 'splash' | 'login' | 'register' | 'forgot' | 'reset' | 'app';
 type AppTab = 'home' | 'lessons' | 'music' | 'flashcard' | 'conversation' | 'natives' | 'shop' | 'placement' | 'profile';
@@ -373,6 +374,7 @@ export function App() {
 
   useEffect(() => {
     let isMounted = true;
+    applyTheme(getStoredTheme());
 
     async function boot() {
       try {
@@ -410,6 +412,7 @@ export function App() {
 
         const profile = await getProfile();
         if (!isMounted) return;
+        applyTheme(profile.theme);
         setUser(profile);
         setScreen('app');
       } catch {
@@ -430,6 +433,7 @@ export function App() {
   }, []);
 
   function handleAuthenticated(nextUser: UserProfile, openPlacement = false) {
+    applyTheme(nextUser.theme);
     setUser(nextUser);
     setInitialAppTab(openPlacement ? 'placement' : 'home');
     setScreen('app');
@@ -461,7 +465,10 @@ export function App() {
         initialTab={initialAppTab}
         onLogout={handleLogout}
         onLoadProfile={getProfile}
-        onProfileRefresh={(nextUser) => setUser(nextUser)}
+        onProfileRefresh={(nextUser) => {
+          applyTheme(nextUser.theme);
+          setUser(nextUser);
+        }}
       />
     );
   }

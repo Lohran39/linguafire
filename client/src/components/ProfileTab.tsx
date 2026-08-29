@@ -10,17 +10,12 @@ import {
   type UserProfile
 } from '../services/auth';
 import { getPushStatus, subscribeToPush, supportsPushNotifications, unsubscribeFromPush } from '../services/notifications';
+import { applyTheme, normalizeTheme, themeOptions, type Theme } from '../theme';
 
 type ProfileTabProps = {
   user: UserProfile;
   onProfileRefresh: (user: UserProfile) => void;
 };
-
-type Theme = 'default' | 'light';
-
-function normalizeTheme(theme?: string): Theme {
-  return theme === 'light' ? 'light' : 'default';
-}
 
 export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
   const [name, setName] = useState(user.name || '');
@@ -31,6 +26,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [notice, setNotice] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [subscription, setSubscription] = useState({
     active: Boolean(user.subscription_active),
@@ -44,8 +40,12 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
   const [pushBusy, setPushBusy] = useState(false);
 
   useEffect(() => {
-    document.body.dataset.theme = theme;
-  }, [theme]);
+    setName(user.name || '');
+  }, [user.id]);
+
+  useEffect(() => {
+    setTheme(applyTheme(user.theme));
+  }, [user.id, user.theme]);
 
   useEffect(() => {
     let isMounted = true;
@@ -94,8 +94,8 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
 
     setIsSaving(true);
     try {
-      await updateProfile({ name: name.trim(), theme });
-      onProfileRefresh({ ...user, name: name.trim(), theme });
+      await updateProfile({ name: name.trim() });
+      onProfileRefresh({ ...user, name: name.trim() });
       setNotice('Perfil atualizado.');
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Erro ao atualizar perfil.');
@@ -104,9 +104,27 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
     }
   }
 
-  function toggleTheme() {
-    const nextTheme = theme === 'light' ? 'default' : 'light';
+  async function selectTheme(nextTheme: Theme) {
+    if (nextTheme === theme || isSavingTheme) return;
+
+    const previousTheme = theme;
+    setNotice('');
     setTheme(nextTheme);
+    applyTheme(nextTheme);
+    onProfileRefresh({ ...user, theme: nextTheme });
+
+    try {
+      setIsSavingTheme(true);
+      await updateProfile({ theme: nextTheme });
+      setNotice('Tema atualizado.');
+    } catch (error) {
+      setTheme(previousTheme);
+      applyTheme(previousTheme);
+      onProfileRefresh({ ...user, theme: previousTheme });
+      setNotice(error instanceof Error ? error.message : 'Erro ao atualizar tema.');
+    } finally {
+      setIsSavingTheme(false);
+    }
   }
 
   async function togglePush() {
@@ -240,7 +258,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
       <form className="profile-settings" onSubmit={handleSubmit}>
         <div className="panel-heading">
           <h2>Conta</h2>
-          <span>{theme === 'light' ? 'light' : 'padrao'}</span>
+          <span>{isSavingTheme ? 'salvando' : themeOptions.find((option) => option.id === theme)?.label || 'Fogo'}</span>
         </div>
 
         <label>
@@ -248,10 +266,27 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
           <input className="field" maxLength={20} value={name} onChange={(event) => setName(event.target.value)} />
         </label>
 
+        <div className="theme-picker" role="radiogroup" aria-label="Tema">
+          {themeOptions.map((option) => (
+            <button
+              aria-checked={theme === option.id}
+              className={theme === option.id ? 'theme-option active' : 'theme-option'}
+              disabled={isSavingTheme}
+              key={option.id}
+              role="radio"
+              type="button"
+              onClick={() => selectTheme(option.id)}
+            >
+              <span className={`theme-swatch theme-swatch-${option.id}`} aria-hidden="true" />
+              <span>
+                <strong>{option.label}</strong>
+                <small>{option.description}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+
         <div className="profile-actions">
-          <button className="secondary-button" type="button" onClick={toggleTheme}>
-            Alternar tema
-          </button>
           <button className="secondary-button" type="button" onClick={() => loginWithGoogle('link')}>
             {user.google_linked ? 'Google vinculado' : 'Vincular Google'}
           </button>

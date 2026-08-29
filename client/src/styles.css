@@ -27,6 +27,20 @@ body[data-theme='light'] {
   --muted: #7a6656;
 }
 
+body[data-theme='contrast'] {
+  --bg: #020204;
+  --surface: #0b0b12;
+  --surface-strong: #171525;
+  --border: #55516f;
+  --fire: #ff5a00;
+  --fire-2: #ff9d00;
+  --fire-3: #ffe100;
+  --purple: #a78bfa;
+  --cyan: #22d3ee;
+  --text: #ffffff;
+  --muted: #c4bddc;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -74,6 +88,16 @@ body[data-theme='light'] .app-screen {
     linear-gradient(90deg, rgb(255 245 231 / 56%), rgb(255 250 240 / 24%) 36%, rgb(255 250 240 / 24%) 64%, rgb(255 245 231 / 56%)),
     radial-gradient(ellipse 74% 60% at 50% 32%, rgb(255 248 234 / 32%), transparent 70%),
     url('/assets/app-global-pathways.webp') center top / cover no-repeat,
+    var(--bg);
+}
+
+body[data-theme='contrast'] .splash-screen,
+body[data-theme='contrast'] .auth-screen,
+body[data-theme='contrast'] .app-screen {
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / 72%), rgb(0 0 0 / 28%) 35%, rgb(0 0 0 / 28%) 65%, rgb(0 0 0 / 72%)),
+    radial-gradient(ellipse 48% 62% at 50% 44%, rgb(255 90 0 / 16%), transparent 70%),
+    url('/assets/auth-global-pathways.webp') center / cover no-repeat,
     var(--bg);
 }
 
@@ -1258,6 +1282,74 @@ body[data-theme='light'] .placement-layout.result {
 .profile-actions .primary-button {
   width: auto;
   margin-top: 0;
+}
+
+.theme-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.theme-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 76px;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  text-align: left;
+  background: rgb(255 255 255 / 3%);
+  cursor: pointer;
+}
+
+.theme-option.active {
+  border-color: var(--fire-2);
+  box-shadow: 0 0 0 2px rgb(255 140 0 / 16%);
+}
+
+.theme-option:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.theme-option strong,
+.theme-option small {
+  display: block;
+}
+
+.theme-option strong {
+  color: var(--text);
+  font-weight: 900;
+}
+
+.theme-option small {
+  margin-top: 0.1rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.theme-swatch {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgb(255 255 255 / 28%);
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 5%);
+}
+
+.theme-swatch-default {
+  background: linear-gradient(135deg, #0b0b10 0 46%, #ff4d00 46% 72%, #ffcc00 72%);
+}
+
+.theme-swatch-light {
+  background: linear-gradient(135deg, #fffaf4 0 48%, #d6521b 48% 72%, #6a54d8 72%);
+}
+
+.theme-swatch-contrast {
+  background: linear-gradient(135deg, #020204 0 42%, #22d3ee 42% 64%, #ffe100 64% 82%, #ff5a00 82%);
 }
 
 .profile-subscription {
@@ -2942,6 +3034,10 @@ body[data-theme='light'] .placement-layout.result {
   .natives-search .primary-button {
     width: 100%;
   }
+
+  .theme-picker {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (min-width: 901px) and (max-width: 1180px) {
@@ -3004,6 +3100,11 @@ body[data-theme='light'] .placement-layout.result {
   .auth-panel {
     padding: 0.9rem;
     border-radius: 26px;
+  }
+
+  .theme-option {
+    min-height: 64px;
+    padding: 0.65rem;
   }
 
   .brand-mark {
