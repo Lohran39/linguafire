@@ -56,15 +56,15 @@ function sortSongsForLevel(songs: Song[], userLevel: string) {
 }
 
 function YouTubeFrame({ song }: { song: Song }) {
+  const watchUrl = `https://www.youtube.com/watch?v=${song.ytId}`;
+  const thumbUrl = `https://img.youtube.com/vi/${song.ytId}/hqdefault.jpg`;
+
   return (
-    <div className="video-frame">
-      <iframe
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        src={`https://www.youtube-nocookie.com/embed/${song.ytId}?rel=0&modestbranding=1`}
-        title={`${song.title} - ${song.artist}`}
-      />
-    </div>
+    <a className="video-frame video-link" href={watchUrl} target="_blank" rel="noreferrer">
+      <img src={thumbUrl} alt="" loading="lazy" />
+      <span className="video-play" aria-hidden="true">▶</span>
+      <strong>Assistir no YouTube</strong>
+    </a>
   );
 }
 
@@ -293,7 +293,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
             <h1>{activeSong.title}</h1>
             <p className="lead">{activeSong.artist}</p>
           </div>
-        <div className="music-actions">
+          <div className="music-actions">
             <button className="secondary-button" type="button" onClick={toggleFavorite}>
               {isFavorite ? 'Remover favorito' : 'Favoritar'}
             </button>
