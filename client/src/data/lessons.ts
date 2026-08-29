@@ -101,38 +101,38 @@ export const lessonSets: LessonSet[] = [
   },
   {
     id: 'travel-ready',
-    title: 'Ingles para viagem',
+    title: 'Inglês para viagem',
     level: 'A2',
-    focus: 'Aeroporto, hotel, direcoes e emergencias pequenas.',
+    focus: 'Aeroporto, hotel, direções e emergências pequenas.',
     xp: 65,
     questions: [
       {
         id: 'travel-1',
-        prompt: 'Como pedir direcao para a estacao?',
+        prompt: 'Como pedir direção para a estação?',
         helper: 'Use uma pergunta educada.',
-        choices: ['Where is the station?', 'What is station?', 'When is the station?', 'Who station is?'],
+        choices: ['Where is the station?', 'How far is the station?', 'Is this the station?', 'Where is the hotel?'],
         answer: 0,
-        explain: '"Where is..." pergunta localizacao.'
+        explain: '"Where is..." pergunta localização.'
       },
       {
         id: 'travel-2',
         prompt: 'Complete: "I have a reservation ___ two nights."',
-        helper: 'Duracao usa for.',
+        helper: 'Duração usa for.',
         choices: ['since', 'for', 'at', 'by'],
         answer: 1,
-        explain: '"For two nights" indica duracao.'
+        explain: '"For two nights" indica duração.'
       },
       {
         id: 'travel-3',
         prompt: 'O que "boarding pass" significa?',
-        helper: 'Documento usado no aviao.',
-        choices: ['Cartao de embarque', 'Passaporte', 'Mala de mao', 'Portao de embarque'],
+        helper: 'Documento usado no avião.',
+        choices: ['Cartão de embarque', 'Passaporte', 'Mala de mão', 'Portão de embarque'],
         answer: 0,
-        explain: '"Boarding pass" e o cartao usado para embarcar.'
+        explain: '"Boarding pass" é o cartão usado para embarcar.'
       },
       {
         id: 'travel-4',
-        prompt: 'Qual frase e melhor para pedir ajuda?',
+        prompt: 'Qual frase é melhor para pedir ajuda?',
         helper: 'Frase educada e direta.',
         choices: ['Help me now', 'Could you help me, please?', 'You help?', 'I want help you'],
         answer: 1,
@@ -142,9 +142,9 @@ export const lessonSets: LessonSet[] = [
   },
   {
     id: 'business-talk',
-    title: 'Reunioes e trabalho',
+    title: 'Reuniões e trabalho',
     level: 'B2',
-    focus: 'Comunicar prioridade, prazos, opinioes e follow-up.',
+    focus: 'Comunicar prioridade, prazos, opiniões e follow-up.',
     xp: 80,
     questions: [
       {
