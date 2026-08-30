@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { levelResults, placementQuestions, resolvePlacementLevel, type PlacementLevel } from '../data/placement';
+import { createPlacementQuestions, levelResults, PLACEMENT_TEST_SIZE, resolvePlacementLevel, type PlacementLevel } from '../data/placement';
 import { updateProfile, type UserProfile } from '../services/auth';
 
 type PlacementTabProps = {
@@ -16,11 +16,13 @@ export function PlacementTab({ user, onProfileRefresh, onContinue, required = fa
   const [selected, setSelected] = useState<number | null>(null);
   const [result, setResult] = useState<PlacementLevel | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [testQuestions, setTestQuestions] = useState(() => createPlacementQuestions());
 
-  const question = placementQuestions[index];
-  const progress = useMemo(() => Math.round((index / placementQuestions.length) * 100), [index]);
+  const question = testQuestions[index];
+  const progress = useMemo(() => Math.round((index / testQuestions.length) * 100), [index, testQuestions.length]);
 
   function start() {
+    setTestQuestions(createPlacementQuestions());
     setStarted(true);
     setIndex(0);
     setCorrect(0);
@@ -38,8 +40,8 @@ export function PlacementTab({ user, onProfileRefresh, onContinue, required = fa
 
     window.setTimeout(async () => {
       const nextIndex = index + 1;
-      if (nextIndex >= placementQuestions.length) {
-        const score = Math.round((nextCorrect / placementQuestions.length) * 100);
+      if (nextIndex >= testQuestions.length) {
+        const score = Math.round((nextCorrect / testQuestions.length) * 100);
         const level = resolvePlacementLevel(score);
         setResult(level);
         setStarted(false);
@@ -60,7 +62,7 @@ export function PlacementTab({ user, onProfileRefresh, onContinue, required = fa
 
   if (result) {
     const info = levelResults[result];
-    const score = Math.round((correct / placementQuestions.length) * 100);
+    const score = Math.round((correct / testQuestions.length) * 100);
     return (
       <section className="placement-layout result" aria-label="Resultado do nivelamento">
         <p className="kicker">{required ? 'Nivelamento inicial concluído' : 'Resultado'}</p>
@@ -98,7 +100,7 @@ export function PlacementTab({ user, onProfileRefresh, onContinue, required = fa
         <p className="kicker">{required ? 'Primeiro acesso' : 'Nivelamento'}</p>
         <h1>Descubra seu nível de inglês</h1>
         <p className="lead">
-          Responda 15 perguntas rápidas. O resultado configura suas lições, músicas, flashcards e conversas.
+          Responda {PLACEMENT_TEST_SIZE} perguntas rápidas. O resultado configura suas lições, músicas, flashcards e conversas.
         </p>
         <div className="placement-current">
           <span>{user.english_level || 'A1'}</span>
@@ -117,7 +119,7 @@ export function PlacementTab({ user, onProfileRefresh, onContinue, required = fa
         <div style={{ width: `${progress}%` }} />
       </div>
       <div className="placement-count">
-        {index + 1}/{placementQuestions.length}
+        {index + 1}/{testQuestions.length}
       </div>
       <span className="placement-badge">{question.level}</span>
       <h1>{question.text}</h1>
