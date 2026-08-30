@@ -344,14 +344,17 @@ function AppHome({
 }) {
   const [activeTab, setActiveTab] = useState<AppTab>(initialTab);
   const needsPlacement = Number(user.placement_completed || 0) !== 1;
-  const currentTab = needsPlacement ? 'placement' : activeTab;
+  const isAdmin = user.role === 'admin';
+  const visibleTabs = appTabs.filter((tab) => tab.id !== 'admin' || isAdmin);
+  const currentTab = needsPlacement ? 'placement' : activeTab === 'admin' && !isAdmin ? 'home' : activeTab;
+  const navTabs = needsPlacement ? visibleTabs.filter((tab) => tab.id === 'placement') : visibleTabs;
 
   return (
     <main className="app-screen">
       <nav className="topbar">
         <strong>LinguaFire</strong>
         <div className="app-nav" aria-label="Navegação principal">
-          {(needsPlacement ? appTabs.filter((tab) => tab.id === 'placement') : appTabs).map((tab) => (
+          {navTabs.map((tab) => (
             <button
               className={currentTab === tab.id ? 'active' : ''}
               key={tab.id}
@@ -403,7 +406,7 @@ function AppHome({
         />
       )}
       {currentTab === 'profile' && <ProfileTab user={user} onProfileRefresh={onProfileRefresh} />}
-      {currentTab === 'admin' && <AdminTab />}
+      {currentTab === 'admin' && isAdmin && <AdminTab />}
     </main>
   );
 }

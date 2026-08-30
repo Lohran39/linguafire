@@ -1,7 +1,5 @@
-import { FormEvent, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getAdminSummary, type AdminSummary } from '../services/admin';
-
-const ADMIN_TOKEN_KEY = 'linguafire_admin_token';
 
 function maskEmail(email = '') {
   const [name, domain] = email.split('@');
@@ -21,30 +19,26 @@ function formatDate(value?: string) {
 }
 
 export function AdminTab() {
-  const [token, setToken] = useState(() => sessionStorage.getItem(ADMIN_TOKEN_KEY) || '');
   const [summary, setSummary] = useState<AdminSummary | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  async function loadSummary(event?: FormEvent<HTMLFormElement>) {
-    event?.preventDefault();
+  async function loadSummary() {
     setError('');
-
-    if (!token.trim()) {
-      setError('Digite o token admin.');
-      return;
-    }
 
     try {
       setIsLoading(true);
-      sessionStorage.setItem(ADMIN_TOKEN_KEY, token.trim());
-      setSummary(await getAdminSummary(token.trim()));
+      setSummary(await getAdminSummary());
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Erro ao carregar painel admin.');
     } finally {
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+    loadSummary();
+  }, []);
 
   return (
     <section className="admin-layout" aria-label="Painel admin">
@@ -53,18 +47,9 @@ export function AdminTab() {
         <h1>Painel do LinguaFire</h1>
         <p className="lead">Acompanhe usuários reais, ranking e estado de entrada na plataforma.</p>
 
-        <form className="admin-token-row" onSubmit={loadSummary}>
-          <input
-            className="field"
-            type="password"
-            placeholder="Token admin"
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-          />
-          <button className="primary-button" type="submit" disabled={isLoading}>
-            {isLoading ? 'Carregando...' : 'Carregar painel'}
-          </button>
-        </form>
+        <button className="primary-button" type="button" onClick={loadSummary} disabled={isLoading}>
+          {isLoading ? 'Carregando...' : 'Atualizar painel'}
+        </button>
         {error && <div className="form-error">{error}</div>}
       </div>
 

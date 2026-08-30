@@ -39,6 +39,7 @@ function setupAuthRoutes(app, deps = {}) {
       correct_answers: user.correct_answers ?? 0, lessons_completed: user.lessons_completed ?? 0,
       english_level: user.english_level || 'A1',
       placement_completed: user.placement_completed ?? 0,
+      role: user.role || 'user',
       achievements: parseJsonField(user.achievements, []),
       favorites: parseJsonField(user.favorites, []),
       titles: parseJsonField(user.titles, []),

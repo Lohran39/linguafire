@@ -28,13 +28,10 @@ async function parseJson<T>(response: Response): Promise<T> {
   return data;
 }
 
-export async function getAdminSummary(token: string): Promise<AdminSummary> {
+export async function getAdminSummary(): Promise<AdminSummary> {
   return parseJson<AdminSummary>(
     await fetch('/api/admin/summary', {
-      credentials: 'include',
-      headers: {
-        'x-admin-dashboard-token': token
-      }
+      credentials: 'include'
     })
   );
 }

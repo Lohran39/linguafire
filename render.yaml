@@ -58,7 +58,5 @@ services:
         generateValue: true
       - key: AGENT_ADMIN_TOKEN
         generateValue: true
-      - key: ADMIN_DASHBOARD_TOKEN
-        generateValue: true
       - key: PUSH_ADMIN_TOKEN
         generateValue: true

@@ -30,19 +30,19 @@ function setupMiscRoutes(app, deps = {}) {
     supabaseGetUserById,
     supabaseDeleteUser,
     monitoring,
-    supabaseKeyRole = 'unknown',
-    adminDashboardToken = ''
+    supabaseKeyRole = 'unknown'
   } = deps;
 
-  function getAdminToken(req) {
-    return String(req.headers['x-admin-dashboard-token'] || req.headers['x-agent-admin-token'] || '').trim();
-  }
-
-  function requireAdmin(req, res, next) {
-    if (!adminDashboardToken || getAdminToken(req) !== adminDashboardToken) {
-      return res.status(403).json({ error: 'Token admin inválido ou não configurado' });
+  async function requireAdmin(req, res, next) {
+    try {
+      const user = await supabaseGetUserById(req.user.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: 'Acesso admin restrito' });
+      }
+      return next();
+    } catch (_error) {
+      return res.status(500).json({ error: 'Erro ao validar admin' });
     }
-    return next();
   }
 
   app.get('/api/leaderboard', async (_req, res) => {

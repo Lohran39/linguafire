@@ -12,6 +12,7 @@ export type UserProfile = {
   lessons_completed: number;
   english_level: string;
   placement_completed?: number;
+  role?: 'user' | 'admin' | string;
   google_linked?: boolean;
   theme?: string;
   subscription_active?: boolean;

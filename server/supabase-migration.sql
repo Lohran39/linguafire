@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   lessons_completed INTEGER DEFAULT 0,
   english_level TEXT DEFAULT 'A1',
   placement_completed INTEGER DEFAULT 0,
+  role TEXT DEFAULT 'user',
   achievements TEXT DEFAULT '[]',
   favorites TEXT DEFAULT '[]',
   google_id TEXT,
@@ -71,6 +72,7 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verified_at BIGINT DEFAU
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verification_token TEXT DEFAULT '';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verification_expires BIGINT DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS placement_completed INTEGER DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
 
 ALTER TABLE public.users ALTER COLUMN xp_multiplier_until TYPE BIGINT USING xp_multiplier_until::BIGINT;
 ALTER TABLE public.users ALTER COLUMN subscription_expires TYPE BIGINT USING subscription_expires::BIGINT;
