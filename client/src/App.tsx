@@ -6,7 +6,6 @@ import {
   loginWithGoogle,
   logout,
   register,
-  resendEmailVerification,
   requestPasswordReset,
   resetPassword,
   type UserProfile
@@ -103,28 +102,6 @@ function AuthForm({
     }
   }
 
-  async function handleResendVerification() {
-    setError('');
-    setMessage('');
-    setVerificationLink('');
-
-    if (!email.trim()) {
-      setError('Digite seu email para reenviar a confirmação.');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      const result = await resendEmailVerification(email.trim());
-      setMessage(result.message);
-      setVerificationLink(result.verificationLink || '');
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Erro ao reenviar confirmação.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
   return (
     <main className="auth-screen">
       <div className="orb orb-one" />
@@ -186,11 +163,6 @@ function AuthForm({
         {isLogin && (
           <button className="text-button" type="button" onClick={onForgot}>
             Esqueci minha senha
-          </button>
-        )}
-        {isLogin && (
-          <button className="text-button" type="button" onClick={handleResendVerification} disabled={isSubmitting}>
-            Reenviar confirmação
           </button>
         )}
         <button className="google-button" type="button" onClick={() => loginWithGoogle('login')}>
@@ -464,10 +436,10 @@ export function App() {
           }
           window.history.replaceState({}, '', '/');
         } else if (authError === 'email_verification_expired') {
-          setAuthNotice('Link de confirmação expirado. Reenvie a confirmação pelo login.');
+          setAuthNotice('Link de confirmação expirado. Volte em criar conta para receber outro email.');
           window.history.replaceState({}, '', '/');
         } else if (authError === 'email_verification_invalid') {
-          setAuthNotice('Link de confirmação inválido. Reenvie a confirmação pelo login.');
+          setAuthNotice('Link de confirmação inválido. Volte em criar conta para receber outro email.');
           window.history.replaceState({}, '', '/');
         } else if (authError === 'email_verification_failed') {
           setAuthNotice('Não foi possível confirmar seu email. Tente novamente.');

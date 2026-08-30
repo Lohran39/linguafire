@@ -93,17 +93,6 @@ export async function register(name: string, email: string, password: string): P
   return data;
 }
 
-export async function resendEmailVerification(email: string): Promise<{ message: string; verificationLink?: string | null }> {
-  return parseJson<{ message: string; verificationLink?: string | null }>(
-    await fetch(`${API_BASE}/auth/resend-verification`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ email })
-    })
-  );
-}
-
 export async function getSession(): Promise<{ userId: string; email: string } | null> {
   const response = await fetch(`${API_BASE}/auth/session`, { credentials: 'include' });
 
