@@ -6,10 +6,11 @@ type PlacementTabProps = {
   user: UserProfile;
   onProfileRefresh: (user: UserProfile) => void;
   onContinue?: () => void;
+  required?: boolean;
 };
 
-export function PlacementTab({ user, onProfileRefresh, onContinue }: PlacementTabProps) {
-  const [started, setStarted] = useState(false);
+export function PlacementTab({ user, onProfileRefresh, onContinue, required = false }: PlacementTabProps) {
+  const [started, setStarted] = useState(required);
   const [index, setIndex] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -44,8 +45,8 @@ export function PlacementTab({ user, onProfileRefresh, onContinue }: PlacementTa
         setStarted(false);
         setIsSaving(true);
         try {
-          await updateProfile({ english_level: level });
-          onProfileRefresh({ ...user, english_level: level });
+          await updateProfile({ english_level: level, placement_completed: 1 });
+          onProfileRefresh({ ...user, english_level: level, placement_completed: 1 });
         } finally {
           setIsSaving(false);
         }
@@ -62,7 +63,7 @@ export function PlacementTab({ user, onProfileRefresh, onContinue }: PlacementTa
     const score = Math.round((correct / placementQuestions.length) * 100);
     return (
       <section className="placement-layout result" aria-label="Resultado do nivelamento">
-        <p className="kicker">Resultado</p>
+        <p className="kicker">{required ? 'Nivelamento inicial concluído' : 'Resultado'}</p>
         <h1 style={{ color: info.color }}>{info.name}</h1>
         <p className="lead">{info.desc}</p>
         <div className="placement-score">
@@ -84,7 +85,7 @@ export function PlacementTab({ user, onProfileRefresh, onContinue }: PlacementTa
         </button>
         {onContinue && (
           <button className="secondary-button" type="button" onClick={onContinue}>
-            Ver lições do meu nível
+            Entrar na minha trilha
           </button>
         )}
       </section>
@@ -94,9 +95,11 @@ export function PlacementTab({ user, onProfileRefresh, onContinue }: PlacementTa
   if (!started) {
     return (
       <section className="placement-layout" aria-label="Teste de nivelamento">
-        <p className="kicker">Nivelamento</p>
+        <p className="kicker">{required ? 'Primeiro acesso' : 'Nivelamento'}</p>
         <h1>Descubra seu nível de inglês</h1>
-        <p className="lead">Responda 15 perguntas rápidas. O resultado será salvo no seu perfil.</p>
+        <p className="lead">
+          Responda 15 perguntas rápidas. O resultado configura suas lições, músicas, flashcards e conversas.
+        </p>
         <div className="placement-current">
           <span>{user.english_level || 'A1'}</span>
           <strong>Nível atual</strong>

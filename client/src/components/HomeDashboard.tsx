@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { APP_LEVELS, getLevelProgress } from '../data/levels';
+import { APP_LEVELS, LEVEL_PROFILES, getLevelProgress, normalizeEnglishLevel } from '../data/levels';
 import {
   claimStreakReward,
   getDailyWord,
@@ -54,6 +54,8 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
   const [loadingRewardId, setLoadingRewardId] = useState('');
 
   const progress = useMemo(() => getLevelProgress(user.level || 1, user.xp || 0), [user.level, user.xp]);
+  const englishLevel = normalizeEnglishLevel(user.english_level);
+  const levelProfile = LEVEL_PROFILES[englishLevel];
   const [streakTitle, streakCopy] = getStreakMessage(user.streak || 0);
   const visibleRanking = ranking.length ? ranking : fallbackRanking;
   const claimableRewards = rewards.filter((reward) => reward.canClaim);
@@ -120,6 +122,15 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
           <p className="lead">
             Sua jornada de aprendizado está pronta: desbrave lições, músicas, flashcards e conversas reais. Acompanhe sua evolução no perfil e aproveite a loja!
           </p>
+
+          <div className="learning-path-panel">
+            <span>{englishLevel}</span>
+            <div>
+              <strong>{levelProfile.title}</strong>
+              <p>{levelProfile.focus}</p>
+              <small>Próximo foco: {levelProfile.next}</small>
+            </div>
+          </div>
 
           <div className="level-panel">
             <div>

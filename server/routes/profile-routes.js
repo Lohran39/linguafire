@@ -39,7 +39,7 @@ function setupProfileRoutes(app, deps = {}) {
   app.put('/api/profile', authenticateToken, validateBody(profileUpdateSchema), async (req, res) => {
     try {
       const updates = {};
-      const allowed = ['name', 'level', 'xp', 'streak', 'correct_answers', 'lessons_completed', 'english_level', 'achievements', 'favorites', 'theme'];
+      const allowed = ['name', 'level', 'xp', 'streak', 'correct_answers', 'lessons_completed', 'english_level', 'placement_completed', 'achievements', 'favorites', 'theme'];
 
       for (const key of allowed) {
         if (req.validatedBody[key] !== undefined) {

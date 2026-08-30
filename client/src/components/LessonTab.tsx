@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { APP_LEVELS, isRecommendedEnglishLevel, normalizeEnglishLevel, sortByEnglishLevel } from '../data/levels';
+import { APP_LEVELS, LEVEL_PROFILES, isRecommendedEnglishLevel, normalizeEnglishLevel, sortByEnglishLevel } from '../data/levels';
 import { lessonSets, type LessonSet } from '../data/lessons';
 import { updateProfile, type UserProfile } from '../services/auth';
 
@@ -30,6 +30,10 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const progress = Math.round((answers.length / activeLesson.questions.length) * 100);
   const earnedXp = correctCount * 12 + (correctCount === activeLesson.questions.length ? activeLesson.xp : 0);
   const englishLevel = normalizeEnglishLevel(user.english_level);
+  const levelProfile = LEVEL_PROFILES[englishLevel];
+  const exactLessons = recommendedLessons.filter((lesson) => isRecommendedEnglishLevel(lesson.level, englishLevel));
+  const primaryLessons = exactLessons.length ? exactLessons : recommendedLessons.slice(0, 2);
+  const practiceLessons = recommendedLessons.filter((lesson) => !primaryLessons.some((primary) => primary.id === lesson.id));
 
   useEffect(() => {
     startLesson(recommendedLessons[0]);
@@ -103,10 +107,10 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
       <div className="lesson-sidebar">
         <span className="section-kicker">Trilha de prática</span>
         <h1>Lições rápidas para ganhar XP</h1>
-        <p className="lead">Conteúdo recomendado para {englishLevel}; os outros temas continuam liberados para treino.</p>
+        <p className="lead">Seu nível atual é {englishLevel}: {levelProfile.practice}</p>
 
         <div className="lesson-grid">
-          {recommendedLessons.map((lesson) => (
+          {primaryLessons.map((lesson) => (
             <button
               className={activeLesson.id === lesson.id ? 'lesson-card active' : 'lesson-card'}
               key={lesson.id}
@@ -119,6 +123,25 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
             </button>
           ))}
         </div>
+        {practiceLessons.length > 0 && (
+          <>
+            <span className="section-kicker secondary-kicker">Próximos treinos</span>
+            <div className="lesson-grid compact">
+              {practiceLessons.map((lesson) => (
+                <button
+                  className={activeLesson.id === lesson.id ? 'lesson-card active' : 'lesson-card'}
+                  key={lesson.id}
+                  type="button"
+                  onClick={() => startLesson(lesson)}
+                >
+                  <span>{lesson.level}</span>
+                  <strong>{lesson.title}</strong>
+                  <small>{lesson.focus}</small>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="lesson-runner">

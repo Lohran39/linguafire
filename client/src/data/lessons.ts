@@ -182,6 +182,52 @@ export const lessonSets: LessonSet[] = [
     ]
   },
   {
+    id: 'advanced-expression',
+    title: 'Expressão avançada',
+    level: 'C1',
+    focus: 'Nuance, precisão, idioms e linguagem natural em contextos complexos.',
+    xp: 90,
+    questions: [
+      {
+        id: 'advanced-1',
+        prompt: 'O que "to shed light on something" significa?',
+        helper: 'Expressão comum em explicações detalhadas.',
+        choices: ['Esclarecer algo', 'Esconder algo', 'Criticar alguém', 'Apagar a luz'],
+        answer: 0,
+        explain: '"Shed light on" significa esclarecer ou tornar algo mais compreensível.'
+      },
+      {
+        id: 'advanced-2',
+        prompt: 'Escolha a frase mais natural em tom profissional.',
+        helper: 'Procure precisão sem soar agressivo.',
+        choices: [
+          'Your idea is bad',
+          'I would frame it slightly differently',
+          'This is wrong completely',
+          'You must change all'
+        ],
+        answer: 1,
+        explain: '"I would frame it slightly differently" suaviza a discordância e mantém precisão.'
+      },
+      {
+        id: 'advanced-3',
+        prompt: 'Complete: "The issue is not lack of effort, but rather a lack of ___."',
+        helper: 'Substantivo abstrato em contexto analítico.',
+        choices: ['alignment', 'align', 'aligned', 'aligning'],
+        answer: 0,
+        explain: 'Depois de "lack of", use um substantivo: "alignment".'
+      },
+      {
+        id: 'advanced-4',
+        prompt: 'O que "That is beside the point" quer dizer?',
+        helper: 'Usado quando algo foge do tema principal.',
+        choices: ['Isso não vem ao caso', 'Isso é essencial', 'Isso está ao lado', 'Isso resolve tudo'],
+        answer: 0,
+        explain: '"Beside the point" indica que algo não é relevante para a discussão.'
+      }
+    ]
+  },
+  {
     id: 'phrasal-verbs',
     title: 'Phrasal verbs úteis',
     level: 'B1',

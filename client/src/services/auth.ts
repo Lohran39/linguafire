@@ -11,6 +11,7 @@ export type UserProfile = {
   correct_answers: number;
   lessons_completed: number;
   english_level: string;
+  placement_completed?: number;
   google_linked?: boolean;
   theme?: string;
   subscription_active?: boolean;

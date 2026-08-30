@@ -341,15 +341,17 @@ function AppHome({
   onLoadProfile: () => Promise<UserProfile>;
 }) {
   const [activeTab, setActiveTab] = useState<AppTab>(initialTab);
+  const needsPlacement = Number(user.placement_completed || 0) !== 1;
+  const currentTab = needsPlacement ? 'placement' : activeTab;
 
   return (
     <main className="app-screen">
       <nav className="topbar">
         <strong>LinguaFire</strong>
         <div className="app-nav" aria-label="Navegação principal">
-          {appTabs.map((tab) => (
+          {(needsPlacement ? appTabs.filter((tab) => tab.id === 'placement') : appTabs).map((tab) => (
             <button
-              className={activeTab === tab.id ? 'active' : ''}
+              className={currentTab === tab.id ? 'active' : ''}
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
@@ -363,27 +365,42 @@ function AppHome({
         </button>
       </nav>
 
-      {activeTab === 'home' && (
+      {needsPlacement && (
+        <div className="placement-lock">
+          <strong>Antes de começar</strong>
+          <span>Faça o nivelamento inicial para liberar uma trilha ajustada ao seu inglês.</span>
+        </div>
+      )}
+
+      {currentTab === 'home' && (
         <HomeDashboard user={user} onLoadProfile={onLoadProfile} onProfileRefresh={onProfileRefresh} />
       )}
-      {activeTab === 'lessons' && (
+      {currentTab === 'lessons' && (
         <LessonTab user={user} onProfileRefresh={onProfileRefresh} />
       )}
-      {activeTab === 'music' && (
+      {currentTab === 'music' && (
         <MusicTab user={user} onProfileRefresh={onProfileRefresh} />
       )}
-      {activeTab === 'flashcard' && (
+      {currentTab === 'flashcard' && (
         <FlashcardTab user={user} onProfileRefresh={onProfileRefresh} />
       )}
-      {activeTab === 'conversation' && (
+      {currentTab === 'conversation' && (
         <ConversationTab user={user} onProfileRefresh={onProfileRefresh} />
       )}
-      {activeTab === 'natives' && <NativesTab />}
-      {activeTab === 'shop' && <ShopTab user={user} onProfileRefresh={onProfileRefresh} />}
-      {activeTab === 'placement' && (
-        <PlacementTab user={user} onProfileRefresh={onProfileRefresh} onContinue={() => setActiveTab('lessons')} />
+      {currentTab === 'natives' && <NativesTab />}
+      {currentTab === 'shop' && <ShopTab user={user} onProfileRefresh={onProfileRefresh} />}
+      {currentTab === 'placement' && (
+        <PlacementTab
+          user={user}
+          required={needsPlacement}
+          onProfileRefresh={(updatedUser) => {
+            setActiveTab('placement');
+            onProfileRefresh(updatedUser);
+          }}
+          onContinue={() => setActiveTab('lessons')}
+        />
       )}
-      {activeTab === 'profile' && <ProfileTab user={user} onProfileRefresh={onProfileRefresh} />}
+      {currentTab === 'profile' && <ProfileTab user={user} onProfileRefresh={onProfileRefresh} />}
     </main>
   );
 }

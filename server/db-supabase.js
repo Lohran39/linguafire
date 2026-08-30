@@ -62,6 +62,7 @@ async function supabaseCreateUser(userData) {
       correct_answers: userData.correct_answers ?? 0,
       lessons_completed: userData.lessons_completed ?? 0,
       english_level: userData.english_level ?? 'A1',
+      placement_completed: userData.placement_completed ?? 0,
       achievements: userData.achievements ?? '[]',
       favorites: userData.favorites ?? '[]',
       theme: userData.theme ?? 'default',

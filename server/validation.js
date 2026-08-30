@@ -218,6 +218,7 @@ const profileUpdateSchema = objectSchema((data, output, issues) => {
   optional(data, 'correct_answers', numberValidator({ int: true, min: 0 }), output, issues);
   optional(data, 'lessons_completed', numberValidator({ int: true, min: 0 }), output, issues);
   optional(data, 'english_level', englishLevelValidator, output, issues);
+  optional(data, 'placement_completed', numberValidator({ int: true, min: 0, max: 1 }), output, issues);
   optional(data, 'achievements', arrayValidator(stringValidator({ min: 1, max: 200 })), output, issues);
   optional(data, 'favorites', arrayValidator(favoriteValidator), output, issues);
   optional(data, 'theme', stringValidator({ max: 50 }), output, issues);
