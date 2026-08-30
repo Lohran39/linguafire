@@ -80,7 +80,11 @@ async function supabaseCreateUser(userData) {
       streak_freeze_active: userData.streak_freeze_active ?? 0,
       has_free_hint: userData.has_free_hint ?? 0,
       password_reset_token: userData.password_reset_token ?? '',
-      password_reset_expires: userData.password_reset_expires ?? 0
+      password_reset_expires: userData.password_reset_expires ?? 0,
+      email_verified: userData.email_verified ?? 1,
+      email_verified_at: userData.email_verified_at ?? 0,
+      email_verification_token: userData.email_verification_token ?? '',
+      email_verification_expires: userData.email_verification_expires ?? 0
     }])
     .select()
     .single();
@@ -121,6 +125,35 @@ async function supabaseResetPassword(id, hashedPassword) {
     password: hashedPassword,
     password_reset_token: '',
     password_reset_expires: 0
+  });
+}
+
+async function supabaseGetUserByEmailVerificationToken(token) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email_verification_token', token)
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return data || null;
+}
+
+async function supabaseSetEmailVerificationToken(id, token, expiresAt) {
+  return supabaseUpdateUser(id, {
+    email_verified: 0,
+    email_verified_at: 0,
+    email_verification_token: token,
+    email_verification_expires: expiresAt
+  });
+}
+
+async function supabaseVerifyUserEmail(id) {
+  return supabaseUpdateUser(id, {
+    email_verified: 1,
+    email_verified_at: Date.now(),
+    email_verification_token: '',
+    email_verification_expires: 0
   });
 }
 
@@ -347,6 +380,9 @@ module.exports = {
   supabaseSetPasswordResetToken,
   supabaseGetUserByResetToken,
   supabaseResetPassword,
+  supabaseGetUserByEmailVerificationToken,
+  supabaseSetEmailVerificationToken,
+  supabaseVerifyUserEmail,
   supabaseUpdateUserXP,
   supabaseGetDailyProgress,
   supabaseUpsertDailyProgress,

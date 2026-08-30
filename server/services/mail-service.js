@@ -88,6 +88,33 @@ function createWelcomeMessage(to, name = '') {
   };
 }
 
+function createEmailVerificationMessage(to, verifyUrl, name = '') {
+  const safeName = String(name || 'aluno').trim();
+  const safeHtmlName = escapeHtml(safeName);
+
+  return {
+    to,
+    subject: 'Confirme seu email no LinguaFire',
+    text: [
+      `Olá, ${safeName}.`,
+      '',
+      'Para ativar sua conta no LinguaFire, confirme que este email é seu.',
+      `Confirme acessando este link: ${verifyUrl}`,
+      '',
+      'Se você não criou uma conta, ignore este email.'
+    ].join('\n'),
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111">
+        <h2>Confirme seu email no LinguaFire</h2>
+        <p>Olá, ${safeHtmlName}.</p>
+        <p>Para ativar sua conta, confirme que este email é seu.</p>
+        <p><a href="${verifyUrl}" style="display:inline-block;padding:12px 18px;background:#ff6a00;color:#fff;text-decoration:none;border-radius:10px;font-weight:700">Confirmar email</a></p>
+        <p>Se você não criou uma conta, ignore este email.</p>
+      </div>
+    `
+  };
+}
+
 function isPasswordResetEmailConfigured(env = process.env) {
   return !!(env.RESEND_API_KEY || env.SMTP_HOST);
 }
@@ -162,8 +189,13 @@ function createMailService(env = process.env) {
     await sendMessage(createWelcomeMessage(to, name));
   }
 
+  async function sendEmailVerificationEmail(to, verifyUrl, name = '') {
+    await sendMessage(createEmailVerificationMessage(to, verifyUrl, name));
+  }
+
   return {
     sendPasswordResetEmail,
+    sendEmailVerificationEmail,
     sendWelcomeEmail,
     isPasswordResetEmailConfigured: () => isPasswordResetEmailConfigured(env),
     isTransactionalEmailConfigured: () => isTransactionalEmailConfigured(env)
@@ -174,6 +206,7 @@ module.exports = {
   createMailService,
   createMailTransporter,
   createPasswordResetMessage,
+  createEmailVerificationMessage,
   createWelcomeMessage,
   isPasswordResetEmailConfigured,
   isTransactionalEmailConfigured,

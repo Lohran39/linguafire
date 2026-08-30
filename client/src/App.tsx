@@ -6,6 +6,7 @@ import {
   loginWithGoogle,
   logout,
   register,
+  resendEmailVerification,
   requestPasswordReset,
   resetPassword,
   type UserProfile
@@ -50,11 +51,15 @@ function AuthForm({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [verificationLink, setVerificationLink] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
+    setMessage('');
+    setVerificationLink('');
 
     if (!email.trim() || !password) {
       setError('Preencha email e senha.');
@@ -73,12 +78,48 @@ function AuthForm({
 
     try {
       setIsSubmitting(true);
-      const user = isLogin
-        ? await login(email.trim(), password)
-        : await register(name.trim(), email.trim(), password);
-      onAuthenticated(user, !isLogin);
+      if (isLogin) {
+        const user = await login(email.trim(), password);
+        onAuthenticated(user, false);
+        return;
+      }
+
+      const result = await register(name.trim(), email.trim(), password);
+      if (result.requiresEmailVerification) {
+        setMessage(result.message);
+        setVerificationLink(result.verificationLink || '');
+        setPassword('');
+        setConfirmPassword('');
+        return;
+      }
+
+      if (result.user) {
+        onAuthenticated(result.user, true);
+      }
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Erro ao autenticar.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleResendVerification() {
+    setError('');
+    setMessage('');
+    setVerificationLink('');
+
+    if (!email.trim()) {
+      setError('Digite seu email para reenviar a confirmação.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const result = await resendEmailVerification(email.trim());
+      setMessage(result.message);
+      setVerificationLink(result.verificationLink || '');
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Erro ao reenviar confirmação.');
     } finally {
       setIsSubmitting(false);
     }
@@ -132,6 +173,12 @@ function AuthForm({
         )}
 
         {error && <div className="form-error">{error}</div>}
+        {message && <div className="form-success">{message}</div>}
+        {verificationLink && (
+          <a className="dev-link" href={verificationLink}>
+            Abrir confirmação de desenvolvimento
+          </a>
+        )}
 
         <button className="primary-button" type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Aguarde...' : isLogin ? 'Entrar' : 'Criar conta'}
@@ -139,6 +186,11 @@ function AuthForm({
         {isLogin && (
           <button className="text-button" type="button" onClick={onForgot}>
             Esqueci minha senha
+          </button>
+        )}
+        {isLogin && (
+          <button className="text-button" type="button" onClick={handleResendVerification} disabled={isSubmitting}>
+            Reenviar confirmação
           </button>
         )}
         <button className="google-button" type="button" onClick={() => loginWithGoogle('login')}>
@@ -404,6 +456,21 @@ export function App() {
           if (params.get('placement') === '1') {
             setInitialAppTab('placement');
           }
+          window.history.replaceState({}, '', '/');
+        } else if (params.get('auth') === 'email_verified') {
+          setAuthNotice('Email confirmado com sucesso.');
+          if (params.get('placement') === '1') {
+            setInitialAppTab('placement');
+          }
+          window.history.replaceState({}, '', '/');
+        } else if (authError === 'email_verification_expired') {
+          setAuthNotice('Link de confirmação expirado. Reenvie a confirmação pelo login.');
+          window.history.replaceState({}, '', '/');
+        } else if (authError === 'email_verification_invalid') {
+          setAuthNotice('Link de confirmação inválido. Reenvie a confirmação pelo login.');
+          window.history.replaceState({}, '', '/');
+        } else if (authError === 'email_verification_failed') {
+          setAuthNotice('Não foi possível confirmar seu email. Tente novamente.');
           window.history.replaceState({}, '', '/');
         }
 

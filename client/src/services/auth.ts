@@ -33,6 +33,13 @@ export type FavoriteSong = {
   level: string;
 };
 
+export type RegisterResult = {
+  requiresEmailVerification: boolean;
+  message: string;
+  verificationLink?: string | null;
+  user?: UserProfile;
+};
+
 type ApiErrorBody = {
   error?: string;
   message?: string;
@@ -72,8 +79,8 @@ export async function login(email: string, password: string): Promise<UserProfil
   return data.user;
 }
 
-export async function register(name: string, email: string, password: string): Promise<UserProfile> {
-  const data = await parseJson<{ user: UserProfile }>(
+export async function register(name: string, email: string, password: string): Promise<RegisterResult> {
+  const data = await parseJson<RegisterResult>(
     await fetch(`${API_BASE}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -82,8 +89,19 @@ export async function register(name: string, email: string, password: string): P
     })
   );
 
-  persistUserId(String(data.user.id));
-  return data.user;
+  if (data.user) persistUserId(String(data.user.id));
+  return data;
+}
+
+export async function resendEmailVerification(email: string): Promise<{ message: string; verificationLink?: string | null }> {
+  return parseJson<{ message: string; verificationLink?: string | null }>(
+    await fetch(`${API_BASE}/auth/resend-verification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email })
+    })
+  );
 }
 
 export async function getSession(): Promise<{ userId: string; email: string } | null> {

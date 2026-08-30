@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, forgotPasswordSchema, validateBody } = require('../validation');
 const { getCookieToken, setAuthCookie, clearAuthCookie } = require('../utils/auth');
 const { verifyEmailCanReceiveMail: defaultVerifyEmailCanReceiveMail } = require('../utils/email-verifier');
@@ -15,10 +16,14 @@ function setupAuthRoutes(app, deps = {}) {
     supabaseSetPasswordResetToken = async () => ({ error: 'not configured' }),
     supabaseGetUserByResetToken = async () => null,
     supabaseResetPassword = async () => ({ error: 'not configured' }),
+    supabaseGetUserByEmailVerificationToken = async () => null,
+    supabaseSetEmailVerificationToken = async () => ({ error: 'not configured' }),
+    supabaseVerifyUserEmail = async () => ({ error: 'not configured' }),
     JWT_SECRET = 'dev-secret',
     BASE_URL = 'http://localhost:3000',
     IS_PRODUCTION = false,
     sendPasswordResetEmail = async () => {},
+    sendEmailVerificationEmail = async () => {},
     sendWelcomeEmail = async () => {},
     isPasswordResetEmailConfigured = () => !!process.env.SMTP_HOST,
     isTransactionalEmailConfigured = () => !!process.env.SMTP_HOST,
@@ -26,6 +31,61 @@ function setupAuthRoutes(app, deps = {}) {
     parseJsonField = (value, fallback) => fallback,
     verifyEmailCanReceiveMail = defaultVerifyEmailCanReceiveMail
   } = deps;
+
+  function buildDefaultUserPayload(user) {
+    return {
+      id: user.id, name: user.name, email: user.email,
+      level: user.level ?? 1, xp: user.xp ?? 0, streak: user.streak ?? 0,
+      correct_answers: user.correct_answers ?? 0, lessons_completed: user.lessons_completed ?? 0,
+      english_level: user.english_level || 'A1',
+      achievements: parseJsonField(user.achievements, []),
+      favorites: parseJsonField(user.favorites, []),
+      titles: parseJsonField(user.titles, []),
+      google_linked: !!user.google_id,
+      theme: user.theme || 'default',
+      subscription_active: !!user.subscription_active,
+      subscription_expires: user.subscription_expires || 0,
+      ai_uses_today: user.ai_uses_today || 0,
+      lives: user.lives || 5,
+      has_free_hint: user.has_free_hint || 0,
+      xp_multiplier: user.xp_multiplier || 1,
+      xp_multiplier_until: user.xp_multiplier_until || 0
+    };
+  }
+
+  async function sendVerificationForUser(user) {
+    if (!isTransactionalEmailConfigured()) {
+      if (IS_PRODUCTION) {
+        throw new Error('Email de confirmação não configurado');
+      }
+      logger.info?.('Email confirmation link generated without email provider in development mode');
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+    const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${verificationToken}`;
+
+    const updateResult = await supabaseSetEmailVerificationToken(user.id, verificationToken, verificationExpires);
+    if (updateResult.error) {
+      logger.error?.('Failed to store email verification token', { error: updateResult.error });
+      throw new Error('Erro ao gerar confirmação de email');
+    }
+
+    if (isTransactionalEmailConfigured()) {
+      await sendEmailVerificationEmail(user.email, verifyUrl, user.name);
+    }
+
+    return verifyUrl;
+  }
+
+  function emailVerificationResponse(verificationUrl) {
+    return {
+      success: true,
+      requiresEmailVerification: true,
+      message: 'Enviamos um link de confirmação para seu email. Confirme antes de entrar.',
+      verificationLink: !IS_PRODUCTION && process.env.ALLOW_DEV_EMAIL_CONFIRMATION_LINK === 'true' ? verificationUrl : null
+    };
+  }
 
   // Register
   app.post('/api/register', validateBody(registerSchema), async (req, res) => {
@@ -37,8 +97,37 @@ function setupAuthRoutes(app, deps = {}) {
         return res.status(400).json({ error: 'Use um email valido que consiga receber mensagens.' });
       }
 
+      const existingUser = await supabaseGetUserByEmail(email);
+      if (existingUser) {
+        if (Number(existingUser.email_verified ?? 1) === 0) {
+          try {
+            const verificationUrl = await sendVerificationForUser(existingUser);
+            return res.json(emailVerificationResponse(verificationUrl));
+          } catch (emailErr) {
+            logger.error?.('Failed to resend email verification', { error: emailErr.message });
+            return res.status(500).json({ error: emailErr.message || 'Erro ao enviar confirmação de email' });
+          }
+        }
+        return res.status(400).json({ error: 'Este email já está cadastrado' });
+      }
+
+      if (!isTransactionalEmailConfigured() && IS_PRODUCTION) {
+        logger.error?.('Registration requested without transactional email provider configured');
+        return res.status(500).json({ error: 'Email de confirmação não configurado' });
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
-      const result = await supabaseCreateUser({ name, email, password: hashedPassword });
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const verificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+      const result = await supabaseCreateUser({
+        name,
+        email,
+        password: hashedPassword,
+        email_verified: 0,
+        email_verified_at: 0,
+        email_verification_token: verificationToken,
+        email_verification_expires: verificationExpires
+      });
 
       if (result.error) {
         if (result.error.includes('UNIQUE') || result.error.includes('duplicate')) {
@@ -48,37 +137,20 @@ function setupAuthRoutes(app, deps = {}) {
         return res.status(500).json({ error: 'Erro ao criar conta' });
       }
 
-      const userId = result.data.id;
-      const token = jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: '7d' });
-      setAuthCookie(res, token);
+      const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${verificationToken}`;
 
       if (isTransactionalEmailConfigured()) {
-        sendWelcomeEmail(email, name).catch((emailErr) => {
-          logger.error?.('Failed to send welcome email', { error: emailErr.message });
-        });
+        try {
+          await sendEmailVerificationEmail(email, verifyUrl, name);
+        } catch (emailErr) {
+          logger.error?.('Failed to send email verification', { error: emailErr.message });
+          return res.status(500).json({ error: 'Erro ao enviar confirmação de email' });
+        }
+      } else {
+        logger.info?.('Email confirmation link generated in development mode');
       }
 
-      res.json({
-        success: true,
-        user: {
-          id: userId, name, email,
-          level: 1, xp: 0, streak: 0,
-          correct_answers: 0, lessons_completed: 0,
-          english_level: 'A1',
-          achievements: [],
-          favorites: [],
-          titles: [],
-          google_linked: false,
-          theme: 'default',
-          subscription_active: false,
-          subscription_expires: 0,
-          ai_uses_today: 0,
-          lives: 5,
-          has_free_hint: 0,
-          xp_multiplier: 1,
-          xp_multiplier_until: 0
-        }
-      });
+      res.json(emailVerificationResponse(verifyUrl));
     } catch (error) {
       logger.error?.('Unexpected register error', { error: error.message });
       res.status(500).json({ error: 'Erro interno do servidor' });
@@ -100,32 +172,73 @@ function setupAuthRoutes(app, deps = {}) {
         return res.status(401).json({ error: 'Email ou senha incorretos' });
       }
 
+      if (Number(user.email_verified ?? 1) === 0) {
+        return res.status(403).json({ error: 'Confirme seu email antes de entrar.' });
+      }
+
       const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
       setAuthCookie(res, token);
 
       res.json({
         success: true,
-        user: {
-          id: user.id, name: user.name, email: user.email,
-          level: user.level, xp: user.xp, streak: user.streak,
-          correct_answers: user.correct_answers, lessons_completed: user.lessons_completed,
-          english_level: user.english_level,
-          achievements: parseJsonField(user.achievements, []),
-          favorites: parseJsonField(user.favorites, []),
-          titles: parseJsonField(user.titles, []),
-          google_linked: !!user.google_id,
-          theme: user.theme || 'default',
-          subscription_active: !!user.subscription_active,
-          subscription_expires: user.subscription_expires || 0,
-          ai_uses_today: user.ai_uses_today || 0,
-          lives: user.lives || 5,
-          has_free_hint: user.has_free_hint || 0,
-          xp_multiplier: user.xp_multiplier || 1,
-          xp_multiplier_until: user.xp_multiplier_until || 0
-        }
+        user: buildDefaultUserPayload(user)
       });
     } catch (error) {
       res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  });
+
+  app.get('/api/auth/verify-email', async (req, res) => {
+    const token = String(req.query.token || '');
+    if (!token) return res.redirect(`${BASE_URL}/?error=email_verification_invalid`);
+
+    try {
+      const user = await supabaseGetUserByEmailVerificationToken(token);
+      if (!user) return res.redirect(`${BASE_URL}/?error=email_verification_invalid`);
+      if (Number(user.email_verification_expires || 0) < Date.now()) {
+        return res.redirect(`${BASE_URL}/?error=email_verification_expired`);
+      }
+
+      const result = await supabaseVerifyUserEmail(user.id);
+      if (result.error) {
+        logger.error?.('Failed to verify email', { error: result.error });
+        return res.redirect(`${BASE_URL}/?error=email_verification_failed`);
+      }
+
+      const authToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+      setAuthCookie(res, authToken);
+
+      if (isTransactionalEmailConfigured()) {
+        sendWelcomeEmail(user.email, user.name).catch((emailErr) => {
+          logger.error?.('Failed to send welcome email after verification', { error: emailErr.message });
+        });
+      }
+
+      return res.redirect(`${BASE_URL}/?auth=email_verified&placement=1`);
+    } catch (error) {
+      logger.error?.('Unexpected email verification error', { error: error.message });
+      return res.redirect(`${BASE_URL}/?error=email_verification_failed`);
+    }
+  });
+
+  app.post('/api/auth/resend-verification', validateBody(forgotPasswordSchema), async (req, res) => {
+    const { email } = req.validatedBody;
+
+    try {
+      const user = await supabaseGetUserByEmail(email);
+      if (!user || Number(user.email_verified ?? 1) !== 0) {
+        return res.json({ success: true, message: 'Se a conta estiver pendente, enviaremos um novo link de confirmação.' });
+      }
+
+      const verificationUrl = await sendVerificationForUser(user);
+      res.json({
+        success: true,
+        message: 'Se a conta estiver pendente, enviaremos um novo link de confirmação.',
+        verificationLink: !IS_PRODUCTION && process.env.ALLOW_DEV_EMAIL_CONFIRMATION_LINK === 'true' ? verificationUrl : null
+      });
+    } catch (error) {
+      logger.error?.('Failed to resend email verification', { error: error.message });
+      res.status(500).json({ error: error.message || 'Erro ao reenviar confirmação de email' });
     }
   });
 

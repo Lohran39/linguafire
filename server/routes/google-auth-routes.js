@@ -129,7 +129,11 @@ function setupGoogleAuthRoutes(app, deps = {}) {
           name: googleUser.name,
           email: googleUser.email,
           password: '',
-          google_id: googleUser.googleId
+          google_id: googleUser.googleId,
+          email_verified: 1,
+          email_verified_at: Date.now(),
+          email_verification_token: '',
+          email_verification_expires: 0
         });
         if (user.error) throw new Error(user.error);
         user = user.data;

@@ -108,6 +108,7 @@ function resolveCorsOrigin(origin, callback) {
 
 const {
   sendPasswordResetEmail,
+  sendEmailVerificationEmail,
   sendWelcomeEmail,
   isPasswordResetEmailConfigured,
   isTransactionalEmailConfigured
@@ -118,6 +119,7 @@ const {
   supabase,
   supabaseGetUserByEmail, supabaseGetUserById, supabaseFindUserByGoogleOrEmail, supabaseCreateUser, supabaseUpdateUser,
   supabaseUpdateGoogleLink, supabaseSetPasswordResetToken, supabaseGetUserByResetToken, supabaseResetPassword,
+  supabaseGetUserByEmailVerificationToken, supabaseSetEmailVerificationToken, supabaseVerifyUserEmail,
   supabaseGetPushSubscription, supabaseGetAllPushSubscriptions, supabaseSavePushSubscription, supabaseDeletePushSubscription,
   supabaseGetUserRewards, supabaseAwardReward,
   supabaseGetGrammarErrors, supabaseAddGrammarError,
@@ -306,8 +308,10 @@ const { setupMiscRoutes } = require('./routes/misc-routes');
 // Auth routes (register, login, forgot-password, reset-password, session, logout)
 setupAuthRoutes(app, {
   supabaseGetUserByEmail, supabaseGetUserById, supabaseCreateUser, supabaseGetUserByResetToken,
-  supabaseSetPasswordResetToken, supabaseResetPassword, JWT_SECRET, BASE_URL, IS_PRODUCTION,
-  sendPasswordResetEmail, sendWelcomeEmail, isPasswordResetEmailConfigured,
+  supabaseSetPasswordResetToken, supabaseResetPassword,
+  supabaseGetUserByEmailVerificationToken, supabaseSetEmailVerificationToken, supabaseVerifyUserEmail,
+  JWT_SECRET, BASE_URL, IS_PRODUCTION,
+  sendPasswordResetEmail, sendEmailVerificationEmail, sendWelcomeEmail, isPasswordResetEmailConfigured,
   isTransactionalEmailConfigured, logger, supabase, parseJsonField
 });
 

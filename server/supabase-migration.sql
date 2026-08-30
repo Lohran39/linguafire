@@ -40,6 +40,10 @@ CREATE TABLE IF NOT EXISTS public.users (
   has_free_hint INTEGER DEFAULT 0,
   password_reset_token TEXT DEFAULT '',
   password_reset_expires BIGINT DEFAULT 0,
+  email_verified INTEGER DEFAULT 1,
+  email_verified_at BIGINT DEFAULT 0,
+  email_verification_token TEXT DEFAULT '',
+  email_verification_expires BIGINT DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -61,10 +65,16 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS streak_freeze_active INTEGER D
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS has_free_hint INTEGER DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_reset_token TEXT DEFAULT '';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_reset_expires BIGINT DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verified INTEGER DEFAULT 1;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verified_at BIGINT DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verification_token TEXT DEFAULT '';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verification_expires BIGINT DEFAULT 0;
 
 ALTER TABLE public.users ALTER COLUMN xp_multiplier_until TYPE BIGINT USING xp_multiplier_until::BIGINT;
 ALTER TABLE public.users ALTER COLUMN subscription_expires TYPE BIGINT USING subscription_expires::BIGINT;
 ALTER TABLE public.users ALTER COLUMN password_reset_expires TYPE BIGINT USING password_reset_expires::BIGINT;
+ALTER TABLE public.users ALTER COLUMN email_verified_at TYPE BIGINT USING email_verified_at::BIGINT;
+ALTER TABLE public.users ALTER COLUMN email_verification_expires TYPE BIGINT USING email_verification_expires::BIGINT;
 
 -- ============================================
 -- DAILY PROGRESS TABLE

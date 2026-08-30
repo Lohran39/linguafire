@@ -91,21 +91,26 @@ test('login endpoint returns stored profile arrays and shop bonuses', async () =
   }
 });
 
-test('register endpoint returns complete default profile shape', async () => {
+test('register endpoint stores pending user and sends email verification', async () => {
   const app = express();
   app.use(express.json());
-  let welcomeEmail = null;
+  let createdUser = null;
+  let verificationEmail = null;
   setupAuthRoutes(app, {
+    BASE_URL: 'https://linguafire.test',
     JWT_SECRET: 'unit-test-secret',
     parseJsonField,
     verifyEmailCanReceiveMail: async () => true,
-    supabaseCreateUser: async ({ name, email, password }) => ({
-      data: { id: 'new-user', name, email, password },
-      error: null
-    }),
+    supabaseCreateUser: async (payload) => {
+      createdUser = payload;
+      return {
+        data: { id: 'new-user', ...payload },
+        error: null
+      };
+    },
     isTransactionalEmailConfigured: () => true,
-    sendWelcomeEmail: async (email, name) => {
-      welcomeEmail = { email, name };
+    sendEmailVerificationEmail: async (email, verifyUrl, name) => {
+      verificationEmail = { email, verifyUrl, name };
     }
   });
 
@@ -119,17 +124,89 @@ test('register endpoint returns complete default profile shape', async () => {
     const body = await response.json();
 
     assert.equal(response.status, 200);
-    assert.equal(body.user.id, 'new-user');
-    assert.deepEqual(body.user.achievements, []);
-    assert.deepEqual(body.user.favorites, []);
-    assert.deepEqual(body.user.titles, []);
-    assert.equal(body.user.subscription_active, false);
-    assert.equal(body.user.ai_uses_today, 0);
-    assert.equal(body.user.lives, 5);
-    assert.equal(body.user.has_free_hint, 0);
-    assert.equal(body.user.xp_multiplier, 1);
-    assert.equal(body.user.xp_multiplier_until, 0);
-    assert.deepEqual(welcomeEmail, { email: 'new@example.com', name: 'New User' });
+    assert.equal(body.requiresEmailVerification, true);
+    assert.match(body.message, /link de confirmação/);
+    assert.equal(body.user, undefined);
+    assert.equal(createdUser.email_verified, 0);
+    assert.match(createdUser.email_verification_token, /^[a-f0-9]{64}$/);
+    assert.ok(createdUser.email_verification_expires > Date.now());
+    assert.equal(verificationEmail.email, 'new@example.com');
+    assert.match(verificationEmail.verifyUrl, /^https:\/\/linguafire\.test\/api\/auth\/verify-email\?token=/);
+    assert.equal(verificationEmail.name, 'New User');
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('login endpoint blocks password users that have not confirmed email', async () => {
+  const hashedPassword = await bcrypt.hash('secret123', 4);
+  const app = express();
+  app.use(express.json());
+  setupAuthRoutes(app, {
+    JWT_SECRET: 'unit-test-secret',
+    parseJsonField,
+    supabaseGetUserByEmail: async () => ({
+      id: 'user-1',
+      name: 'Pending User',
+      email: 'pending@example.com',
+      password: hashedPassword,
+      email_verified: 0
+    })
+  });
+
+  const { server, baseUrl } = await startTestServer(app);
+  try {
+    const response = await fetch(`${baseUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'pending@example.com', password: 'secret123' })
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 403);
+    assert.equal(body.error, 'Confirme seu email antes de entrar.');
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('email verification link verifies user and creates session cookie', async () => {
+  const app = express();
+  app.use(express.json());
+  let verifiedUserId = null;
+  let welcomeEmail = null;
+
+  setupAuthRoutes(app, {
+    BASE_URL: 'https://linguafire.test',
+    JWT_SECRET: 'unit-test-secret',
+    parseJsonField,
+    supabaseGetUserByEmailVerificationToken: async (token) => token === 'verify-token' ? ({
+      id: 'user-1',
+      name: 'Verify User',
+      email: 'verify@example.com',
+      email_verification_expires: Date.now() + 1000
+    }) : null,
+    supabaseVerifyUserEmail: async (id) => {
+      verifiedUserId = id;
+      return { data: { id }, error: null };
+    },
+    isTransactionalEmailConfigured: () => true,
+    sendWelcomeEmail: async (email, name) => {
+      welcomeEmail = { email, name };
+    }
+  });
+
+  const { server, baseUrl } = await startTestServer(app);
+  try {
+    const response = await fetch(`${baseUrl}/api/auth/verify-email?token=verify-token`, {
+      redirect: 'manual'
+    });
+
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get('location'), 'https://linguafire.test/?auth=email_verified&placement=1');
+    assert.match(response.headers.get('set-cookie') || '', /linguafire_token=/);
+    assert.equal(verifiedUserId, 'user-1');
+    assert.deepEqual(welcomeEmail, { email: 'verify@example.com', name: 'Verify User' });
   } finally {
     await stopTestServer(server);
   }
