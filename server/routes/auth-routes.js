@@ -87,6 +87,20 @@ function setupAuthRoutes(app, deps = {}) {
     };
   }
 
+  function getPublicEmailError(error, fallback) {
+    const message = String(error?.message || '');
+    if (
+      message.includes('Resend ainda está em modo teste') ||
+      message.includes('demorou demais') ||
+      message.includes('Não foi possível conectar ao Resend') ||
+      message.includes('precisa estar configurado') ||
+      message.includes('não configurado')
+    ) {
+      return message;
+    }
+    return fallback;
+  }
+
   // Register
   app.post('/api/register', validateBody(registerSchema), async (req, res) => {
     const { name, email, password } = req.validatedBody;
@@ -105,7 +119,7 @@ function setupAuthRoutes(app, deps = {}) {
             return res.json(emailVerificationResponse(verificationUrl));
           } catch (emailErr) {
             logger.error?.('Failed to resend email verification', { error: emailErr.message });
-            return res.status(500).json({ error: emailErr.message || 'Erro ao enviar confirmação de email' });
+            return res.status(500).json({ error: getPublicEmailError(emailErr, 'Erro ao enviar confirmação de email') });
           }
         }
         return res.status(400).json({ error: 'Este email já está cadastrado' });
@@ -144,7 +158,7 @@ function setupAuthRoutes(app, deps = {}) {
           await sendEmailVerificationEmail(email, verifyUrl, name);
         } catch (emailErr) {
           logger.error?.('Failed to send email verification', { error: emailErr.message });
-          return res.status(500).json({ error: 'Erro ao enviar confirmação de email' });
+          return res.status(500).json({ error: getPublicEmailError(emailErr, 'Erro ao enviar confirmação de email') });
         }
       } else {
         logger.info?.('Email confirmation link generated in development mode');
@@ -238,7 +252,7 @@ function setupAuthRoutes(app, deps = {}) {
       });
     } catch (error) {
       logger.error?.('Failed to resend email verification', { error: error.message });
-      res.status(500).json({ error: error.message || 'Erro ao reenviar confirmação de email' });
+      res.status(500).json({ error: getPublicEmailError(error, 'Erro ao reenviar confirmação de email') });
     }
   });
 
@@ -269,7 +283,7 @@ function setupAuthRoutes(app, deps = {}) {
           await sendPasswordResetEmail(email, resetUrl, user.name);
         } catch (emailErr) {
           logger.error?.('Failed to send password reset email', { error: emailErr.message });
-          return res.status(500).json({ error: 'Erro ao enviar email de recuperação' });
+          return res.status(500).json({ error: getPublicEmailError(emailErr, 'Erro ao enviar email de recuperação') });
         }
       } else if (!IS_PRODUCTION && process.env.ALLOW_DEV_RESET_LINK === 'true') {
         logger.info?.('Password reset link generated in development mode');
@@ -320,7 +334,7 @@ function setupAuthRoutes(app, deps = {}) {
   });
 
   // Get session
-  app.get('/api/auth/session', (req, res) => {
+  app.get('/api/auth/session', async (req, res) => {
     const token = getCookieToken(req);
     if (!token) {
       return res.status(401).json({ error: 'Não autenticado' });
@@ -328,8 +342,18 @@ function setupAuthRoutes(app, deps = {}) {
 
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
+      const user = await supabaseGetUserById(decoded.id);
+      if (!user) {
+        clearAuthCookie(res);
+        return res.status(401).json({ error: 'Não autenticado' });
+      }
+      if (Number(user.email_verified ?? 1) === 0) {
+        clearAuthCookie(res);
+        return res.status(403).json({ error: 'Confirme seu email antes de entrar.' });
+      }
       res.json({ userId: decoded.id, email: decoded.email });
     } catch (err) {
+      clearAuthCookie(res);
       return res.status(403).json({ error: 'Sessão inválida' });
     }
   });
@@ -353,12 +377,17 @@ function setupAuthRoutes(app, deps = {}) {
       const decoded = jwt.verify(token, JWT_SECRET);
       const { data, error } = await deps.supabase
         .from('users')
-        .select('password')
+        .select('password,email_verified')
         .eq('id', decoded.id)
         .single();
 
       if (error || !data) {
         return res.status(500).json({ error: 'Erro interno do servidor' });
+      }
+
+      if (Number(data.email_verified ?? 1) === 0) {
+        clearAuthCookie(res);
+        return res.status(403).json({ error: 'Confirme seu email antes de entrar.' });
       }
 
       const validPassword = await bcrypt.compare(currentPassword, data.password);

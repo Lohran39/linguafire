@@ -129,20 +129,34 @@ async function sendWithResend(env, message) {
     throw new Error('RESEND_FROM, SMTP_FROM ou SMTP_USER precisa estar configurado.');
   }
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      from,
-      to: message.to,
-      subject: message.subject,
-      text: message.text,
-      html: message.html
-    })
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Number(env.EMAIL_TIMEOUT_MS || env.SMTP_TIMEOUT_MS || 15000));
+
+  let response;
+  try {
+    response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        from,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+        html: message.html
+      })
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('O envio do email demorou demais. Confira a configuração do Resend e tente novamente.');
+    }
+    throw new Error('Não foi possível conectar ao Resend para enviar o email.');
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     let detail = '';
@@ -150,6 +164,9 @@ async function sendWithResend(env, message) {
       detail = await response.text();
     } catch (err) {
       detail = response.statusText;
+    }
+    if (response.status === 403 && /testing emails|verify a domain|only send/i.test(detail)) {
+      throw new Error('O Resend ainda está em modo teste. Verifique um domínio no Resend ou envie apenas para o email dono da conta Resend.');
     }
     throw new Error(`Resend recusou o envio (${response.status}): ${detail || response.statusText}`);
   }

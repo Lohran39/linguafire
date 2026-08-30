@@ -208,7 +208,7 @@ app.use(createRateLimiter());
 const { getCookieToken, setAuthCookie, clearAuthCookie } = require('./utils/auth');
 
 // ============ AUTHENTICATE TOKEN ============
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   const cookieToken = getCookieToken(req);
   const authHeader = req.headers['authorization'];
   const headerToken = authHeader && authHeader.split(' ')[1];
@@ -218,11 +218,23 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ error: 'Token não fornecido' });
   }
 
-  require('jsonwebtoken').verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Token inválido' });
+  try {
+    const user = require('jsonwebtoken').verify(token, JWT_SECRET);
+    const storedUser = await supabaseGetUserById(user.id);
+    if (!storedUser) {
+      clearAuthCookie(res);
+      return res.status(401).json({ error: 'Token inválido' });
+    }
+    if (Number(storedUser.email_verified ?? 1) === 0) {
+      clearAuthCookie(res);
+      return res.status(403).json({ error: 'Confirme seu email antes de entrar.' });
+    }
     req.user = user;
     next();
-  });
+  } catch (_error) {
+    clearAuthCookie(res);
+    return res.status(403).json({ error: 'Token inválido' });
+  }
 }
 
 // ============ AI USAGE LIMIT ============
