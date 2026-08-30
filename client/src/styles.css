@@ -252,7 +252,7 @@ a {
 }
 
 .splash-screen .kicker {
-  margin-top: 0.05rem;
+  margin-top: 0.35rem;
   color: #c9dedb;
   font-size: 0.74rem;
   letter-spacing: 0.1em;
@@ -2761,6 +2761,7 @@ body[data-theme='light'] .placement-layout.result {
   }
 
   .splash-screen .kicker {
+    margin-top: 0.24rem;
     font-size: 0.58rem;
   }
 
