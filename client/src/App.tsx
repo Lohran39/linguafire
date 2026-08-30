@@ -419,6 +419,11 @@ export function App() {
   const [resetToken, setResetToken] = useState('');
   const [authNotice, setAuthNotice] = useState('');
 
+  function replaceScreen(nextScreen: Screen) {
+    window.history.replaceState({ screen: nextScreen }, '', '/');
+    setScreen(nextScreen);
+  }
+
   useEffect(() => {
     let isMounted = true;
     applyTheme(getStoredTheme());
@@ -498,14 +503,14 @@ export function App() {
     applyTheme(nextUser.theme);
     setUser(nextUser);
     setInitialAppTab(openPlacement ? 'placement' : 'home');
-    setScreen('app');
+    replaceScreen('app');
   }
 
   async function handleLogout() {
     await logout();
     setUser(null);
     setInitialAppTab('home');
-    setScreen('splash');
+    replaceScreen('splash');
   }
 
   if (isBooting) {
@@ -536,11 +541,11 @@ export function App() {
   }
 
   if (screen === 'forgot') {
-    return <ForgotPasswordForm onBack={() => setScreen('login')} />;
+    return <ForgotPasswordForm onBack={() => replaceScreen('login')} />;
   }
 
   if (screen === 'reset') {
-    return <ResetPasswordForm token={resetToken} onDone={() => setScreen('login')} />;
+    return <ResetPasswordForm token={resetToken} onDone={() => replaceScreen('login')} />;
   }
 
   if (screen === 'login') {
@@ -548,9 +553,9 @@ export function App() {
       <AuthForm
         mode="login"
         onAuthenticated={handleAuthenticated}
-        onBack={() => setScreen('splash')}
-        onForgot={() => setScreen('forgot')}
-        onSwitch={() => setScreen('register')}
+        onBack={() => replaceScreen('splash')}
+        onForgot={() => replaceScreen('forgot')}
+        onSwitch={() => replaceScreen('register')}
       />
     );
   }
@@ -560,9 +565,9 @@ export function App() {
       <AuthForm
         mode="register"
         onAuthenticated={handleAuthenticated}
-        onBack={() => setScreen('splash')}
-        onForgot={() => setScreen('forgot')}
-        onSwitch={() => setScreen('login')}
+        onBack={() => replaceScreen('splash')}
+        onForgot={() => replaceScreen('forgot')}
+        onSwitch={() => replaceScreen('login')}
       />
     );
   }
@@ -601,7 +606,7 @@ export function App() {
         </div>
 
         <div className="actions">
-          <button className="primary-button" type="button" onClick={() => setScreen('login')}>
+          <button className="primary-button" type="button" onClick={() => replaceScreen('login')}>
             Começar agora
           </button>
         </div>
