@@ -55,7 +55,7 @@ export async function searchNatives(query: string, lang: NativesLanguage): Promi
   const response = await fetch(`/api/natives/search?${params.toString()}`);
   const data = (await response.json().catch(() => ({}))) as NativesSearchResult & { error?: string };
   if (!response.ok) {
-    throw new Error(data.error || 'Erro ao buscar videos');
+    throw new Error(data.error || 'Erro ao buscar vídeos');
   }
   return data;
 }

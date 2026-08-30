@@ -135,14 +135,14 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
       if (pushSubscribed) {
         await unsubscribeFromPush();
         setPushSubscribed(false);
-        setNotice('Notificacoes desativadas.');
+        setNotice('Notificações desativadas.');
       } else {
         await subscribeToPush();
         setPushSubscribed(true);
-        setNotice('Notificacoes ativadas.');
+        setNotice('Notificações ativadas.');
       }
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Erro ao alterar notificacoes.');
+      setNotice(error instanceof Error ? error.message : 'Erro ao alterar notificações.');
     } finally {
       setPushBusy(false);
     }
@@ -158,7 +158,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
     }
 
     if (newPassword !== confirmPassword) {
-      setNotice('A confirmacao da nova senha nao confere.');
+      setNotice('A confirmação da nova senha não confere.');
       return;
     }
 
@@ -202,7 +202,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
   async function handleDeleteAccount() {
     setNotice('');
     if (deleteConfirm !== user.email) {
-      setNotice('Digite seu email para confirmar exclusao da conta.');
+      setNotice('Digite seu email para confirmar exclusão da conta.');
       return;
     }
 
@@ -225,7 +225,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
       <header className="profile-hero">
         <p className="kicker">Perfil</p>
         <h1>{user.name || 'Estudante'}</h1>
-        <p className="lead">Gerencie sua conta e confira o progresso principal ja vindo do backend.</p>
+        <p className="lead">Gerencie sua conta e confira o progresso principal já vindo do backend.</p>
       </header>
 
       <section className="profile-grid">
@@ -234,7 +234,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
           <strong>{user.email}</strong>
         </div>
         <div>
-          <span>Nivel de ingles</span>
+          <span>Nível de inglês</span>
           <strong>{user.english_level || 'A1'}</strong>
         </div>
         <div>
@@ -242,7 +242,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
           <strong>{user.xp || 0}</strong>
         </div>
         <div>
-          <span>Sequencia</span>
+          <span>Sequência</span>
           <strong>{user.streak || 0}</strong>
         </div>
         <div>
@@ -250,7 +250,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
           <strong>{user.correct_answers || 0}</strong>
         </div>
         <div>
-          <span>Licoes</span>
+          <span>Lições</span>
           <strong>{user.lessons_completed || 0}</strong>
         </div>
       </section>
@@ -291,7 +291,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
             {user.google_linked ? 'Google vinculado' : 'Vincular Google'}
           </button>
           <button className="secondary-button" disabled={pushBusy || !supportsPushNotifications()} type="button" onClick={togglePush}>
-            {pushSubscribed ? 'Desativar notificacoes' : 'Ativar notificacoes'}
+            {pushSubscribed ? 'Desativar notificações' : 'Ativar notificações'}
           </button>
           <button className="primary-button" disabled={isSaving} type="submit">
             {isSaving ? 'Salvando...' : 'Salvar perfil'}
@@ -308,7 +308,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
         </div>
         <div className="profile-subscription">
           <strong>{subscription.active ? 'Plano mensal ativo' : 'Plano gratuito'}</strong>
-          <span>{subscription.active ? `Renova ate ${subscriptionExpires}` : `Plano Pro: R$ ${subscription.price}/mes`}</span>
+          <span>{subscription.active ? `Renova até ${subscriptionExpires}` : `Plano Pro: R$ ${subscription.price}/mês`}</span>
         </div>
         <div className="profile-actions">
           <button className="primary-button" disabled={subscriptionBusy} type="button" onClick={toggleSubscription}>
@@ -319,7 +319,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
 
       <form className="profile-settings" onSubmit={handlePasswordSubmit}>
         <div className="panel-heading">
-          <h2>Seguranca</h2>
+          <h2>Segurança</h2>
           <span>senha</span>
         </div>
         <label>
@@ -364,7 +364,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
           <h2>Excluir conta</h2>
           <span>permanente</span>
         </div>
-        <p>Digite seu email para confirmar a exclusao da conta e dos dados de progresso.</p>
+        <p>Digite seu email para confirmar a exclusão da conta e dos dados de progresso.</p>
         <input className="field" value={deleteConfirm} onChange={(event) => setDeleteConfirm(event.target.value)} />
         <div className="profile-actions">
           <button className="secondary-button danger-button" disabled={deleteBusy} type="button" onClick={handleDeleteAccount}>

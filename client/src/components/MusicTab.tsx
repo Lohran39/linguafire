@@ -112,7 +112,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
       setActiveSong(hydratedSong);
       setNotice(`Letra carregada com ${lyrics.length} linhas.`);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Nao foi possivel carregar a letra agora.');
+      setNotice(error instanceof Error ? error.message : 'Não foi possível carregar a letra agora.');
     } finally {
       setIsLoadingLyrics(false);
     }
@@ -130,7 +130,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
     }
 
     if (!youtubeId) {
-      setNotice('Nao encontrei essa musica. Tente nome + artista ou cole um link do YouTube.');
+      setNotice('Não encontrei essa música. Tente nome + artista ou cole um link do YouTube.');
       return;
     }
 
@@ -151,7 +151,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
       openSong(youtubeSong);
       await hydrateLyrics(youtubeSong);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Nao consegui abrir esse link.');
+      setNotice(error instanceof Error ? error.message : 'Não consegui abrir esse link.');
     } finally {
       setIsSearching(false);
     }
@@ -164,7 +164,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
 
     await updateProfile({ favorites: nextFavorites });
     onProfileRefresh({ ...user, favorites: nextFavorites });
-    setNotice(isFavorite ? 'Musica removida dos favoritos.' : 'Musica salva nos favoritos.');
+    setNotice(isFavorite ? 'Música removida dos favoritos.' : 'Música salva nos favoritos.');
   }
 
   function openFavorite(favorite: FavoriteSong) {
@@ -188,7 +188,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   function startQuiz() {
     const questions = createQuiz(activeSong);
     if (!questions.length) {
-      setNotice('Esta musica ainda nao tem linhas suficientes para quiz no React.');
+      setNotice('Esta música ainda não tem linhas suficientes para quiz no React.');
       return;
     }
 
@@ -220,11 +220,11 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   }
 
   return (
-    <section className="music-layout" aria-label="Musica">
+    <section className="music-layout" aria-label="Música">
       <div className="music-sidebar">
         <section className="side-panel">
           <div className="panel-heading">
-            <h2>Buscar musica</h2>
+            <h2>Buscar música</h2>
             <span>{SONGS.length} locais</span>
           </div>
           <div className="search-row">
@@ -246,7 +246,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
 
         <section className="side-panel">
           <div className="panel-heading">
-            <h2>Sugestoes</h2>
+            <h2>Sugestões</h2>
             <span>{englishLevel}</span>
           </div>
           <div className="song-list">
@@ -271,7 +271,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
             <span>{favorites.length}</span>
           </div>
           {favorites.length === 0 ? (
-            <p>Salve uma musica para revisar depois.</p>
+            <p>Salve uma música para revisar depois.</p>
           ) : (
             <div className="song-list">
               {favorites.map((favorite) => (
@@ -332,8 +332,8 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
           </div>
         ) : (
           <section className="empty-lyrics">
-            <h2>Letra nao carregada</h2>
-            <p>Use o botao de letra para consultar a API e montar o modo de estudo automaticamente.</p>
+            <h2>Letra não carregada</h2>
+            <p>Use o botão de letra para consultar a API e montar o modo de estudo automaticamente.</p>
             <button className="primary-button" type="button" disabled={isLoadingLyrics} onClick={() => hydrateLyrics(activeSong)}>
               {isLoadingLyrics ? 'Carregando...' : 'Carregar letra'}
             </button>
@@ -342,7 +342,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
       </div>
 
       {quiz.length > 0 && (
-        <div className="quiz-modal" role="dialog" aria-modal="true" aria-label="Quiz de musica">
+        <div className="quiz-modal" role="dialog" aria-modal="true" aria-label="Quiz de música">
           <section>
             {quizDone ? (
               <>
@@ -350,7 +350,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
                 <h2>
                   {quizCorrect}/{quiz.length} corretas
                 </h2>
-                <p>Continue revisando a letra para fixar vocabulario.</p>
+                <p>Continue revisando a letra para fixar vocabulário.</p>
                 <button className="primary-button" type="button" onClick={closeQuiz}>
                   Fechar
                 </button>
@@ -379,7 +379,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
                 </div>
                 {quizAnswer && (
                   <button className="primary-button" type="button" onClick={nextQuiz}>
-                    Proxima
+                    Próxima
                   </button>
                 )}
                 <button className="ghost-button" type="button" onClick={closeQuiz}>

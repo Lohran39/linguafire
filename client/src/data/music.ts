@@ -20,28 +20,28 @@ export const SONGS: Song[] = [
     title: 'Blinding Lights',
     artist: 'The Weeknd',
     ytId: '4NRXx6U8ABQ',
-    level: 'Intermediario',
+    level: 'Intermediário',
     thumb: 'Night drive',
     lyrics: [
       {
         en: "I've been tryna call",
         pt: 'Eu fico tentando te ligar',
-        explain: 'tryna = trying to. Forma coloquial muito comum em musica e fala rapida.'
+        explain: 'tryna = trying to. Forma coloquial muito comum em música e fala rápida.'
       },
       {
         en: "I've been on my own for long enough",
         pt: 'Fiquei sozinho por tempo suficiente',
-        explain: 'on my own significa sozinho ou por conta propria.'
+        explain: 'on my own significa sozinho ou por conta própria.'
       },
       {
         en: 'Maybe you can show me how to love',
-        pt: 'Talvez voce possa me mostrar como amar',
-        explain: 'show me how to + verbo serve para pedir demonstracao.'
+        pt: 'Talvez você possa me mostrar como amar',
+        explain: 'show me how to + verbo serve para pedir demonstração.'
       },
       {
         en: "I'm blinded by the lights",
         pt: 'Estou cego pelas luzes',
-        explain: 'blinded by tambem funciona como metafora: ficar deslumbrado por algo.'
+        explain: 'blinded by também funciona como metáfora: ficar deslumbrado por algo.'
       }
     ]
   },
@@ -55,18 +55,18 @@ export const SONGS: Song[] = [
     lyrics: [
       {
         en: "The club isn't the best place to find a lover",
-        pt: 'O clube nao e o melhor lugar para encontrar um amor',
-        explain: "isn't the best place to = nao e o melhor lugar para."
+        pt: 'O clube não é o melhor lugar para encontrar um amor',
+        explain: "isn't the best place to = não é o melhor lugar para."
       },
       {
         en: 'The bar is where I go',
-        pt: 'O bar e onde eu vou',
-        explain: 'where I go e uma estrutura simples para falar de destino habitual.'
+        pt: 'O bar é onde eu vou',
+        explain: 'where I go é uma estrutura simples para falar de destino habitual.'
       },
       {
         en: 'Come over and start up a conversation',
         pt: 'Venha e comece uma conversa',
-        explain: 'come over indica se aproximar ou ir ate alguem.'
+        explain: 'come over indica se aproximar ou ir até alguém.'
       },
       {
         en: "I'm in love with the shape of you",
@@ -80,18 +80,18 @@ export const SONGS: Song[] = [
     title: 'Someone Like You',
     artist: 'Adele',
     ytId: 'hLQl3WQQoQ0',
-    level: 'Intermediario',
+    level: 'Intermediário',
     thumb: 'Piano ballad',
     lyrics: [
       {
         en: "I heard that you're settled down",
-        pt: 'Ouvi dizer que voce se estabeleceu',
-        explain: 'settle down pode significar criar uma vida mais estavel.'
+        pt: 'Ouvi dizer que você se estabeleceu',
+        explain: 'settle down pode significar criar uma vida mais estável.'
       },
       {
         en: 'You found a girl and you are married now',
-        pt: 'Voce encontrou uma garota e esta casado',
-        explain: 'found e passado de find.'
+        pt: 'Você encontrou uma garota e está casado',
+        explain: 'found é passado de find.'
       },
       {
         en: 'I hate to turn up out of the blue',
@@ -100,8 +100,8 @@ export const SONGS: Song[] = [
       },
       {
         en: "Never mind, I'll find someone like you",
-        pt: 'Nao importa, vou encontrar alguem como voce',
-        explain: 'never mind = deixa pra la ou nao importa.'
+        pt: 'Não importa, vou encontrar alguém como você',
+        explain: 'never mind = deixa pra lá ou não importa.'
       }
     ]
   },
@@ -115,23 +115,23 @@ export const SONGS: Song[] = [
     lyrics: [
       {
         en: 'I do the same thing I told you that I never would',
-        pt: 'Faco a mesma coisa que disse que nunca faria',
-        explain: 'would aparece aqui como ideia de promessa ou intencao no passado.'
+        pt: 'Faço a mesma coisa que disse que nunca faria',
+        explain: 'would aparece aqui como ideia de promessa ou intenção no passado.'
       },
       {
         en: 'I told you I changed',
         pt: 'Disse que mudei',
-        explain: 'changed e passado de change.'
+        explain: 'changed é passado de change.'
       },
       {
         en: "I need to stop, but I can't",
-        pt: 'Preciso parar, mas nao consigo',
+        pt: 'Preciso parar, mas não consigo',
         explain: "can't expressa impossibilidade ou falta de capacidade."
       },
       {
         en: 'I just need you to stay',
-        pt: 'So preciso que voce fique',
-        explain: 'need you to + verbo = precisar que alguem faca algo.'
+        pt: 'Só preciso que você fique',
+        explain: 'need you to + verbo = precisar que alguém faça algo.'
       }
     ]
   }
@@ -139,8 +139,8 @@ export const SONGS: Song[] = [
 
 export const SUGGESTIONS = [
   ...SONGS,
-  { key: 'hello', title: 'Hello', artist: 'Adele', ytId: 'YQHsXMglC9A', level: 'Intermediario', thumb: 'Vocal', lyrics: [] },
-  { key: 'believer', title: 'Believer', artist: 'Imagine Dragons', ytId: '7wtfhZwyrcc', level: 'Intermediario', thumb: 'Rock', lyrics: [] },
+  { key: 'hello', title: 'Hello', artist: 'Adele', ytId: 'YQHsXMglC9A', level: 'Intermediário', thumb: 'Vocal', lyrics: [] },
+  { key: 'believer', title: 'Believer', artist: 'Imagine Dragons', ytId: '7wtfhZwyrcc', level: 'Intermediário', thumb: 'Rock', lyrics: [] },
   { key: 'yellow', title: 'Yellow', artist: 'Coldplay', ytId: 'yKNxeF4KMsY', level: 'Iniciante', thumb: 'Alt pop', lyrics: [] }
 ];
 

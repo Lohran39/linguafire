@@ -8,11 +8,11 @@ type ShopTabProps = {
 };
 
 const descriptions: Record<string, string> = {
-  extra_life: '+1 vida, ate o maximo de 9',
-  free_hint: 'Dica gratis na proxima licao',
+  extra_life: '+1 vida, até o máximo de 9',
+  free_hint: 'Dica grátis na próxima lição',
   xp_booster: 'XP em dobro por 24 horas',
-  streak_freeze: 'Protege sua sequencia por 1 dia',
-  all_lives: 'Restaura vidas ao maximo',
+  streak_freeze: 'Protege sua sequência por 1 dia',
+  all_lives: 'Restaura vidas ao máximo',
   mystery_box: 'Recompensa surpresa'
 };
 
@@ -78,7 +78,7 @@ export function ShopTab({ user, onProfileRefresh }: ShopTabProps) {
         <p className="lead">Compre vidas, dicas, boosters e recompensas surpresa.</p>
         <div className="shop-balance">
           <span>{user.xp || 0}</span>
-          <strong>XP disponivel</strong>
+          <strong>XP disponível</strong>
         </div>
       </header>
 

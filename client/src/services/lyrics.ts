@@ -82,7 +82,7 @@ export async function fetchYouTubeMetadata(youtubeId: string) {
   const url = `https://www.youtube.com/watch?v=${youtubeId}`;
   const params = new URLSearchParams({ url });
   const response = await fetch(`/api/youtube/oembed?${params.toString()}`);
-  if (!response.ok) throw new Error('Nao consegui ler os dados do video.');
+  if (!response.ok) throw new Error('Não consegui ler os dados do vídeo.');
   return (await response.json()) as YouTubeOEmbedResponse;
 }
 
@@ -95,7 +95,7 @@ export async function fetchSongLyrics(track: string, artist: string, maxLines = 
   const data = (await response.json().catch(() => null)) as LyricsFindResponse | null;
 
   if (!response.ok || !data?.success) {
-    throw new Error(data?.reason || 'Letra nao encontrada automaticamente.');
+    throw new Error(data?.reason || 'Letra não encontrada automaticamente.');
   }
 
   const rawLines = data.synced && data.syncedLyrics

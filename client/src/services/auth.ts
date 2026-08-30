@@ -44,7 +44,7 @@ async function parseJson<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as T & ApiErrorBody;
 
   if (!response.ok) {
-    throw new Error(data.error || data.message || 'Erro ao processar a solicitacao');
+    throw new Error(data.error || data.message || 'Erro ao processar a solicitação');
   }
 
   return data;
@@ -169,7 +169,7 @@ export async function createSubscription(): Promise<{ active: boolean; expires: 
   }
 
   if (!data.subscription) {
-    throw new Error('Resposta de assinatura invalida');
+    throw new Error('Resposta de assinatura inválida');
   }
 
   return data.subscription;
@@ -210,7 +210,7 @@ export async function requestPasswordReset(email: string): Promise<{ message: st
     return data;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('O envio demorou demais. Confira a configuracao SMTP no Render e tente novamente.');
+      throw new Error('O envio demorou demais. Confira a configuração SMTP no Render e tente novamente.');
     }
     throw error;
   } finally {

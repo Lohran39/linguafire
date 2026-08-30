@@ -25,9 +25,9 @@ type Screen = 'splash' | 'login' | 'register' | 'forgot' | 'reset' | 'app';
 type AppTab = 'home' | 'lessons' | 'music' | 'flashcard' | 'conversation' | 'natives' | 'shop' | 'placement' | 'profile';
 
 const highlights = [
-  { icon: '♪', title: 'Musicas', copy: 'Letra, traducao e quiz' },
-  { icon: '*', title: 'Palavra do dia', copy: 'Vocabulario novo todo dia' },
-  { icon: '"', title: 'Nativos', copy: 'Expressoes em contexto real' },
+  { icon: '♪', title: 'Músicas', copy: 'Letra, tradução e quiz' },
+  { icon: '*', title: 'Palavra do dia', copy: 'Vocabulário novo todo dia' },
+  { icon: '"', title: 'Nativos', copy: 'Expressões em contexto real' },
   { icon: '+', title: 'Progresso', copy: 'Sua conta guarda tudo' }
 ];
 
@@ -67,7 +67,7 @@ function AuthForm({
     }
 
     if (!isLogin && password !== confirmPassword) {
-      setError('As senhas nao coincidem.');
+      setError('As senhas não coincidem.');
       return;
     }
 
@@ -146,7 +146,7 @@ function AuthForm({
           {isLogin ? 'Entrar com Google' : 'Criar conta com Google'}
         </button>
         <button className="secondary-button" type="button" onClick={onSwitch}>
-          {isLogin ? 'Criar conta gratuita' : 'Ja tenho conta'}
+          {isLogin ? 'Criar conta gratuita' : 'Já tenho conta'}
         </button>
         <button className="ghost-button" type="button" onClick={onBack}>
           Voltar
@@ -181,7 +181,7 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
       setDevResetLink(result.resetLink || '');
       setEmail('');
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Erro ao enviar recuperacao.');
+      setError(submitError instanceof Error ? submitError.message : 'Erro ao enviar recuperação.');
     } finally {
       setIsSubmitting(false);
     }
@@ -232,7 +232,7 @@ function ResetPasswordForm({ token, onDone }: { token: string; onDone: () => voi
     setError('');
 
     if (!token) {
-      setError('Token invalido. Solicite um novo link.');
+      setError('Token inválido. Solicite um novo link.');
       return;
     }
 
@@ -242,7 +242,7 @@ function ResetPasswordForm({ token, onDone }: { token: string; onDone: () => voi
     }
 
     if (password !== confirmPassword) {
-      setError('As senhas nao coincidem.');
+      setError('As senhas não coincidem.');
       return;
     }
 
@@ -292,9 +292,9 @@ function ResetPasswordForm({ token, onDone }: { token: string; onDone: () => voi
 }
 
 const appTabs: Array<{ id: AppTab; label: string }> = [
-  { id: 'home', label: 'Inicio' },
-  { id: 'lessons', label: 'Licoes' },
-  { id: 'music', label: 'Musica' },
+  { id: 'home', label: 'Início' },
+  { id: 'lessons', label: 'Lições' },
+  { id: 'music', label: 'Música' },
   { id: 'flashcard', label: 'Flash' },
   { id: 'conversation', label: 'Conversar' },
   { id: 'natives', label: 'Nativos' },
@@ -322,7 +322,7 @@ function AppHome({
     <main className="app-screen">
       <nav className="topbar">
         <strong>LinguaFire</strong>
-        <div className="app-nav" aria-label="Navegacao principal">
+        <div className="app-nav" aria-label="Navegação principal">
           {appTabs.map((tab) => (
             <button
               className={activeTab === tab.id ? 'active' : ''}
@@ -389,16 +389,16 @@ export function App() {
 
         const authError = params.get('error') || '';
         if (authError === 'google_oauth_not_configured') {
-          setAuthNotice('Login com Google ainda nao esta configurado.');
+          setAuthNotice('Login com Google ainda não está configurado.');
           window.history.replaceState({}, '', '/');
         } else if (authError === 'auth_failed') {
-          setAuthNotice('Nao foi possivel entrar com Google.');
+          setAuthNotice('Não foi possível entrar com Google.');
           window.history.replaceState({}, '', '/');
         } else if (authError === 'google_link_failed') {
-          setAuthNotice('Nao foi possivel vincular sua conta Google.');
+          setAuthNotice('Não foi possível vincular sua conta Google.');
           window.history.replaceState({}, '', '/');
         } else if (authError === 'google_already_linked') {
-          setAuthNotice('Esta conta Google ja esta vinculada a outro usuario.');
+          setAuthNotice('Esta conta Google já está vinculada a outro usuário.');
           window.history.replaceState({}, '', '/');
         } else if (params.get('auth') === 'success') {
           if (params.get('placement') === '1') {
@@ -452,7 +452,7 @@ export function App() {
         <section className="hero">
           <div className="brand-mark">LF</div>
           <h1>LinguaFire</h1>
-          <p className="lead">Carregando sua sessao...</p>
+          <p className="lead">Carregando sua sessão...</p>
         </section>
       </main>
     );

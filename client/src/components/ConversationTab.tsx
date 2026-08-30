@@ -16,9 +16,9 @@ type ConversationTabProps = {
 };
 
 const hints: Record<string, string[]> = {
-  restaurant: ['Peça uma mesa', 'Pergunte sobre o cardapio', 'Peça a conta'],
-  airport: ['Faça check-in', 'Pergunte sobre o portao', 'Peça ajuda com a bagagem'],
-  job_interview: ['Fale sobre experiencia', 'Pergunte sobre a empresa', 'Mostre suas habilidades'],
+  restaurant: ['Peça uma mesa', 'Pergunte sobre o cardápio', 'Peça a conta'],
+  airport: ['Faça check-in', 'Pergunte sobre o portão', 'Peça ajuda com a bagagem'],
+  job_interview: ['Fale sobre experiência', 'Pergunte sobre a empresa', 'Mostre suas habilidades'],
   small_talk: ['Fale sobre seu dia', 'Comente sobre o clima', 'Pergunte sobre hobbies'],
   shopping: ['Pergunte preços', 'Busque outro tamanho', 'Peça troco']
 };
@@ -68,7 +68,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
         const result = await getConversationTopics();
         if (isMounted) setTopics(result);
       } catch {
-        if (isMounted) setNotice('Nao foi possivel carregar topicos.');
+        if (isMounted) setNotice('Não foi possível carregar tópicos.');
       }
     }
 
@@ -137,7 +137,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
       <section className="conversation-layout" aria-label="Conversar">
         <header className="conversation-hero">
           <p className="kicker">Conversar</p>
-          <h1>Pratique ingles em cenarios reais</h1>
+          <h1>Pratique inglês em cenários reais</h1>
           <p className="lead">
             Contextos e respostas ajustados para {englishLevel}. A IA conduz a conversa e pode analisar erros gramaticais ao final.
           </p>
@@ -150,7 +150,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
 
         {grammarErrors.length > 0 && (
           <section className="grammar-panel">
-            <h2>Ultima analise</h2>
+            <h2>Última análise</h2>
             {grammarErrors.map((error, index) => (
               <article key={`${error.incorrect}-${index}`}>
                 <strong>{error.type || 'grammar'}</strong>
@@ -166,7 +166,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
             <button className="topic-card" key={topic.id} type="button" onClick={() => startTopic(topic)}>
               <span>{topic.name.split(' ')[0]}</span>
               <strong>{topicLabel(topic)}</strong>
-              <small>{topicLevels[topic.id]} · {hints[topic.id]?.[0] || 'Pratique ingles com IA'}</small>
+              <small>{topicLevels[topic.id]} · {hints[topic.id]?.[0] || 'Pratique inglês com IA'}</small>
             </button>
           ))}
         </div>

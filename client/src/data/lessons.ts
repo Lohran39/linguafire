@@ -19,14 +19,14 @@ export type LessonSet = {
 export const lessonSets: LessonSet[] = [
   {
     id: 'daily-basics',
-    title: 'Base diaria',
+    title: 'Base diária',
     level: 'A1',
-    focus: 'Frases curtas para rotina, apresentacao e pedidos simples.',
+    focus: 'Frases curtas para rotina, apresentação e pedidos simples.',
     xp: 60,
     questions: [
       {
         id: 'daily-1',
-        prompt: 'Como voce diz "Eu preciso de agua" em ingles?',
+        prompt: 'Como você diz "Eu preciso de água" em inglês?',
         helper: 'Pense em uma necessidade simples.',
         choices: ['I need water', 'I have water', 'I want waters', 'I am water'],
         answer: 0,
@@ -44,9 +44,9 @@ export const lessonSets: LessonSet[] = [
         id: 'daily-3',
         prompt: 'O que significa "How much is it?"',
         helper: 'Frase comum em loja ou restaurante.',
-        choices: ['Quanto custa?', 'Onde fica?', 'Que horas sao?', 'Como voce esta?'],
+        choices: ['Quanto custa?', 'Onde fica?', 'Que horas são?', 'Como você está?'],
         answer: 0,
-        explain: '"How much" pergunta preco ou quantidade.'
+        explain: '"How much" pergunta preço ou quantidade.'
       },
       {
         id: 'daily-4',
@@ -60,9 +60,9 @@ export const lessonSets: LessonSet[] = [
   },
   {
     id: 'native-slang',
-    title: 'Giria de nativos',
+    title: 'Gíria de nativos',
     level: 'B1',
-    focus: 'Expressoes naturais que aparecem em videos, series e conversas.',
+    focus: 'Expressões naturais que aparecem em vídeos, séries e conversas.',
     xp: 70,
     questions: [
       {
@@ -71,7 +71,7 @@ export const lessonSets: LessonSet[] = [
         helper: 'Exemplo: "Pizza tonight?" "I am down."',
         choices: ['Estou triste', 'Eu topo', 'Estou descendo', 'Eu esqueci'],
         answer: 1,
-        explain: '"I am down" pode significar "eu topo" quando alguem sugere algo.'
+        explain: '"I am down" pode significar "eu topo" quando alguém sugere algo.'
       },
       {
         id: 'slang-2',
@@ -79,20 +79,20 @@ export const lessonSets: LessonSet[] = [
         helper: 'Contexto informal.',
         choices: ["Let's hang out today", "Let's exit today", 'We go out current day', 'Let us outside now'],
         answer: 0,
-        explain: '"Hang out" e uma forma natural de dizer passar tempo junto.'
+        explain: '"Hang out" é uma forma natural de dizer passar tempo junto.'
       },
       {
         id: 'slang-3',
         prompt: 'O que "That was a close call" significa?',
         helper: 'Usado depois de quase dar errado.',
-        choices: ['Foi por pouco', 'Foi muito caro', 'Foi uma ligacao curta', 'Foi combinado'],
+        choices: ['Foi por pouco', 'Foi muito caro', 'Foi uma ligação curta', 'Foi combinado'],
         answer: 0,
-        explain: '"Close call" e uma situacao que quase virou problema.'
+        explain: '"Close call" é uma situação que quase virou problema.'
       },
       {
         id: 'slang-4',
         prompt: 'Complete: "No worries, I got ___."',
-        helper: 'Frase para dizer que voce resolve.',
+        helper: 'Frase para dizer que você resolve.',
         choices: ['this', 'these', 'those', 'there'],
         answer: 0,
         explain: '"I got this" significa "deixa comigo".'
@@ -151,21 +151,21 @@ export const lessonSets: LessonSet[] = [
         id: 'business-1',
         prompt: 'O que "deadline" significa?',
         helper: 'Muito usado em projetos.',
-        choices: ['Prazo final', 'Reuniao curta', 'Orcamento', 'Contratacao'],
+        choices: ['Prazo final', 'Reunião curta', 'Orçamento', 'Contratação'],
         answer: 0,
-        explain: '"Deadline" e a data limite para entregar algo.'
+        explain: '"Deadline" é a data limite para entregar algo.'
       },
       {
         id: 'business-2',
         prompt: 'Complete: "Let me ___ up on that after the meeting."',
-        helper: 'Expressao para acompanhar um assunto.',
+        helper: 'Expressão para acompanhar um assunto.',
         choices: ['follow', 'make', 'take', 'set'],
         answer: 0,
         explain: '"Follow up" significa acompanhar ou retomar um assunto.'
       },
       {
         id: 'business-3',
-        prompt: 'Qual frase suaviza uma discordancia?',
+        prompt: 'Qual frase suaviza uma discordância?',
         helper: 'Tom profissional.',
         choices: ['You are wrong', 'I see your point, but...', 'No, impossible', 'That makes no sense'],
         answer: 1,
@@ -183,7 +183,7 @@ export const lessonSets: LessonSet[] = [
   },
   {
     id: 'phrasal-verbs',
-    title: 'Phrasal verbs uteis',
+    title: 'Phrasal verbs úteis',
     level: 'B1',
     focus: 'Verbos compostos que aparecem o tempo todo em fala natural.',
     xp: 75,
@@ -199,7 +199,7 @@ export const lessonSets: LessonSet[] = [
       {
         id: 'phrasal-2',
         prompt: 'Complete: "I need to figure ___ this problem."',
-        helper: 'Expressao para resolver ou entender algo.',
+        helper: 'Expressão para resolver ou entender algo.',
         choices: ['out', 'up', 'in', 'by'],
         answer: 0,
         explain: '"Figure out" significa descobrir, resolver ou entender.'
@@ -210,7 +210,7 @@ export const lessonSets: LessonSet[] = [
         helper: 'Exemplo: "It turned out well."',
         choices: ['Acabar sendo', 'Virar fisicamente', 'Desligar sempre', 'Chegar atrasado'],
         answer: 0,
-        explain: '"Turn out" indica o resultado final de uma situacao.'
+        explain: '"Turn out" indica o resultado final de uma situação.'
       },
       {
         id: 'phrasal-4',
@@ -218,20 +218,20 @@ export const lessonSets: LessonSet[] = [
         helper: 'Depois de "to", use verbo com -ing.',
         choices: ['I look forward to meeting you', 'I look forward meet you', 'I look forward to meet you', 'I look forward for meeting you'],
         answer: 0,
-        explain: 'A estrutura correta e "look forward to" + verbo com -ing.'
+        explain: 'A estrutura correta é "look forward to" + verbo com -ing.'
       }
     ]
   },
   {
     id: 'pronunciation-patterns',
-    title: 'Pronuncia e ritmo',
+    title: 'Pronúncia e ritmo',
     level: 'A2',
-    focus: 'Padroes de fala rapida para entender melhor nativos.',
+    focus: 'Padrões de fala rápida para entender melhor nativos.',
     xp: 65,
     questions: [
       {
         id: 'pron-1',
-        prompt: '"Gonna" e forma reduzida de:',
+        prompt: '"Gonna" é forma reduzida de:',
         helper: 'Muito comum em fala informal.',
         choices: ['going to', 'got to', 'gone to', 'go now'],
         answer: 0,
@@ -247,7 +247,7 @@ export const lessonSets: LessonSet[] = [
       },
       {
         id: 'pron-3',
-        prompt: 'Em fala rapida, "did you" pode soar como:',
+        prompt: 'Em fala rápida, "did you" pode soar como:',
         helper: 'Som comum em perguntas.',
         choices: ['didja', 'didoo', 'diyes', 'do you did'],
         answer: 0,
@@ -259,15 +259,15 @@ export const lessonSets: LessonSet[] = [
         helper: 'Compare o som de th.',
         choices: ['tree', 'think', 'three', 'through'],
         answer: 0,
-        explain: '"Tree" comeca com /tr/; as outras usam som de "th".'
+        explain: '"Tree" começa com /tr/; as outras usam som de "th".'
       }
     ]
   },
   {
     id: 'confidence-builder',
-    title: 'Frases de confianca',
+    title: 'Frases de confiança',
     level: 'A2',
-    focus: 'Frases prontas para ganhar tempo, pedir repeticao e continuar falando.',
+    focus: 'Frases prontas para ganhar tempo, pedir repetição e continuar falando.',
     xp: 60,
     questions: [
       {
@@ -276,19 +276,19 @@ export const lessonSets: LessonSet[] = [
         helper: 'Pedido educado.',
         choices: ['Could you repeat that, please?', 'Can repeat please you?', 'Repeat me, please?', 'You can again?'],
         answer: 0,
-        explain: '"Could you..." e uma forma educada de pedir repeticao.'
+        explain: '"Could you..." é uma forma educada de pedir repetição.'
       },
       {
         id: 'conf-2',
         prompt: 'O que "Let me think for a second" comunica?',
         helper: 'Use para ganhar tempo.',
-        choices: ['Deixe-me pensar por um segundo', 'Deixe-me sair agora', 'Pense por mim', 'Eu nao entendi nada'],
+        choices: ['Deixe-me pensar por um segundo', 'Deixe-me sair agora', 'Pense por mim', 'Eu não entendi nada'],
         answer: 0,
         explain: 'Essa frase compra tempo sem quebrar a conversa.'
       },
       {
         id: 'conf-3',
-        prompt: 'Qual frase pede confirmacao?',
+        prompt: 'Qual frase pede confirmação?',
         helper: 'Boa para checar entendimento.',
         choices: ['Do you mean...?', 'You are mean', 'What mean you?', 'I mean you'],
         answer: 0,
@@ -297,10 +297,10 @@ export const lessonSets: LessonSet[] = [
       {
         id: 'conf-4',
         prompt: 'Complete: "I am not sure, but I ___..."',
-        helper: 'Forma natural de dar opiniao com cuidado.',
+        helper: 'Forma natural de dar opinião com cuidado.',
         choices: ['think', 'thinking', 'thought', 'thinks'],
         answer: 0,
-        explain: '"I think" introduz uma opiniao simples.'
+        explain: '"I think" introduz uma opinião simples.'
       }
     ]
   }

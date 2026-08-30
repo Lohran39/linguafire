@@ -20,7 +20,7 @@ function urlBase64ToUint8Array(base64String: string) {
 async function parseJson<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as T & { error?: string };
   if (!response.ok) {
-    throw new Error(data.error || 'Erro ao processar notificacoes');
+    throw new Error(data.error || 'Erro ao processar notificações');
   }
   return data;
 }
@@ -46,7 +46,7 @@ async function getVapidPublicKey() {
   );
 
   if (!data.configured || !data.publicKey) {
-    throw new Error('Notificacoes push ainda nao configuradas no servidor.');
+    throw new Error('Notificações push ainda não configuradas no servidor.');
   }
 
   return data.publicKey;
@@ -54,13 +54,13 @@ async function getVapidPublicKey() {
 
 export async function subscribeToPush() {
   if (!supportsPushNotifications()) {
-    throw new Error('Este navegador nao suporta notificacoes push.');
+    throw new Error('Este navegador não suporta notificações push.');
   }
 
   const vapidPublicKey = await getVapidPublicKey();
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
-    throw new Error('Permissao de notificacao nao concedida.');
+    throw new Error('Permissão de notificação não concedida.');
   }
 
   const registration = await registerServiceWorker();

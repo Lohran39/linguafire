@@ -29,11 +29,11 @@ const fallbackRanking: LeaderboardUser[] = [
 
 function getStreakMessage(streak: number) {
   const messages = [
-    ['Comece sua ofensiva', 'Estude hoje para nao perder ritmo.'],
-    ['1 dia. Continue amanha', 'A rotina comeca pequena.'],
-    ['2 dias. Quase la', 'Falta pouco para engrenar.'],
-    ['Trio completo', 'Tres dias ja viram sinal de consistencia.'],
-    [`${streak} dias ativos`, 'Voce esta construindo uma sequencia forte.']
+    ['Comece sua ofensiva', 'Estude hoje para não perder ritmo.'],
+    ['1 dia. Continue amanhã', 'A rotina começa pequena.'],
+    ['2 dias. Quase lá', 'Falta pouco para engrenar.'],
+    ['Trio completo', 'Três dias já viram sinal de consistência.'],
+    [`${streak} dias ativos`, 'Você está construindo uma sequência forte.']
   ];
   return messages[Math.min(streak, messages.length - 1)];
 }
@@ -124,7 +124,7 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
           <div className="level-panel">
             <div>
               <strong>
-                Nivel {user.level || 1} - {progress.current.name}
+                Nível {user.level || 1} - {progress.current.name}
               </strong>
               <span>
                 {user.xp || 0}/{progress.nextXp} XP
@@ -143,7 +143,7 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
           </article>
           <article className="metric-card">
             <span>{user.streak || 0}</span>
-            <strong>Sequencia</strong>
+            <strong>Sequência</strong>
           </article>
           <article className="metric-card">
             <span>{user.correct_answers || 0}</span>
@@ -163,7 +163,7 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
           <div className="streak-copy">
             <h2>{streakTitle}</h2>
             <p>{streakCopy}</p>
-            <div className="streak-dots" aria-label="Sequencia da semana">
+            <div className="streak-dots" aria-label="Sequência da semana">
               {Array.from({ length: 7 }, (_, index) => (
                 <i className={index < (user.streak || 0) ? 'done' : ''} key={index} />
               ))}
@@ -175,7 +175,7 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
           <section className="reward-panel">
             <div>
               <h2>Recompensas prontas</h2>
-              <p>Seu streak liberou bonus para resgate.</p>
+              <p>Seu streak liberou bônus para resgate.</p>
             </div>
             {claimableRewards.map((reward) => (
               <button
@@ -193,10 +193,10 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
 
         <section className="quests-panel">
           <div className="panel-heading">
-            <h2>Missoes</h2>
-            <div className="mode-switch compact" aria-label="Tipo de missao">
+            <h2>Missões</h2>
+            <div className="mode-switch compact" aria-label="Tipo de missão">
               <button className={questTab === 'daily' ? 'active' : ''} type="button" onClick={() => setQuestTab('daily')}>
-                Diarias
+                Diárias
               </button>
               <button className={questTab === 'weekly' ? 'active' : ''} type="button" onClick={() => setQuestTab('weekly')}>
                 Semanais
@@ -224,7 +224,7 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
               })}
             </div>
           ) : (
-            <div className="empty-inline">Sem missoes {questTab === 'daily' ? 'diarias' : 'semanais'} agora.</div>
+            <div className="empty-inline">Sem missões {questTab === 'daily' ? 'diárias' : 'semanais'} agora.</div>
           )}
         </section>
 
@@ -238,14 +238,14 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
             <span>{dailyWord?.level || '--'}</span>
           </div>
           <strong className="daily-word">{dailyWord?.word || 'Carregando...'}</strong>
-          <p>{dailyWord?.translation || 'Buscando vocabulario diario.'}</p>
+          <p>{dailyWord?.translation || 'Buscando vocabulário diário.'}</p>
           {dailyWord?.context && <small>{dailyWord.context}</small>}
         </section>
 
         <section className="side-panel">
           <div className="panel-heading">
             <h2>Top XP</h2>
-            <span>{APP_LEVELS.length} niveis</span>
+            <span>{APP_LEVELS.length} níveis</span>
           </div>
           <div className="ranking-list">
             {visibleRanking.slice(0, 5).map((player, index) => (

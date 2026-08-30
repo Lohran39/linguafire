@@ -34,7 +34,7 @@ export function NativesTab() {
       setResult(data);
       setActiveVideo(data.videoIds?.[0] || '');
     } catch (searchError) {
-      setError(searchError instanceof Error ? searchError.message : 'Erro ao buscar videos.');
+      setError(searchError instanceof Error ? searchError.message : 'Erro ao buscar vídeos.');
     } finally {
       setIsSearching(false);
     }
@@ -52,7 +52,7 @@ export function NativesTab() {
     <section className="natives-layout" aria-label="Nativos">
       <header className="natives-hero">
         <p className="kicker">Nativos</p>
-        <h1>Veja expressoes em contexto real</h1>
+        <h1>Veja expressões em contexto real</h1>
         <p className="lead">
           A busca prioriza vídeos curtos com fala real, frase exata e contexto nativo.
         </p>

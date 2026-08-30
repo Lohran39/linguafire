@@ -84,7 +84,7 @@ export function PlacementTab({ user, onProfileRefresh, onContinue }: PlacementTa
         </button>
         {onContinue && (
           <button className="secondary-button" type="button" onClick={onContinue}>
-            Ver licoes do meu nivel
+            Ver lições do meu nível
           </button>
         )}
       </section>

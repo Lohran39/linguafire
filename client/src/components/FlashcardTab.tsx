@@ -10,9 +10,9 @@ type FlashcardTabProps = {
 
 const qualityOptions = [
   { value: 1, label: 'Errei', copy: 'Rever logo' },
-  { value: 3, label: 'Dificil', copy: 'Ainda fraco' },
+  { value: 3, label: 'Difícil', copy: 'Ainda fraco' },
   { value: 4, label: 'Bom', copy: 'Quase fixou' },
-  { value: 5, label: 'Facil', copy: 'Dominado' }
+  { value: 5, label: 'Fácil', copy: 'Dominado' }
 ];
 
 export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
@@ -51,7 +51,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
         const nextStats = await getFlashcardStats();
         if (isMounted) setStats(nextStats);
       } catch {
-        if (isMounted) setNotice('Nao foi possivel carregar estatisticas agora.');
+        if (isMounted) setNotice('Não foi possível carregar estatísticas agora.');
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -78,7 +78,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
         setNotice('Nenhum card para revisar agora.');
       }
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Erro ao iniciar revisao.');
+      setNotice(error instanceof Error ? error.message : 'Erro ao iniciar revisão.');
     } finally {
       setIsLoading(false);
     }
@@ -103,12 +103,12 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
       onProfileRefresh(nextUser);
       setSessionXp((value) => value + gainedXp);
       setSessionCorrect((value) => value + gainedCorrect);
-      setNotice(`Proxima revisao em ${result.interval} dia(s). +${gainedXp} XP`);
+      setNotice(`Próxima revisão em ${result.interval} dia(s). +${gainedXp} XP`);
       setIndex((value) => value + 1);
       setRevealed(false);
       await loadStats();
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Erro ao salvar revisao.');
+      setNotice(error instanceof Error ? error.message : 'Erro ao salvar revisão.');
     } finally {
       setIsReviewing(false);
     }
@@ -127,7 +127,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
       <aside className="flash-side">
         <section className="side-panel">
           <div className="panel-heading">
-            <h2>Revisao espacada</h2>
+            <h2>Revisão espaçada</h2>
             <span>{englishLevel}</span>
           </div>
           <div className="flash-stats">
@@ -141,13 +141,13 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
             </article>
           </div>
           <button className="primary-button" type="button" onClick={startSession} disabled={isLoading}>
-            {cards.length ? 'Reiniciar sessao' : 'Comecar revisao'}
+            {cards.length ? 'Reiniciar sessão' : 'Começar revisão'}
           </button>
         </section>
 
         <section className="side-panel">
           <div className="panel-heading">
-            <h2>Sessao</h2>
+            <h2>Sessão</h2>
             <span>{cards.length ? `${Math.min(index, cards.length)}/${cards.length}` : '0/0'}</span>
           </div>
           <div className="flash-stats">
@@ -171,12 +171,12 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
         {!cards.length && (
           <section className="flash-card empty">
             <p className="kicker">Flashcards</p>
-            <h1>Treine vocabulario em ciclos curtos</h1>
+            <h1>Treine vocabulário em ciclos curtos</h1>
             <p className="lead">
-              A sessao prioriza palavras do seu nivel e revisoes vencidas. Revele a resposta e classifique o quanto lembrou.
+              A sessão prioriza palavras do seu nível e revisões vencidas. Revele a resposta e classifique o quanto lembrou.
             </p>
             <button className="primary-button" type="button" onClick={startSession} disabled={isLoading}>
-              Comecar agora
+              Começar agora
             </button>
           </section>
         )}
@@ -190,7 +190,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
             <h1>{currentCard.word}</h1>
             {revealed ? (
               <>
-                <p className="translation">{currentCard.translation || 'Sem traducao'}</p>
+                <p className="translation">{currentCard.translation || 'Sem tradução'}</p>
                 <div className="quality-grid">
                   {qualityOptions.map((option) => (
                     <button
@@ -215,9 +215,9 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
 
         {sessionDone && (
           <section className="flash-card empty">
-            <p className="kicker">Sessao concluida</p>
+            <p className="kicker">Sessão concluída</p>
             <h1>{sessionCorrect} acertos</h1>
-            <p className="lead">Voce ganhou {sessionXp} XP nesta revisao.</p>
+            <p className="lead">Você ganhou {sessionXp} XP nesta revisão.</p>
             <button className="primary-button" type="button" onClick={resetSession}>
               Voltar
             </button>

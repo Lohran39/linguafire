@@ -92,7 +92,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
       onProfileRefresh(nextUser);
       setSavedResult('Progresso salvo.');
     } catch (error) {
-      setSavedResult(error instanceof Error ? error.message : 'Nao foi possivel salvar.');
+      setSavedResult(error instanceof Error ? error.message : 'Não foi possível salvar.');
     } finally {
       setIsSaving(false);
     }
@@ -101,9 +101,9 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   return (
     <section className="lesson-layout">
       <div className="lesson-sidebar">
-        <span className="section-kicker">Trilha de pratica</span>
-        <h1>Licoes rapidas para ganhar XP</h1>
-        <p className="lead">Conteudo recomendado para {englishLevel}; os outros temas continuam liberados para treino.</p>
+        <span className="section-kicker">Trilha de prática</span>
+        <h1>Lições rápidas para ganhar XP</h1>
+        <p className="lead">Conteúdo recomendado para {englishLevel}; os outros temas continuam liberados para treino.</p>
 
         <div className="lesson-grid">
           {recommendedLessons.map((lesson) => (
@@ -130,7 +130,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
           <strong>{answers.length}/{activeLesson.questions.length}</strong>
         </div>
 
-        <div className="progress-track" aria-label="Progresso da licao">
+        <div className="progress-track" aria-label="Progresso da lição">
           <div style={{ width: `${progress}%` }} />
         </div>
 
@@ -166,21 +166,21 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
             )}
 
             <button className="primary-button" type="button" disabled={!isAnswered} onClick={goNext}>
-              {isLastQuestion ? 'Ver resultado' : 'Proxima'}
+              {isLastQuestion ? 'Ver resultado' : 'Próxima'}
             </button>
           </>
         ) : (
           <div className="lesson-result">
             <span>{correctCount}/{activeLesson.questions.length}</span>
-            <h2>{correctCount === activeLesson.questions.length ? 'Sequencia perfeita' : 'Licao concluida'}</h2>
-            <p>{earnedXp} XP ganhos nesta pratica.</p>
+            <h2>{correctCount === activeLesson.questions.length ? 'Sequência perfeita' : 'Lição concluída'}</h2>
+            <p>{earnedXp} XP ganhos nesta prática.</p>
             {savedResult && <div className={savedResult === 'Progresso salvo.' ? 'form-success' : 'form-error'}>{savedResult}</div>}
             <div className="lesson-actions">
               <button className="primary-button" type="button" disabled={isSaving} onClick={saveProgress}>
                 {isSaving ? 'Salvando...' : 'Salvar progresso'}
               </button>
               <button className="secondary-button" type="button" onClick={() => startLesson(activeLesson)}>
-                Repetir licao
+                Repetir lição
               </button>
             </div>
           </div>
