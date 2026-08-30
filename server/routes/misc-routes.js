@@ -30,8 +30,20 @@ function setupMiscRoutes(app, deps = {}) {
     supabaseGetUserById,
     supabaseDeleteUser,
     monitoring,
-    supabaseKeyRole = 'unknown'
+    supabaseKeyRole = 'unknown',
+    adminDashboardToken = ''
   } = deps;
+
+  function getAdminToken(req) {
+    return String(req.headers['x-admin-dashboard-token'] || req.headers['x-agent-admin-token'] || '').trim();
+  }
+
+  function requireAdmin(req, res, next) {
+    if (!adminDashboardToken || getAdminToken(req) !== adminDashboardToken) {
+      return res.status(403).json({ error: 'Token admin inválido ou não configurado' });
+    }
+    return next();
+  }
 
   app.get('/api/leaderboard', async (_req, res) => {
     try {
@@ -72,6 +84,31 @@ function setupMiscRoutes(app, deps = {}) {
 
   app.get('/api/quests', authenticateToken, (_req, res) => {
     res.json({ quests: DEFAULT_QUESTS });
+  });
+
+  app.get('/api/admin/summary', authenticateToken, requireAdmin, async (_req, res) => {
+    try {
+      const [{ count: totalUsers }, { count: verifiedUsers }, { count: googleUsers }, topUsersResult, recentUsersResult] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('email_verified', 1),
+        supabase.from('users').select('*', { count: 'exact', head: true }).not('google_id', 'is', null),
+        supabase.from('users').select('id, name, email, xp, level, streak, english_level, placement_completed').order('xp', { ascending: false }).limit(10),
+        supabase.from('users').select('id, name, email, xp, level, english_level, email_verified, placement_completed, created_at').order('created_at', { ascending: false }).limit(8)
+      ]);
+
+      res.json({
+        stats: {
+          totalUsers: totalUsers || 0,
+          verifiedUsers: verifiedUsers || 0,
+          googleUsers: googleUsers || 0,
+          passwordUsers: Math.max((totalUsers || 0) - (googleUsers || 0), 0)
+        },
+        topUsers: topUsersResult.data || [],
+        recentUsers: recentUsersResult.data || []
+      });
+    } catch (_error) {
+      res.status(500).json({ error: 'Erro ao carregar painel admin' });
+    }
   });
 
   app.get('/health', (_req, res) => {

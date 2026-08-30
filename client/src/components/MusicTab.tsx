@@ -82,17 +82,38 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   const [quizIndex, setQuizIndex] = useState(0);
   const [quizAnswer, setQuizAnswer] = useState('');
   const [quizCorrect, setQuizCorrect] = useState(0);
+  const [quizRewarded, setQuizRewarded] = useState(false);
 
   const favorites = useMemo(() => user.favorites || [], [user.favorites]);
   const isFavorite = favorites.some((favorite) => favorite.key === activeSong.key || favorite.ytId === activeSong.ytId);
   const currentQuestion = quiz[quizIndex] || null;
   const quizDone = quiz.length > 0 && quizIndex >= quiz.length;
+  const quizXp = quizCorrect * 10 + (quiz.length > 0 && quizCorrect === quiz.length ? 25 : 0);
 
   useEffect(() => {
     if (activeSong.key === SONGS[0].key) {
       setActiveSong(suggestedSongs[0] || SONGS[0]);
     }
   }, [activeSong.key, suggestedSongs]);
+
+  useEffect(() => {
+    if (!quizDone || quizRewarded) return;
+
+    const nextUser = {
+      ...user,
+      xp: Number(user.xp || 0) + quizXp,
+      correct_answers: Number(user.correct_answers || 0) + quizCorrect
+    };
+
+    setQuizRewarded(true);
+    updateProfile({ xp: nextUser.xp, correct_answers: nextUser.correct_answers })
+      .then(() => {
+        onProfileRefresh(nextUser);
+      })
+      .catch(() => {
+        setNotice('Quiz concluído, mas não consegui salvar o XP agora.');
+      });
+  }, [onProfileRefresh, quizCorrect, quizDone, quizRewarded, quizXp, user]);
 
   function openSong(song: Song) {
     setActiveSong(song);
@@ -196,6 +217,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
     setQuizIndex(0);
     setQuizAnswer('');
     setQuizCorrect(0);
+    setQuizRewarded(false);
     setNotice('');
   }
 
@@ -217,6 +239,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
     setQuizIndex(0);
     setQuizAnswer('');
     setQuizCorrect(0);
+    setQuizRewarded(false);
   }
 
   return (
@@ -350,7 +373,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
                 <h2>
                   {quizCorrect}/{quiz.length} corretas
                 </h2>
-                <p>Continue revisando a letra para fixar vocabulário.</p>
+                <p>Você ganhou {quizXp} XP com este treino musical.</p>
                 <button className="primary-button" type="button" onClick={closeQuiz}>
                   Fechar
                 </button>

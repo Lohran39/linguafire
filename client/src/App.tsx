@@ -19,10 +19,11 @@ import { NativesTab } from './components/NativesTab';
 import { ShopTab } from './components/ShopTab';
 import { PlacementTab } from './components/PlacementTab';
 import { LessonTab } from './components/LessonTab';
+import { AdminTab } from './components/AdminTab';
 import { applyTheme, getStoredTheme } from './theme';
 
 type Screen = 'splash' | 'login' | 'register' | 'forgot' | 'reset' | 'app';
-type AppTab = 'home' | 'lessons' | 'music' | 'flashcard' | 'conversation' | 'natives' | 'shop' | 'placement' | 'profile';
+type AppTab = 'home' | 'lessons' | 'music' | 'flashcard' | 'conversation' | 'natives' | 'shop' | 'placement' | 'profile' | 'admin';
 
 const highlights = [
   { icon: '♪', title: 'Músicas', copy: 'Letra, tradução e quiz' },
@@ -324,7 +325,8 @@ const appTabs: Array<{ id: AppTab; label: string }> = [
   { id: 'natives', label: 'Nativos' },
   { id: 'shop', label: 'Loja' },
   { id: 'placement', label: 'Nível' },
-  { id: 'profile', label: 'Perfil' }
+  { id: 'profile', label: 'Perfil' },
+  { id: 'admin', label: 'Admin' }
 ];
 
 function AppHome({
@@ -401,6 +403,7 @@ function AppHome({
         />
       )}
       {currentTab === 'profile' && <ProfileTab user={user} onProfileRefresh={onProfileRefresh} />}
+      {currentTab === 'admin' && <AdminTab />}
     </main>
   );
 }

@@ -35,6 +35,7 @@ const AGENT_CMD_TIMEOUT_MS = Number(process.env.AGENT_CMD_TIMEOUT_MS || 15000);
 const DEPLOY_CMD_TIMEOUT_MS = Number(process.env.DEPLOY_CMD_TIMEOUT_MS || 120000);
 const AGENT_ADMIN_TOKEN = process.env.AGENT_ADMIN_TOKEN || '';
 const PUSH_ADMIN_TOKEN = process.env.PUSH_ADMIN_TOKEN || '';
+const ADMIN_DASHBOARD_TOKEN = process.env.ADMIN_DASHBOARD_TOKEN || AGENT_ADMIN_TOKEN;
 const WORKSPACE_ROOT = path.resolve(__dirname, '..');
 const LEGACY_FRONTEND_DIR = path.join(WORKSPACE_ROOT, 'public/dist');
 const REACT_FRONTEND_DIR = path.join(WORKSPACE_ROOT, 'client/dist');
@@ -416,7 +417,8 @@ setupMiscRoutes(app, {
   supabaseGetUserById,
   supabaseDeleteUser,
   monitoring,
-  supabaseKeyRole: getJwtRole(process.env.SUPABASE_SERVICE_ROLE_KEY || '')
+  supabaseKeyRole: getJwtRole(process.env.SUPABASE_SERVICE_ROLE_KEY || ''),
+  adminDashboardToken: ADMIN_DASHBOARD_TOKEN
 });
 
 // OpenAI-compatible and agent routes

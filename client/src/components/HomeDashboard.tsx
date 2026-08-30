@@ -20,13 +20,6 @@ type HomeDashboardProps = {
   onLoadProfile: () => Promise<UserProfile>;
 };
 
-const fallbackRanking: LeaderboardUser[] = [
-  { name: 'Marcos R.', xp: 1820, level: 5, streak: 12 },
-  { name: 'Julia F.', xp: 1560, level: 4, streak: 8 },
-  { name: 'Pedro H.', xp: 1340, level: 4, streak: 5 },
-  { name: 'Ana C.', xp: 980, level: 3, streak: 4 }
-];
-
 function getStreakMessage(streak: number) {
   const messages = [
     ['Comece sua ofensiva', 'Estude hoje para não perder ritmo.'],
@@ -57,7 +50,8 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
   const englishLevel = normalizeEnglishLevel(user.english_level);
   const levelProfile = LEVEL_PROFILES[englishLevel];
   const [streakTitle, streakCopy] = getStreakMessage(user.streak || 0);
-  const visibleRanking = ranking.length ? ranking : fallbackRanking;
+  const visibleRanking = ranking.slice(0, 5);
+  const userInVisibleRanking = visibleRanking.some((player) => String(player.id || '') === String(user.id));
   const claimableRewards = rewards.filter((reward) => reward.canClaim);
   const visibleQuests = quests.filter((quest) => quest.type === questTab || (!quest.type && questTab === 'daily'));
 
@@ -258,15 +252,26 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
             <h2>Top XP</h2>
             <span>{APP_LEVELS.length} níveis</span>
           </div>
-          <div className="ranking-list">
-            {visibleRanking.slice(0, 5).map((player, index) => (
-              <div className="ranking-row" key={`${player.id || player.name}-${index}`}>
-                <span>{index + 1}</span>
-                <strong>{player.name || 'Estudante'}</strong>
-                <small>{player.xp || 0} XP</small>
-              </div>
-            ))}
-          </div>
+          {visibleRanking.length ? (
+            <div className="ranking-list">
+              {visibleRanking.map((player, index) => (
+                <div className={String(player.id || '') === String(user.id) ? 'ranking-row current' : 'ranking-row'} key={`${player.id || player.name}-${index}`}>
+                  <span>{index + 1}</span>
+                  <strong>{player.name || 'Estudante'}</strong>
+                  <small>{player.xp || 0} XP</small>
+                </div>
+              ))}
+              {!userInVisibleRanking && rank && (
+                <div className="ranking-row current">
+                  <span>{rank}</span>
+                  <strong>{user.name || 'Você'}</strong>
+                  <small>{user.xp || 0} XP</small>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="empty-inline">Ranking será exibido quando houver usuários com XP.</div>
+          )}
         </section>
       </aside>
     </section>
