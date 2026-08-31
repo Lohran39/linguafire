@@ -33,9 +33,25 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [savedResult, setSavedResult] = useState('');
 
+  const isReviewLesson = activeLesson.id.endsWith('-review');
+  const sameLevelQuestions = useMemo(() => {
+    const questionsById = new Map<string, LessonSet['questions'][number]>();
+
+    activeLesson.questions.forEach((question) => questionsById.set(question.id, question));
+    lessonSets
+      .filter((lesson) => lesson.level === activeLesson.level && lesson.id !== activeLesson.id)
+      .forEach((lesson) => {
+        lesson.questions.forEach((question) => questionsById.set(question.id, question));
+      });
+
+    return Array.from(questionsById.values());
+  }, [activeLesson]);
   const currentQuestions = useMemo(
-    () => (practiceMode === 'quick' ? activeLesson.questions.slice(0, 2) : activeLesson.questions),
-    [activeLesson, practiceMode]
+    () => {
+      if (isReviewLesson) return activeLesson.questions;
+      return sameLevelQuestions.slice(0, practiceMode === 'quick' ? 5 : 10);
+    },
+    [activeLesson, isReviewLesson, practiceMode, sameLevelQuestions]
   );
   const activeQuestion = currentQuestions[questionIndex];
   const isTypeQuestion = activeQuestion.prompt.startsWith('Complete:');
@@ -141,7 +157,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   }
 
   async function saveProgress() {
-    if (!isComplete) return;
+    if (!isComplete || isSaving) return;
 
     const nextAchievements = new Set(user.achievements || []);
     const completedAchievement = `lesson-${activeLesson.id}`;
@@ -249,10 +265,10 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
       <div className="lesson-runner">
         <div className="lesson-mode-switch" aria-label="Modo de treino">
           <button className={practiceMode === 'quick' ? 'active' : ''} type="button" onClick={() => changePracticeMode('quick')}>
-            Rápido
+            Rápido · 5
           </button>
           <button className={practiceMode === 'complete' ? 'active' : ''} type="button" onClick={() => changePracticeMode('complete')}>
-            Completo
+            Completo · 10
           </button>
         </div>
 
@@ -339,7 +355,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
         ) : (
           <div className="lesson-result">
             <span>{correctCount}/{currentQuestions.length}</span>
-            <h2>{correctCount === activeLesson.questions.length ? 'Sequência perfeita' : 'Lição concluída'}</h2>
+            <h2>{correctCount === currentQuestions.length ? 'Sequência perfeita' : 'Lição concluída'}</h2>
             <p>{earnedXp} XP ganhos nesta prática.</p>
             {savedResult && (
               <div className={savedResult.includes('salvo') ? 'form-success' : 'form-error'}>{savedResult}</div>

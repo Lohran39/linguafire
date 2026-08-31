@@ -48,6 +48,7 @@ type ApiErrorBody = {
 };
 
 const PASSWORD_RESET_TIMEOUT_MS = 20000;
+const PROFILE_UPDATE_TIMEOUT_MS = 15000;
 
 async function parseJson<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as T & ApiErrorBody;
@@ -120,14 +121,27 @@ export async function getProfile(): Promise<UserProfile> {
 }
 
 export async function updateProfile(updates: Partial<UserProfile>): Promise<void> {
-  await parseJson<{ success: boolean }>(
-    await fetch(`${API_BASE}/profile`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(updates)
-    })
-  );
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), PROFILE_UPDATE_TIMEOUT_MS);
+
+  try {
+    await parseJson<{ success: boolean }>(
+      await fetch(`${API_BASE}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        signal: controller.signal,
+        body: JSON.stringify(updates)
+      })
+    );
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('O salvamento demorou demais. Tente novamente em alguns segundos.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<string> {
