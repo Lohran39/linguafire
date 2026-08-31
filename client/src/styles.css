@@ -3491,6 +3491,70 @@ body[data-theme='light'] .placement-layout.result {
     min-height: auto;
   }
 
+  .flash-layout {
+    gap: 0.85rem;
+    overflow-x: hidden;
+  }
+
+  .flash-side,
+  .flash-main,
+  .flash-card,
+  .side-panel {
+    min-width: 0;
+  }
+
+  .flash-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .flash-card {
+    gap: 0.9rem;
+    padding: 1rem;
+  }
+
+  .flash-card h1 {
+    font-size: clamp(2.15rem, 13vw, 3.35rem);
+    line-height: 0.98;
+  }
+
+  .flash-card h1.compact {
+    font-size: clamp(1.45rem, 8.5vw, 2.25rem);
+    line-height: 1.08;
+  }
+
+  .flash-card-top {
+    flex-wrap: wrap;
+  }
+
+  .translation,
+  .flash-example,
+  .flash-note {
+    max-width: 100%;
+  }
+
+  .flash-example {
+    padding: 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .flash-note {
+    font-size: 0.82rem;
+  }
+
+  .flash-empty-hints,
+  .flash-summary,
+  .flash-actions {
+    width: 100%;
+  }
+
+  .flash-actions .primary-button,
+  .flash-actions .secondary-button,
+  .flash-card.empty .primary-button,
+  .flash-card .primary-button,
+  .audio-button {
+    width: 100%;
+  }
+
   .conversation-room {
     grid-template-rows: auto auto minmax(280px, 52vh) auto;
   }
@@ -3637,6 +3701,39 @@ body[data-theme='light'] .placement-layout.result {
 
   .flash-mode-switch {
     grid-template-columns: 1fr;
+  }
+
+  .flash-layout {
+    padding-right: 0.65rem;
+    padding-left: 0.65rem;
+  }
+
+  .flash-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .flash-card {
+    padding: 0.9rem;
+  }
+
+  .flash-card h1 {
+    font-size: clamp(1.9rem, 12vw, 2.65rem);
+  }
+
+  .flash-card h1.compact {
+    font-size: clamp(1.25rem, 7.5vw, 1.8rem);
+  }
+
+  .flash-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .flash-mode-grid button {
+    min-height: 58px;
+  }
+
+  .flash-card-top {
+    justify-content: flex-start;
   }
 
   .splash-screen {
