@@ -153,7 +153,6 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
         xp: Number(user.xp || 0) + gainedXp,
         correct_answers: Number(user.correct_answers || 0) + gainedCorrect
       };
-      await updateProfile({ xp: nextUser.xp, correct_answers: nextUser.correct_answers });
       onProfileRefresh(nextUser);
       setSessionXp((value) => value + gainedXp);
       setSessionCorrect((value) => value + gainedCorrect);
@@ -168,7 +167,10 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
       setNotice(`Próxima revisão em ${result.interval} dia(s). +${gainedXp} XP`);
       setIndex((value) => value + 1);
       setRevealed(false);
-      await loadStats();
+      void updateProfile({ xp: nextUser.xp, correct_answers: nextUser.correct_answers }).catch(() => {
+        setNotice('Revisão salva. O XP pode demorar alguns segundos para aparecer no perfil.');
+      });
+      void loadStats();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Erro ao salvar revisão.');
     } finally {

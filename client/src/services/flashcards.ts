@@ -17,6 +17,24 @@ export type FlashcardStats = {
   total: number;
 };
 
+const FLASHCARD_TIMEOUT_MS = 10000;
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), FLASHCARD_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('A conexão demorou demais. Tente novamente em alguns segundos.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 async function parseJson<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as T & { error?: string };
   if (!response.ok) {
@@ -26,19 +44,19 @@ async function parseJson<T>(response: Response): Promise<T> {
 }
 
 export async function getFlashcardStats(): Promise<FlashcardStats> {
-  return parseJson<FlashcardStats>(await fetch('/api/flashcards/stats', { credentials: 'include' }));
+  return parseJson<FlashcardStats>(await fetchWithTimeout('/api/flashcards/stats', { credentials: 'include' }));
 }
 
 export async function getAvailableFlashcards(): Promise<Flashcard[]> {
   const data = await parseJson<{ cards: Flashcard[] }>(
-    await fetch('/api/flashcards/available', { credentials: 'include' })
+    await fetchWithTimeout('/api/flashcards/available', { credentials: 'include' })
   );
   return data.cards || [];
 }
 
 export async function reviewFlashcard(card: Flashcard, quality: number): Promise<{ interval: number }> {
   return parseJson<{ interval: number }>(
-    await fetch('/api/flashcards/review', {
+    await fetchWithTimeout('/api/flashcards/review', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
