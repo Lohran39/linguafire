@@ -1886,6 +1886,28 @@ body[data-theme='light'] .placement-layout.result {
   background: rgb(255 45 120 / 12%);
 }
 
+.lesson-type-answer input {
+  width: 100%;
+  min-height: 68px;
+  padding: 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+  font-weight: 900;
+  outline: none;
+}
+
+.lesson-type-answer input:focus {
+  border-color: rgb(255 140 0 / 80%);
+  box-shadow: 0 0 0 3px rgb(255 140 0 / 16%);
+}
+
+.lesson-type-answer input:disabled {
+  opacity: 0.8;
+}
+
 .lesson-feedback {
   display: grid;
   gap: 0.3rem;

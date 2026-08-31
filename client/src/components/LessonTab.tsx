@@ -25,13 +25,19 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const [activeLesson, setActiveLesson] = useState<LessonSet>(recommendedLessons[0]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
+  const [typedAnswer, setTypedAnswer] = useState('');
+  const [submittedTextAnswer, setSubmittedTextAnswer] = useState('');
   const [answers, setAnswers] = useState<boolean[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [savedResult, setSavedResult] = useState('');
 
   const activeQuestion = activeLesson.questions[questionIndex];
+  const isTypeQuestion = activeQuestion.prompt.startsWith('Complete:');
+  const normalizedTypedAnswer = submittedTextAnswer.trim().toLowerCase();
+  const normalizedCorrectAnswer = activeQuestion.choices[activeQuestion.answer].trim().toLowerCase();
+  const isTypedCorrect = isTypeQuestion && normalizedTypedAnswer === normalizedCorrectAnswer;
   const correctCount = useMemo(() => answers.filter(Boolean).length, [answers]);
-  const isAnswered = selectedChoice !== null;
+  const isAnswered = isTypeQuestion ? submittedTextAnswer !== '' : selectedChoice !== null;
   const isLastQuestion = questionIndex === activeLesson.questions.length - 1;
   const isComplete = answers.length === activeLesson.questions.length;
   const progress = Math.round((answers.length / activeLesson.questions.length) * 100);
@@ -54,6 +60,8 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     setActiveLesson(lesson);
     setQuestionIndex(0);
     setSelectedChoice(null);
+    setTypedAnswer('');
+    setSubmittedTextAnswer('');
     setAnswers([]);
     setSavedResult('');
   }
@@ -63,12 +71,20 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     setSelectedChoice(choiceIndex);
   }
 
-  function goNext() {
-    if (selectedChoice === null || isComplete) return;
+  function submitTypedAnswer() {
+    if (!isTypeQuestion || isAnswered || isComplete || !typedAnswer.trim()) return;
+    setSubmittedTextAnswer(typedAnswer);
+  }
 
-    const nextAnswers = [...answers, selectedChoice === activeQuestion.answer];
+  function goNext() {
+    if (!isAnswered || isComplete) return;
+
+    const isCorrect = isTypeQuestion ? isTypedCorrect : selectedChoice === activeQuestion.answer;
+    const nextAnswers = [...answers, isCorrect];
     setAnswers(nextAnswers);
     setSelectedChoice(null);
+    setTypedAnswer('');
+    setSubmittedTextAnswer('');
 
     if (!isLastQuestion) {
       setQuestionIndex((current) => current + 1);
@@ -181,27 +197,45 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
               <h3>{activeQuestion.prompt}</h3>
             </article>
 
-            <div className="lesson-choices">
-              {activeQuestion.choices.map((choice, index) => {
-                const isCorrect = isAnswered && index === activeQuestion.answer;
-                const isWrong = isAnswered && selectedChoice === index && index !== activeQuestion.answer;
-                return (
-                  <button
-                    className={`${isCorrect ? 'correct' : ''} ${isWrong ? 'wrong' : ''}`.trim()}
-                    key={choice}
-                    type="button"
-                    onClick={() => chooseAnswer(index)}
-                  >
-                    {choice}
-                  </button>
-                );
-              })}
-            </div>
+            {isTypeQuestion ? (
+              <div className="lesson-type-answer">
+                <input
+                  aria-label="Digite a resposta"
+                  disabled={isAnswered}
+                  onChange={(event) => setTypedAnswer(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      submitTypedAnswer();
+                    }
+                  }}
+                  placeholder="Digite a palavra que completa a frase"
+                  value={typedAnswer}
+                />
+              </div>
+            ) : (
+              <div className="lesson-choices">
+                {activeQuestion.choices.map((choice, index) => {
+                  const isCorrect = isAnswered && index === activeQuestion.answer;
+                  const isWrong = isAnswered && selectedChoice === index && index !== activeQuestion.answer;
+                  return (
+                    <button
+                      className={`${isCorrect ? 'correct' : ''} ${isWrong ? 'wrong' : ''}`.trim()}
+                      key={choice}
+                      type="button"
+                      onClick={() => chooseAnswer(index)}
+                    >
+                      {choice}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {isAnswered && (
-              <div className={selectedChoice === activeQuestion.answer ? 'lesson-feedback correct' : 'lesson-feedback wrong'}>
-                <strong>{selectedChoice === activeQuestion.answer ? 'Resposta certa' : 'Quase'}</strong>
-                {selectedChoice !== activeQuestion.answer && (
+              <div className={(isTypeQuestion ? isTypedCorrect : selectedChoice === activeQuestion.answer) ? 'lesson-feedback correct' : 'lesson-feedback wrong'}>
+                <strong>{(isTypeQuestion ? isTypedCorrect : selectedChoice === activeQuestion.answer) ? 'Resposta certa' : 'Quase'}</strong>
+                {(isTypeQuestion ? !isTypedCorrect : selectedChoice !== activeQuestion.answer) && (
                   <span>
                     Correta: <b>{activeQuestion.choices[activeQuestion.answer]}</b>
                   </span>
@@ -210,8 +244,13 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
               </div>
             )}
 
-            <button className="primary-button" type="button" disabled={!isAnswered} onClick={goNext}>
-              {isLastQuestion ? 'Ver resultado' : 'Próxima'}
+            <button
+              className="primary-button"
+              type="button"
+              disabled={isTypeQuestion ? !typedAnswer.trim() && !isAnswered : !isAnswered}
+              onClick={isTypeQuestion && !isAnswered ? submitTypedAnswer : goNext}
+            >
+              {isTypeQuestion && !isAnswered ? 'Conferir' : isLastQuestion ? 'Ver resultado' : 'Próxima'}
             </button>
           </>
         ) : (
