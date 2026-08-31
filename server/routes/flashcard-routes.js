@@ -150,8 +150,80 @@ function setupFlashcardRoutes(app, deps = {}) {
     return hash;
   };
 
+  const EXTRA_FLASHCARD_VOCAB = [
+    { word: 'bathroom', translation: 'Banheiro', level: 'A1', category: 'Rotina', example: 'Where is the bathroom?', note: 'Pergunta essencial em lugares públicos.' },
+    { word: 'breakfast', translation: 'Café da manhã', level: 'A1', category: 'Rotina', example: 'I eat breakfast at seven.', note: 'Use para falar da primeira refeição do dia.' },
+    { word: 'dinner', translation: 'Jantar', level: 'A1', category: 'Rotina', example: 'Dinner is ready.', note: 'Refeição da noite.' },
+    { word: 'coffee', translation: 'Café', level: 'A1', category: 'Rotina', example: 'I want coffee.', note: 'Pedido comum em restaurantes.' },
+    { word: 'ticket', translation: 'Ingresso / passagem', level: 'A1', category: 'Viagem', example: 'I need a ticket.', note: 'Serve para transporte e eventos.' },
+    { word: 'street', translation: 'Rua', level: 'A1', category: 'Lugar', example: 'This street is busy.', note: 'Palavra básica para direções.' },
+    { word: 'left', translation: 'Esquerda', level: 'A1', category: 'Viagem', example: 'Turn left.', note: 'Muito usada ao pedir caminho.' },
+    { word: 'right', translation: 'Direita / certo', level: 'A1', category: 'Viagem', example: 'Turn right.', note: 'Também pode significar correto.' },
+    { word: 'slowly', translation: 'Devagar', level: 'A1', category: 'Conversas', example: 'Please speak slowly.', note: 'Frase útil para iniciantes.' },
+    { word: 'again', translation: 'De novo', level: 'A1', category: 'Conversas', example: 'Can you say that again?', note: 'Use quando precisa repetir.' },
+    { word: 'cold', translation: 'Frio', level: 'A1', category: 'Descrição', example: 'The water is cold.', note: 'Também fala de clima.' },
+    { word: 'hot', translation: 'Quente', level: 'A1', category: 'Descrição', example: 'The coffee is hot.', note: 'Cuidado com comida, bebida e clima.' },
+    { word: 'clean', translation: 'Limpo / limpar', level: 'A1', category: 'Descrição', example: 'The room is clean.', note: 'Pode ser adjetivo ou verbo.' },
+    { word: 'dirty', translation: 'Sujo', level: 'A1', category: 'Descrição', example: 'My shoes are dirty.', note: 'O oposto de clean.' },
+    { word: 'open', translation: 'Aberto / abrir', level: 'A1', category: 'Ação', example: 'Open the door.', note: 'Pode ser verbo ou adjetivo.' },
+    { word: 'closed', translation: 'Fechado', level: 'A1', category: 'Ação', example: 'The store is closed.', note: 'Muito usado em lojas.' },
+    { word: 'check in', translation: 'Fazer check-in', level: 'A2', category: 'Viagem', example: 'I need to check in.', note: 'Use em hotel ou aeroporto.' },
+    { word: 'check out', translation: 'Fazer check-out / conferir', level: 'A2', category: 'Viagem', example: 'We check out at noon.', note: 'Em hotel, significa sair oficialmente.' },
+    { word: 'single room', translation: 'Quarto individual', level: 'A2', category: 'Hotel', example: 'I booked a single room.', note: 'Quarto para uma pessoa.' },
+    { word: 'double room', translation: 'Quarto duplo', level: 'A2', category: 'Hotel', example: 'We need a double room.', note: 'Quarto para duas pessoas.' },
+    { word: 'menu', translation: 'Cardápio', level: 'A2', category: 'Restaurante', example: 'Can I see the menu?', note: 'Pedido comum em restaurante.' },
+    { word: 'bill', translation: 'Conta', level: 'A2', category: 'Restaurante', example: 'Can we have the bill?', note: 'No inglês americano também se usa check.' },
+    { word: 'spicy', translation: 'Apimentado', level: 'A2', category: 'Restaurante', example: 'Is this dish spicy?', note: 'Útil para escolher comida.' },
+    { word: 'platform', translation: 'Plataforma / plataforma de trem', level: 'A2', category: 'Viagem', example: 'Which platform is it?', note: 'Usado em estações de trem.' },
+    { word: 'schedule', translation: 'Agenda / horário', level: 'A2', category: 'Trabalho', example: 'My schedule is full.', note: 'Muito usado em rotina e trabalho.' },
+    { word: 'meeting', translation: 'Reunião', level: 'A2', category: 'Trabalho', example: 'The meeting starts at nine.', note: 'Palavra básica de trabalho.' },
+    { word: 'invite', translation: 'Convidar / convite', level: 'A2', category: 'Conversas', example: 'Can I invite a friend?', note: 'Pode ser verbo ou substantivo informal.' },
+    { word: 'suggest', translation: 'Sugerir', level: 'A2', category: 'Conversas', example: 'I suggest this option.', note: 'Depois pode vir -ing.' },
+    { word: 'explain', translation: 'Explicar', level: 'A2', category: 'Estudo', example: 'Can you explain this?', note: 'Use quando quer entender melhor.' },
+    { word: 'meaning', translation: 'Significado', level: 'A2', category: 'Estudo', example: 'What is the meaning of this word?', note: 'Essencial para vocabulário.' },
+    { word: 'pronunciation', translation: 'Pronúncia', level: 'A2', category: 'Estudo', example: 'I need to improve my pronunciation.', note: 'A escrita é maior que a fala.' },
+    { word: 'take off', translation: 'Decolar / tirar roupa', level: 'B1', category: 'Phrasal verb', example: 'The plane takes off at ten.', note: 'O contexto define o sentido.' },
+    { word: 'pick up', translation: 'Buscar / pegar', level: 'B1', category: 'Phrasal verb', example: 'I will pick you up at eight.', note: 'Muito usado para transporte.' },
+    { word: 'drop off', translation: 'Deixar alguém em algum lugar', level: 'B1', category: 'Phrasal verb', example: 'Can you drop me off here?', note: 'O oposto prático de pick up.' },
+    { word: 'get along', translation: 'Se dar bem', level: 'B1', category: 'Phrasal verb', example: 'We get along well.', note: 'Fala de relacionamento.' },
+    { word: 'catch up', translation: 'Colocar o papo em dia / alcançar', level: 'B1', category: 'Phrasal verb', example: 'Let us catch up soon.', note: 'Muito natural em conversas.' },
+    { word: 'turn down', translation: 'Recusar / abaixar volume', level: 'B1', category: 'Phrasal verb', example: 'She turned down the offer.', note: 'O sentido depende do objeto.' },
+    { word: 'come up with', translation: 'Criar / ter uma ideia', level: 'B1', category: 'Phrasal verb', example: 'We came up with a plan.', note: 'Expressão útil para trabalho.' },
+    { word: 'feedback', translation: 'Retorno / avaliação', level: 'B1', category: 'Trabalho', example: 'Thanks for the feedback.', note: 'Normal em trabalho e estudo.' },
+    { word: 'priority', translation: 'Prioridade', level: 'B1', category: 'Trabalho', example: 'This task is a priority.', note: 'Ajuda a organizar tarefas.' },
+    { word: 'impressive', translation: 'Impressionante', level: 'B1', category: 'Descrição', example: 'Your progress is impressive.', note: 'Elogio forte e natural.' },
+    { word: 'confident', translation: 'Confiante', level: 'B1', category: 'Sentimentos', example: 'I feel confident speaking English.', note: 'Fala de segurança pessoal.' },
+    { word: 'reasonable', translation: 'Razoável / justo', level: 'B2', category: 'Opinião', example: 'That price is reasonable.', note: 'Indica equilíbrio.' },
+    { word: 'straightforward', translation: 'Direto / simples', level: 'B2', category: 'Descrição', example: 'The instructions are straightforward.', note: 'Algo fácil de entender.' },
+    { word: 'briefly', translation: 'Brevemente / de forma curta', level: 'B2', category: 'Comunicação', example: 'Briefly explain your idea.', note: 'Muito usado em instruções.' },
+    { word: 'clarify', translation: 'Esclarecer', level: 'B2', category: 'Comunicação', example: 'Can you clarify this point?', note: 'Útil em reuniões.' },
+    { word: 'highlight', translation: 'Destacar', level: 'B2', category: 'Comunicação', example: 'Let me highlight one detail.', note: 'Pode ser verbo ou substantivo.' },
+    { word: 'downside', translation: 'Desvantagem', level: 'B2', category: 'Debate', example: 'The downside is the cost.', note: 'Mais comum que drawback em fala.' },
+    { word: 'upside', translation: 'Vantagem / lado positivo', level: 'B2', category: 'Debate', example: 'The upside is speed.', note: 'Oposto de downside.' },
+    { word: 'eventually', translation: 'Finalmente / com o tempo', level: 'B2', category: 'Tempo', example: 'Eventually, I understood the lesson.', note: 'Não significa eventualmente em português.' },
+    { word: 'currently', translation: 'Atualmente', level: 'B2', category: 'Tempo', example: 'I am currently working.', note: 'Falso cognato útil.' },
+    { word: 'actually', translation: 'Na verdade', level: 'B2', category: 'Conversas', example: 'Actually, I disagree.', note: 'Não significa atualmente.' },
+    { word: 'argue', translation: 'Argumentar / discutir', level: 'B2', category: 'Debate', example: 'Some people argue that practice matters most.', note: 'Pode ser debate ou briga.' },
+    { word: 'consistent', translation: 'Consistente / constante', level: 'B2', category: 'Hábitos', example: 'Consistent practice beats intensity.', note: 'Muito útil para estudos.' },
+    { word: 'deliberate', translation: 'Intencional / deliberado', level: 'C1', category: 'Formal', example: 'Deliberate practice improves performance.', note: 'Pode soar mais formal.' },
+    { word: 'reinforce', translation: 'Reforçar', level: 'C1', category: 'Estudo', example: 'Review helps reinforce memory.', note: 'Bom para falar de aprendizado.' },
+    { word: 'retain', translation: 'Reter / lembrar', level: 'C1', category: 'Estudo', example: 'Spacing helps you retain vocabulary.', note: 'Verbo formal para memória.' },
+    { word: 'retrieve', translation: 'Recuperar / buscar da memória', level: 'C1', category: 'Estudo', example: 'Try to retrieve the word before checking.', note: 'Usado em aprendizagem.' },
+    { word: 'substantial', translation: 'Considerável / substancial', level: 'C1', category: 'Formal', example: 'There was substantial improvement.', note: 'Mais forte que big.' },
+    { word: 'plausible', translation: 'Plausível', level: 'C1', category: 'Argumento', example: 'That explanation is plausible.', note: 'Algo que parece razoável.' },
+    { word: 'counterargument', translation: 'Contra-argumento', level: 'C1', category: 'Argumento', example: 'Consider the counterargument.', note: 'Útil para debates avançados.' },
+    { word: 'be prone to', translation: 'Ter tendência a', level: 'C1', category: 'Expressão', example: 'Beginners are prone to this mistake.', note: 'Expressão avançada para padrões.' },
+    { word: 'come to terms with', translation: 'Aceitar / lidar emocionalmente com', level: 'C1', category: 'Expressão', example: 'He came to terms with the change.', note: 'Expressão idiomática.' },
+    { word: 'fall short of', translation: 'Ficar aquém de', level: 'C1', category: 'Expressão', example: 'The result fell short of expectations.', note: 'Muito usado em avaliação.' }
+  ];
+
+  const flashcardVocab = [...FLASHCARD_VOCAB, ...EXTRA_FLASHCARD_VOCAB].reduce((items, card) => {
+    if (!items.some(item => item.word === card.word)) items.push(card);
+    return items;
+  }, []);
+
   const enrichFlashcard = (card) => {
-    const metadata = FLASHCARD_VOCAB.find(v => v.word === card.word) || {};
+    const metadata = flashcardVocab.find(v => v.word === card.word) || {};
     return { ...metadata, ...card };
   };
 
@@ -160,17 +232,20 @@ function setupFlashcardRoutes(app, deps = {}) {
     try {
       const now = new Date().toISOString();
       const flashcards = await supabaseGetFlashcards(req.user.id);
-      const due = flashcards.filter(f => f.next_review && f.next_review <= now).map(enrichFlashcard);
+      const today = new Date().toISOString().slice(0, 10);
+      const seed = `${req.user.id}-${today}`;
+      const due = flashcards
+        .filter(f => f.next_review && f.next_review <= now)
+        .map(enrichFlashcard)
+        .sort((a, b) => dailySortKey(a.word, seed) - dailySortKey(b.word, seed));
       const seen = due.map(d => d.word);
 
       if (due.length < 20) {
         const user = await supabaseGetUserById(req.user.id).catch(() => null);
         const userLevel = normalizeLevel(user?.english_level);
-        const today = new Date().toISOString().slice(0, 10);
-        const seed = `${req.user.id}-${today}`;
         const upcoming = flashcards.filter(f => f.next_review && f.next_review > now);
         seen.push(...upcoming.map(u => u.word));
-        const newWords = FLASHCARD_VOCAB
+        const newWords = flashcardVocab
           .filter(v => !seen.includes(v.word))
           .sort((a, b) => {
             const distance = levelDistance(a.level, userLevel) - levelDistance(b.level, userLevel);

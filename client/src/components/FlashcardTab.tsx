@@ -24,11 +24,70 @@ const flashModes: Array<{ value: FlashMode; label: string; copy: string }> = [
   { value: 'listen', label: 'Ouvir', copy: 'Treinar pronúncia' }
 ];
 
-const categoryOptions = ['Todas', 'Rotina', 'Viagem', 'Trabalho', 'Conversas', 'Phrasal verb', 'Estudo'];
+const categoryOptions = [
+  'Todas',
+  'Erros',
+  'Rotina',
+  'Viagem',
+  'Trabalho',
+  'Conversas',
+  'Phrasal verb',
+  'Estudo',
+  'Restaurante',
+  'Hotel',
+  'Compras',
+  'Descrição',
+  'Comunicação',
+  'Debate',
+  'Expressão',
+  'Tempo',
+  'Pessoas',
+  'Lugar',
+  'Ação',
+  'Educação',
+  'Frequência',
+  'Sentimentos',
+  'Personalidade',
+  'Conectores',
+  'Gramática',
+  'Opinião',
+  'Formal'
+];
 const dailyGoal = 10;
 
 function getDailyFlashKey(userId: string) {
   return `linguafire:flash-daily:${userId}:${new Date().toISOString().slice(0, 10)}`;
+}
+
+function getMissedFlashKey(userId: string) {
+  return `linguafire:flash-missed:${userId}`;
+}
+
+function readStoredMissedCards(userId: string) {
+  try {
+    const value = window.localStorage.getItem(getMissedFlashKey(userId));
+    if (!value) return [];
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((card): card is Flashcard => Boolean(card?.word)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredMissedCards(userId: string, cards: Flashcard[]) {
+  const unique = cards.reduce<Flashcard[]>((items, card) => {
+    if (!items.some((item) => item.word === card.word)) items.push(card);
+    return items;
+  }, []);
+  window.localStorage.setItem(getMissedFlashKey(userId), JSON.stringify(unique.slice(0, 40)));
+  return unique.slice(0, 40);
+}
+
+function getReviewFeedback(quality: number, interval: number, gainedXp: number) {
+  if (quality < 3) return `Revisão salva nos erros. Reveja amanhã. +${gainedXp} XP`;
+  if (quality === 3) return `Salvo como difícil. Próxima revisão em ${interval} dia(s). +${gainedXp} XP`;
+  if (quality === 4) return `Bom trabalho. Próxima revisão em ${interval} dia(s). +${gainedXp} XP`;
+  return `Dominado. Próxima revisão em ${interval} dia(s). +${gainedXp} XP`;
 }
 
 function buildPrompt(card: Flashcard, mode: FlashMode) {
@@ -110,6 +169,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
   useEffect(() => {
     const saved = window.localStorage.getItem(getDailyFlashKey(user.id));
     setDailyReviewed(saved ? Number(saved) || 0 : 0);
+    setMissedCards(readStoredMissedCards(user.id));
   }, [user.id]);
 
   async function startSession() {
@@ -117,19 +177,26 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
     setIsLoading(true);
 
     try {
+      const storedMissed = readStoredMissedCards(user.id);
       const available = sortByEnglishLevel(await getAvailableFlashcards(), englishLevel);
-      const filtered = category === 'Todas' ? available : available.filter((card) => card.category === category);
+      const filtered = category === 'Todas'
+        ? available
+        : category === 'Erros'
+          ? storedMissed
+          : available.filter((card) => card.category === category);
       const nextCards = filtered.length ? filtered : available;
       setCards(nextCards.slice(0, sessionSize));
       setIndex(0);
       setRevealed(false);
       setSessionCorrect(0);
       setSessionXp(0);
-      setMissedCards([]);
+      setMissedCards(storedMissed);
       if (!nextCards.length) {
         setNotice('Nenhum card para revisar agora.');
       } else if (category !== 'Todas' && !filtered.length) {
-        setNotice('Essa categoria não tem cards agora. Abrimos uma sessão geral para você.');
+        setNotice(category === 'Erros'
+          ? 'Você ainda não tem erros salvos. Abrimos uma sessão geral para você.'
+          : 'Essa categoria não tem cards agora. Abrimos uma sessão geral para você.');
       }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Erro ao iniciar revisão.');
@@ -157,14 +224,16 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
       setSessionXp((value) => value + gainedXp);
       setSessionCorrect((value) => value + gainedCorrect);
       if (quality < 3) {
-        setMissedCards((value) => [...value, currentCard]);
+        setMissedCards((value) => writeStoredMissedCards(user.id, [...value, currentCard]));
+      } else {
+        setMissedCards((value) => writeStoredMissedCards(user.id, value.filter((card) => card.word !== currentCard.word)));
       }
       setDailyReviewed((value) => {
         const nextValue = value + 1;
         window.localStorage.setItem(getDailyFlashKey(user.id), String(nextValue));
         return nextValue;
       });
-      setNotice(`Próxima revisão em ${result.interval} dia(s). +${gainedXp} XP`);
+      setNotice(getReviewFeedback(quality, result.interval, gainedXp));
       setIndex((value) => value + 1);
       setRevealed(false);
       void updateProfile({ xp: nextUser.xp, correct_answers: nextUser.correct_answers }).catch(() => {
@@ -187,14 +256,15 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
   }
 
   function reviewMissedCards() {
-    if (!missedCards.length) return;
-    setCards(missedCards);
+    const storedMissed = readStoredMissedCards(user.id);
+    if (!storedMissed.length) return;
+    setCards(storedMissed.slice(0, sessionSize));
     setIndex(0);
     setRevealed(false);
     setNotice('');
     setSessionCorrect(0);
     setSessionXp(0);
-    setMissedCards([]);
+    setMissedCards(storedMissed);
   }
 
   function changeSessionSize(size: 10 | 20) {
