@@ -201,6 +201,11 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
             {isAnswered && (
               <div className={selectedChoice === activeQuestion.answer ? 'lesson-feedback correct' : 'lesson-feedback wrong'}>
                 <strong>{selectedChoice === activeQuestion.answer ? 'Resposta certa' : 'Quase'}</strong>
+                {selectedChoice !== activeQuestion.answer && (
+                  <span>
+                    Correta: <b>{activeQuestion.choices[activeQuestion.answer]}</b>
+                  </span>
+                )}
                 <span>{activeQuestion.explain}</span>
               </div>
             )}
