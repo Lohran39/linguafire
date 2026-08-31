@@ -20,6 +20,17 @@ function resolveLevel(xp: number) {
   return reached ? Math.min(reached.level + 1, APP_LEVELS.length) : 1;
 }
 
+function dailyQuestionSortKey(questionId: string, seed: string) {
+  let hash = 0;
+  const value = `${seed}-${questionId}`;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash;
+}
+
 export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const recommendedLessons = useMemo(() => sortByEnglishLevel(lessonSets, user.english_level), [user.english_level]);
   const [activeLesson, setActiveLesson] = useState<LessonSet>(recommendedLessons[0]);
@@ -46,12 +57,20 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
 
     return Array.from(questionsById.values());
   }, [activeLesson]);
+  const dailyQuestionPool = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const seed = `${today}-${user.id}-${activeLesson.id}-${practiceMode}`;
+
+    return [...sameLevelQuestions].sort(
+      (first, second) => dailyQuestionSortKey(first.id, seed) - dailyQuestionSortKey(second.id, seed)
+    );
+  }, [activeLesson.id, practiceMode, sameLevelQuestions, user.id]);
   const currentQuestions = useMemo(
     () => {
       if (isReviewLesson) return activeLesson.questions;
-      return sameLevelQuestions.slice(0, practiceMode === 'quick' ? 5 : 10);
+      return dailyQuestionPool.slice(0, practiceMode === 'quick' ? 5 : 10);
     },
-    [activeLesson, isReviewLesson, practiceMode, sameLevelQuestions]
+    [activeLesson, dailyQuestionPool, isReviewLesson, practiceMode]
   );
   const activeQuestion = currentQuestions[questionIndex];
   const isTypeQuestion = activeQuestion.prompt.startsWith('Complete:');
