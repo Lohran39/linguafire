@@ -18,6 +18,22 @@ export type NativesSearchResult = {
   curated?: boolean;
 };
 
+export type NativeCoachPayload = {
+  situationId: string;
+  englishLevel: string;
+  prompt: string;
+  answer: string;
+  target?: string;
+};
+
+export type NativeCoachResult = {
+  score: number;
+  natural: string;
+  feedback: string;
+  correction: string;
+  nextReply: string;
+};
+
 export const nativeSuggestions = [
   'look forward to',
   'give up',
@@ -57,6 +73,22 @@ export async function searchNatives(query: string, lang: NativesLanguage): Promi
   if (!response.ok) {
     throw new Error(data.error || 'Erro ao buscar vídeos');
   }
+  return data;
+}
+
+export async function coachNativeReply(payload: NativeCoachPayload): Promise<NativeCoachResult> {
+  const response = await fetch('/api/natives/coach', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload)
+  });
+  const data = (await response.json().catch(() => ({}))) as NativeCoachResult & { error?: string; message?: string };
+
+  if (!response.ok) {
+    throw new Error(data.message || data.error || 'Erro ao corrigir resposta');
+  }
+
   return data;
 }
 

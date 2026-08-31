@@ -383,7 +383,16 @@ setupPushRoutes(app, {
 registerLyricsRoutes(app, { logger, supabaseGetLyricsCache, supabaseUpsertLyricsCache });
 
 // Natives routes
-registerNativesRoutes(app, { supabaseGetNativesCache, supabaseUpsertNativesCache, logger });
+registerNativesRoutes(app, {
+  supabaseGetNativesCache,
+  supabaseUpsertNativesCache,
+  authenticateToken,
+  checkAILimit,
+  callMiniMaxChat,
+  OPENAI_MODEL_ALIAS,
+  AI_API_KEY: GEMINI_API_KEY,
+  logger
+});
 
 // Google OAuth routes
 setupGoogleAuthRoutes(app, {

@@ -392,7 +392,7 @@ function AppHome({
       {currentTab === 'conversation' && (
         <ConversationTab user={user} onProfileRefresh={onProfileRefresh} />
       )}
-      {currentTab === 'natives' && <NativesTab />}
+      {currentTab === 'natives' && <NativesTab user={user} onProfileRefresh={onProfileRefresh} />}
       {currentTab === 'shop' && <ShopTab user={user} onProfileRefresh={onProfileRefresh} />}
       {currentTab === 'placement' && (
         <PlacementTab

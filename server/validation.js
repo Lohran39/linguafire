@@ -250,6 +250,14 @@ const grammarAnalyzeSchema = objectSchema((data, output, issues) => {
   optional(data, 'topicId', stringValidator({ max: 50 }), output, issues);
 });
 
+const nativeCoachSchema = objectSchema((data, output, issues) => {
+  required(data, 'situationId', stringValidator({ min: 1, max: 80, trim: true, message: 'Situacao obrigatoria' }), output, issues, 'Situacao obrigatoria');
+  required(data, 'prompt', stringValidator({ min: 1, max: 800, trim: true, message: 'Cenario obrigatorio' }), output, issues, 'Cenario obrigatorio');
+  required(data, 'answer', stringValidator({ min: 1, max: 1000, trim: true, message: 'Resposta obrigatoria' }), output, issues, 'Resposta obrigatoria');
+  optional(data, 'target', stringValidator({ max: 800, trim: true }), output, issues);
+  optional(data, 'englishLevel', englishLevelValidator, output, issues);
+});
+
 const pushSubscribeSchema = objectSchema((data, output, issues) => {
   required(data, 'endpoint', (value, path, out, list) => {
     try {
@@ -352,6 +360,7 @@ module.exports = {
   flashcardReviewSchema,
   conversationSchema,
   grammarAnalyzeSchema,
+  nativeCoachSchema,
   pushSubscribeSchema,
   streakClaimSchema,
   chatCompletionsSchema,

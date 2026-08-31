@@ -7,6 +7,52 @@ const NATIVES_CURATED_CACHE_SOURCE = 'curated-short-v1';
 const NATIVES_MAX_DURATION_SECONDS = 60;
 const NATIVES_RESULT_LIMIT = 6;
 const NATIVES_MIN_SCORE = 280;
+const { nativeCoachSchema, validateBody } = require('../validation');
+
+const NATIVE_SITUATION_COACHES = {
+  restaurant: 'voce e um atendente de restaurante nativo, educado, objetivo e focado em pedidos, conta, alergias e cardapio',
+  airport: 'voce e um agente de aeroporto nativo, claro e direto, focado em portao, embarque, bagagem, seguranca e imigração',
+  hotel: 'voce e uma recepcionista de hotel nativa, cordial e pratica, focada em check-in, reserva, problemas no quarto e pedidos',
+  job_interview: 'voce e um entrevistador nativo, profissional e exigente, focado em respostas naturais para emprego',
+  small_talk: 'voce e um amigo nativo, casual e natural, focado em conversa leve sem frases roboticas',
+  shopping: 'voce e um atendente de loja nativo, util e natural, focado em preco, tamanho, troca, produto e pagamento',
+  emergency: 'voce e um atendente de emergencia nativo, claro e calmo, focado em seguranca, localizacao e urgencia',
+  meeting: 'voce e um colega de trabalho nativo, profissional e diplomatico, focado em reuniao, prazos e alinhamento'
+};
+
+const NATIVE_LEVEL_GUIDES = {
+  A1: 'corrija com frases muito curtas, vocabulario basico e uma explicacao em portugues bem simples',
+  A2: 'corrija com frases curtas, pedidos educados e explicacao pratica em portugues',
+  B1: 'corrija naturalidade, preposicoes, ordem das palavras e escolha de expressao',
+  B2: 'corrija tom, precisao, profissionalismo e alternativas mais naturais',
+  C1: 'corrija nuance, registro, idiomaticidade e impacto da frase',
+  C2: 'corrija sutileza, concisao, estilo, naturalidade e adequacao cultural'
+};
+
+function parseNativeCoachJson(content = '') {
+  const raw = String(content || '').trim();
+  const jsonText = raw.match(/\{[\s\S]*\}/)?.[0] || raw;
+
+  try {
+    const parsed = JSON.parse(jsonText);
+    const score = Number(parsed.score);
+    return {
+      score: Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 60,
+      natural: String(parsed.natural || '').slice(0, 500) || 'Try saying it in a simpler, clearer way.',
+      feedback: String(parsed.feedback || '').slice(0, 700) || 'Boa tentativa. Ajuste a frase para soar mais natural.',
+      correction: String(parsed.correction || '').slice(0, 500) || 'Revise gramática, educação e contexto.',
+      nextReply: String(parsed.nextReply || '').slice(0, 500) || 'Now try answering with one complete sentence.'
+    };
+  } catch (_error) {
+    return {
+      score: 60,
+      natural: 'Try saying it in a more natural and polite way.',
+      feedback: raw.slice(0, 700) || 'A IA corrigiu sua resposta, mas retornou em formato inesperado.',
+      correction: 'Reescreva a frase com sujeito, verbo e tom adequado para a situação.',
+      nextReply: 'Try again with a short complete sentence.'
+    };
+  }
+}
 
 function isValidYouTubeId(value = '') {
   return /^[a-zA-Z0-9_-]{11}$/.test(String(value));
@@ -298,6 +344,11 @@ function registerNativesRoutes(app, deps = {}) {
   const {
     supabaseGetNativesCache = async () => null,
     supabaseUpsertNativesCache = async () => {},
+    authenticateToken = (_req, _res, next) => next(),
+    checkAILimit = (_req, _res, next) => next(),
+    callMiniMaxChat = async () => ({ content: '' }),
+    OPENAI_MODEL_ALIAS = 'gpt-4o-mini',
+    AI_API_KEY = '',
     logger = console
   } = deps;
 
@@ -426,6 +477,52 @@ function registerNativesRoutes(app, deps = {}) {
         'A busca de videos falhou agora.',
         'search_failed'
       ));
+    }
+  });
+
+  app.post('/api/natives/coach', authenticateToken, checkAILimit, validateBody(nativeCoachSchema), async (req, res) => {
+    const { situationId, englishLevel = 'A1', prompt, answer, target = '' } = req.validatedBody;
+    const situationCoach = NATIVE_SITUATION_COACHES[situationId] || NATIVE_SITUATION_COACHES.small_talk;
+    const levelGuide = NATIVE_LEVEL_GUIDES[englishLevel] || NATIVE_LEVEL_GUIDES.A1;
+
+    try {
+      const result = await callMiniMaxChat({
+        apiKey: AI_API_KEY,
+        requestedModel: OPENAI_MODEL_ALIAS,
+        temperature: 0.35,
+        messages: [
+          {
+            role: 'system',
+            content: [
+              'Voce e o treinador de ingles nativo do LinguaFire.',
+              `Situacao: ${situationCoach}.`,
+              `Nivel do aluno: ${englishLevel}. ${levelGuide}.`,
+              'Avalie naturalidade, gramatica, educacao, contexto e clareza.',
+              'Responda apenas JSON valido, sem markdown.',
+              'Formato: {"score":0,"natural":"...","feedback":"...","correction":"...","nextReply":"..."}'
+            ].join(' ')
+          },
+          {
+            role: 'user',
+            content: [
+              `Cenario em portugues: ${prompt}`,
+              target ? `Resposta natural esperada: ${target}` : '',
+              `Resposta do aluno: ${answer}`,
+              'De feedback em portugues curto e util. A frase natural e a proxima resposta devem estar em ingles.'
+            ].filter(Boolean).join('\n')
+          }
+        ]
+      });
+
+      return res.json(parseNativeCoachJson(result.content));
+    } catch (error) {
+      logger.error?.('Native coach failed', {
+        error: error.message,
+        userId: req.user?.id,
+        situationId,
+        englishLevel
+      });
+      return res.status(500).json({ error: 'Erro ao treinar resposta com IA' });
     }
   });
 
