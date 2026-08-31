@@ -194,8 +194,10 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
               type="button"
               onClick={() => startLesson(lesson)}
             >
-              <span>{lesson.level}</span>
-              {perfectLessons.has(`perfect-${lesson.id}`) ? <em>Perfeita</em> : completedLessons.has(`lesson-${lesson.id}`) ? <em>Concluída</em> : null}
+              <div className="lesson-card-meta">
+                <span>{lesson.level}</span>
+                {perfectLessons.has(`perfect-${lesson.id}`) ? <em>Perfeita</em> : completedLessons.has(`lesson-${lesson.id}`) ? <em>Concluída</em> : null}
+              </div>
               <strong>{lesson.title}</strong>
               <small>{lesson.focus}</small>
             </button>
@@ -214,8 +216,10 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
                   type="button"
                   onClick={() => startLesson(lesson)}
                 >
-                  <span>{lesson.level}</span>
-                  {perfectLessons.has(`perfect-${lesson.id}`) ? <em>Perfeita</em> : completedLessons.has(`lesson-${lesson.id}`) ? <em>Concluída</em> : null}
+                  <div className="lesson-card-meta">
+                    <span>{lesson.level}</span>
+                    {perfectLessons.has(`perfect-${lesson.id}`) ? <em>Perfeita</em> : completedLessons.has(`lesson-${lesson.id}`) ? <em>Concluída</em> : null}
+                  </div>
                   <strong>{lesson.title}</strong>
                   <small>{lesson.focus}</small>
                 </button>
