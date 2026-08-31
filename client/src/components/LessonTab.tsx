@@ -23,6 +23,7 @@ function resolveLevel(xp: number) {
 export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const recommendedLessons = useMemo(() => sortByEnglishLevel(lessonSets, user.english_level), [user.english_level]);
   const [activeLesson, setActiveLesson] = useState<LessonSet>(recommendedLessons[0]);
+  const [practiceMode, setPracticeMode] = useState<'quick' | 'complete'>('quick');
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [typedAnswer, setTypedAnswer] = useState('');
@@ -32,17 +33,22 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [savedResult, setSavedResult] = useState('');
 
-  const activeQuestion = activeLesson.questions[questionIndex];
+  const currentQuestions = useMemo(
+    () => (practiceMode === 'quick' ? activeLesson.questions.slice(0, 2) : activeLesson.questions),
+    [activeLesson, practiceMode]
+  );
+  const activeQuestion = currentQuestions[questionIndex];
   const isTypeQuestion = activeQuestion.prompt.startsWith('Complete:');
   const normalizedTypedAnswer = submittedTextAnswer.trim().toLowerCase();
   const normalizedCorrectAnswer = activeQuestion.choices[activeQuestion.answer].trim().toLowerCase();
   const isTypedCorrect = isTypeQuestion && normalizedTypedAnswer === normalizedCorrectAnswer;
   const correctCount = useMemo(() => answers.filter(Boolean).length, [answers]);
   const isAnswered = isTypeQuestion ? submittedTextAnswer !== '' : selectedChoice !== null;
-  const isLastQuestion = questionIndex === activeLesson.questions.length - 1;
-  const isComplete = answers.length === activeLesson.questions.length;
-  const progress = Math.round((answers.length / activeLesson.questions.length) * 100);
-  const earnedXp = correctCount * 12 + (correctCount === activeLesson.questions.length ? activeLesson.xp : 0);
+  const isLastQuestion = questionIndex === currentQuestions.length - 1;
+  const isComplete = answers.length === currentQuestions.length;
+  const progress = Math.round((answers.length / currentQuestions.length) * 100);
+  const modeXpBonus = practiceMode === 'complete' ? activeLesson.xp : Math.round(activeLesson.xp / 2);
+  const earnedXp = correctCount * 12 + (correctCount === currentQuestions.length ? modeXpBonus : 0);
   const englishLevel = normalizeEnglishLevel(user.english_level);
   const levelProfile = LEVEL_PROFILES[englishLevel];
   const recommendedLevelLessons = recommendedLessons.filter((lesson) => isRecommendedEnglishLevel(lesson.level, englishLevel));
@@ -67,6 +73,17 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
 
   function startLesson(lesson: LessonSet) {
     setActiveLesson(lesson);
+    setQuestionIndex(0);
+    setSelectedChoice(null);
+    setTypedAnswer('');
+    setSubmittedTextAnswer('');
+    setAnswers([]);
+    setMissedQuestions([]);
+    setSavedResult('');
+  }
+
+  function changePracticeMode(mode: 'quick' | 'complete') {
+    setPracticeMode(mode);
     setQuestionIndex(0);
     setSelectedChoice(null);
     setTypedAnswer('');
@@ -125,7 +142,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     const completedAchievement = `lesson-${activeLesson.id}`;
     const wasAlreadyCompleted = nextAchievements.has(completedAchievement);
 
-    if (correctCount === activeLesson.questions.length) {
+    if (correctCount === currentQuestions.length) {
       nextAchievements.add(`perfect-${activeLesson.id}`);
     }
     nextAchievements.add(completedAchievement);
@@ -209,12 +226,21 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
       </div>
 
       <div className="lesson-runner">
+        <div className="lesson-mode-switch" aria-label="Modo de treino">
+          <button className={practiceMode === 'quick' ? 'active' : ''} type="button" onClick={() => changePracticeMode('quick')}>
+            Rápido
+          </button>
+          <button className={practiceMode === 'complete' ? 'active' : ''} type="button" onClick={() => changePracticeMode('complete')}>
+            Completo
+          </button>
+        </div>
+
         <div className="lesson-runner-head">
           <div>
             <span className="section-kicker">{activeLesson.level}</span>
             <h2>{activeLesson.title}</h2>
           </div>
-          <strong>{answers.length}/{activeLesson.questions.length}</strong>
+          <strong>{answers.length}/{currentQuestions.length}</strong>
         </div>
 
         <div className="progress-track" aria-label="Progresso da lição">
@@ -291,7 +317,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
           </>
         ) : (
           <div className="lesson-result">
-            <span>{correctCount}/{activeLesson.questions.length}</span>
+            <span>{correctCount}/{currentQuestions.length}</span>
             <h2>{correctCount === activeLesson.questions.length ? 'Sequência perfeita' : 'Lição concluída'}</h2>
             <p>{earnedXp} XP ganhos nesta prática.</p>
             {savedResult && (

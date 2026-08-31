@@ -1804,6 +1804,31 @@ body[data-theme='light'] .placement-layout.result {
     linear-gradient(145deg, rgb(21 21 31 / 96%), rgb(31 31 45 / 84%));
 }
 
+.lesson-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgb(10 10 18 / 72%);
+}
+
+.lesson-mode-switch button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.lesson-mode-switch button.active {
+  color: #120602;
+  background: var(--fire-2);
+}
+
 .lesson-runner-head {
   display: flex;
   align-items: start;
