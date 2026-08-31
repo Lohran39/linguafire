@@ -18,6 +18,7 @@ const qualityOptions = [
 export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
   const [stats, setStats] = useState<FlashcardStats>({ due: 0, total: 0 });
   const [cards, setCards] = useState<Flashcard[]>([]);
+  const [sessionSize, setSessionSize] = useState<10 | 20>(10);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,7 +70,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
 
     try {
       const available = sortByEnglishLevel(await getAvailableFlashcards(), englishLevel);
-      setCards(available);
+      setCards(available.slice(0, sessionSize));
       setIndex(0);
       setRevealed(false);
       setSessionCorrect(0);
@@ -122,6 +123,16 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
     loadStats();
   }
 
+  function changeSessionSize(size: 10 | 20) {
+    setSessionSize(size);
+    setCards([]);
+    setIndex(0);
+    setRevealed(false);
+    setNotice('');
+    setSessionCorrect(0);
+    setSessionXp(0);
+  }
+
   return (
     <section className="flash-layout" aria-label="Flashcards">
       <aside className="flash-side">
@@ -129,6 +140,14 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
           <div className="panel-heading">
             <h2>Revisão espaçada</h2>
             <span>{englishLevel}</span>
+          </div>
+          <div className="flash-mode-switch" aria-label="Tamanho da sessão">
+            <button className={sessionSize === 10 ? 'active' : ''} type="button" onClick={() => changeSessionSize(10)}>
+              Essencial · 10
+            </button>
+            <button className={sessionSize === 20 ? 'active' : ''} type="button" onClick={() => changeSessionSize(20)}>
+              Completa · 20
+            </button>
           </div>
           <div className="flash-stats">
             <article>
@@ -173,7 +192,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
             <p className="kicker">Flashcards</p>
             <h1>Treine vocabulário em ciclos curtos</h1>
             <p className="lead">
-              A sessão prioriza palavras do seu nível e revisões vencidas. Revele a resposta e classifique o quanto lembrou.
+              A sessão prioriza palavras do seu nível, mistura revisões vencidas com cards novos e muda a ordem todos os dias.
             </p>
             <button className="primary-button" type="button" onClick={startSession} disabled={isLoading}>
               Começar agora
@@ -185,12 +204,15 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
           <section className="flash-card">
             <div className="flash-card-top">
               <span>{currentCard.level || 'Livre'}</span>
+              {currentCard.category && <span>{currentCard.category}</span>}
               {currentCard.isNew && <strong>Novo</strong>}
             </div>
             <h1>{currentCard.word}</h1>
             {revealed ? (
               <>
                 <p className="translation">{currentCard.translation || 'Sem tradução'}</p>
+                {currentCard.example && <p className="flash-example">{currentCard.example}</p>}
+                {currentCard.note && <p className="flash-note">{currentCard.note}</p>}
                 <div className="quality-grid">
                   {qualityOptions.map((option) => (
                     <button
@@ -217,7 +239,9 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
           <section className="flash-card empty">
             <p className="kicker">Sessão concluída</p>
             <h1>{sessionCorrect} acertos</h1>
-            <p className="lead">Você ganhou {sessionXp} XP nesta revisão.</p>
+            <p className="lead">
+              Você revisou {cards.length} cards e ganhou {sessionXp} XP. Amanhã a fila muda para trazer outra combinação.
+            </p>
             <button className="primary-button" type="button" onClick={resetSession}>
               Voltar
             </button>

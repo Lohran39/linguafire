@@ -2,6 +2,9 @@ export type Flashcard = {
   word: string;
   translation: string;
   level: string;
+  category?: string;
+  example?: string;
+  note?: string;
   ease_factor?: number;
   interval_days?: number;
   next_review?: string;

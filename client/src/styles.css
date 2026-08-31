@@ -2323,6 +2323,33 @@ body[data-theme='light'] .placement-layout.result {
   margin-bottom: 1rem;
 }
 
+.flash-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0.85rem 0 1rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgb(7 8 13 / 74%);
+}
+
+.flash-mode-switch button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.flash-mode-switch button.active {
+  color: #160702;
+  background: linear-gradient(135deg, var(--fire-2), var(--fire-3));
+  box-shadow: 0 10px 24px rgb(255 102 0 / 16%);
+}
+
 .flash-stats article {
   min-height: 92px;
   padding: 0.9rem;
@@ -2424,6 +2451,28 @@ body[data-theme='light'] .placement-layout.result {
   font-size: clamp(1.25rem, 4vw, 2rem);
   font-weight: 900;
   line-height: 1.3;
+}
+
+.flash-example {
+  width: min(100%, 620px);
+  margin: 0 auto;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  background: rgb(255 255 255 / 5%);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.flash-note {
+  width: min(100%, 620px);
+  margin: -0.35rem auto 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .quality-grid {
@@ -3458,6 +3507,10 @@ body[data-theme='light'] .placement-layout.result {
 @media (max-width: 420px) {
   .auth-screen {
     padding: 0.65rem;
+  }
+
+  .flash-mode-switch {
+    grid-template-columns: 1fr;
   }
 
   .splash-screen {
