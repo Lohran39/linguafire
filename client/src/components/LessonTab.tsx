@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { APP_LEVELS, LEVEL_PROFILES, isRecommendedEnglishLevel, normalizeEnglishLevel, sortByEnglishLevel } from '../data/levels';
+import {
+  APP_LEVELS,
+  LEVEL_PROFILES,
+  englishLevelDistance,
+  isRecommendedEnglishLevel,
+  normalizeEnglishLevel,
+  sortByEnglishLevel
+} from '../data/levels';
 import { lessonSets, type LessonSet } from '../data/lessons';
 import { updateProfile, type UserProfile } from '../services/auth';
 
@@ -31,9 +38,13 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const earnedXp = correctCount * 12 + (correctCount === activeLesson.questions.length ? activeLesson.xp : 0);
   const englishLevel = normalizeEnglishLevel(user.english_level);
   const levelProfile = LEVEL_PROFILES[englishLevel];
-  const exactLessons = recommendedLessons.filter((lesson) => isRecommendedEnglishLevel(lesson.level, englishLevel));
-  const primaryLessons = exactLessons.length ? exactLessons : recommendedLessons.slice(0, 2);
-  const practiceLessons = recommendedLessons.filter((lesson) => !primaryLessons.some((primary) => primary.id === lesson.id));
+  const recommendedLevelLessons = recommendedLessons.filter((lesson) => isRecommendedEnglishLevel(lesson.level, englishLevel));
+  const supportLessons = recommendedLessons.filter((lesson) => englishLevelDistance(lesson.level, englishLevel) === 1);
+  const freePracticeLessons = recommendedLessons.filter((lesson) => englishLevelDistance(lesson.level, englishLevel) > 1);
+  const primaryLessons = recommendedLevelLessons.length ? recommendedLevelLessons : recommendedLessons.slice(0, 2);
+  const practiceLessons = [...supportLessons, ...freePracticeLessons].filter(
+    (lesson) => !primaryLessons.some((primary) => primary.id === lesson.id)
+  );
 
   useEffect(() => {
     startLesson(recommendedLessons[0]);
@@ -109,6 +120,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
         <h1>Lições rápidas para ganhar XP</h1>
         <p className="lead">Seu nível atual é {englishLevel}: {levelProfile.practice}</p>
 
+        <span className="section-kicker secondary-kicker">Recomendadas para você</span>
         <div className="lesson-grid">
           {primaryLessons.map((lesson) => (
             <button
@@ -117,7 +129,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
               type="button"
               onClick={() => startLesson(lesson)}
             >
-              <span>{isRecommendedEnglishLevel(lesson.level, englishLevel) ? `${lesson.level} recomendado` : lesson.level}</span>
+              <span>{lesson.level}</span>
               <strong>{lesson.title}</strong>
               <small>{lesson.focus}</small>
             </button>
@@ -125,7 +137,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
         </div>
         {practiceLessons.length > 0 && (
           <>
-            <span className="section-kicker secondary-kicker">Próximos treinos</span>
+            <span className="section-kicker secondary-kicker">Também liberadas</span>
             <div className="lesson-grid compact">
               {practiceLessons.map((lesson) => (
                 <button
