@@ -28,6 +28,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const [typedAnswer, setTypedAnswer] = useState('');
   const [submittedTextAnswer, setSubmittedTextAnswer] = useState('');
   const [answers, setAnswers] = useState<boolean[]>([]);
+  const [missedQuestions, setMissedQuestions] = useState<typeof activeLesson.questions>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [savedResult, setSavedResult] = useState('');
 
@@ -71,6 +72,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     setTypedAnswer('');
     setSubmittedTextAnswer('');
     setAnswers([]);
+    setMissedQuestions([]);
     setSavedResult('');
   }
 
@@ -90,6 +92,11 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     const isCorrect = isTypeQuestion ? isTypedCorrect : selectedChoice === activeQuestion.answer;
     const nextAnswers = [...answers, isCorrect];
     setAnswers(nextAnswers);
+    if (!isCorrect) {
+      setMissedQuestions((current) =>
+        current.some((question) => question.id === activeQuestion.id) ? current : [...current, activeQuestion]
+      );
+    }
     setSelectedChoice(null);
     setTypedAnswer('');
     setSubmittedTextAnswer('');
@@ -97,6 +104,18 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     if (!isLastQuestion) {
       setQuestionIndex((current) => current + 1);
     }
+  }
+
+  function startMistakeReview() {
+    if (!missedQuestions.length) return;
+    startLesson({
+      id: `${activeLesson.id}-review`,
+      title: 'Revisão de erros',
+      level: activeLesson.level,
+      focus: 'Treino rápido com as perguntas que você errou agora.',
+      xp: Math.max(20, Math.round(activeLesson.xp / 3)),
+      questions: missedQuestions
+    });
   }
 
   async function saveProgress() {
@@ -285,6 +304,11 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
               <button className="secondary-button" type="button" onClick={() => startLesson(activeLesson)}>
                 Repetir lição
               </button>
+              {missedQuestions.length > 0 && (
+                <button className="secondary-button" type="button" onClick={startMistakeReview}>
+                  Revisar erros
+                </button>
+              )}
             </div>
           </div>
         )}
