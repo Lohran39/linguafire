@@ -51,6 +51,14 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const practiceLessons = [...supportLessons, ...freePracticeLessons].filter(
     (lesson) => !primaryLessons.some((primary) => primary.id === lesson.id)
   );
+  const completedLessons = useMemo(
+    () => new Set((user.achievements || []).filter((achievement) => achievement.startsWith('lesson-'))),
+    [user.achievements]
+  );
+  const perfectLessons = useMemo(
+    () => new Set((user.achievements || []).filter((achievement) => achievement.startsWith('perfect-'))),
+    [user.achievements]
+  );
 
   useEffect(() => {
     startLesson(recommendedLessons[0]);
@@ -95,10 +103,13 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     if (!isComplete) return;
 
     const nextAchievements = new Set(user.achievements || []);
+    const completedAchievement = `lesson-${activeLesson.id}`;
+    const wasAlreadyCompleted = nextAchievements.has(completedAchievement);
+
     if (correctCount === activeLesson.questions.length) {
       nextAchievements.add(`perfect-${activeLesson.id}`);
     }
-    nextAchievements.add(`lesson-${activeLesson.id}`);
+    nextAchievements.add(completedAchievement);
 
     const nextXp = Number(user.xp || 0) + earnedXp;
     const nextUser: UserProfile = {
@@ -106,7 +117,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
       xp: nextXp,
       level: Math.max(Number(user.level || 1), resolveLevel(nextXp)),
       correct_answers: Number(user.correct_answers || 0) + correctCount,
-      lessons_completed: Number(user.lessons_completed || 0) + 1,
+      lessons_completed: Number(user.lessons_completed || 0) + (wasAlreadyCompleted ? 0 : 1),
       achievements: Array.from(nextAchievements)
     };
 
@@ -121,7 +132,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
         achievements: nextUser.achievements
       });
       onProfileRefresh(nextUser);
-      setSavedResult('Progresso salvo.');
+      setSavedResult(wasAlreadyCompleted ? 'Treino repetido salvo.' : 'Progresso salvo.');
     } catch (error) {
       setSavedResult(error instanceof Error ? error.message : 'Não foi possível salvar.');
     } finally {
@@ -140,12 +151,15 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
         <div className="lesson-grid">
           {primaryLessons.map((lesson) => (
             <button
-              className={activeLesson.id === lesson.id ? 'lesson-card active' : 'lesson-card'}
+              className={`${activeLesson.id === lesson.id ? 'lesson-card active' : 'lesson-card'} ${
+                completedLessons.has(`lesson-${lesson.id}`) ? 'completed' : ''
+              }`.trim()}
               key={lesson.id}
               type="button"
               onClick={() => startLesson(lesson)}
             >
               <span>{lesson.level}</span>
+              {perfectLessons.has(`perfect-${lesson.id}`) ? <em>Perfeita</em> : completedLessons.has(`lesson-${lesson.id}`) ? <em>Concluída</em> : null}
               <strong>{lesson.title}</strong>
               <small>{lesson.focus}</small>
             </button>
@@ -157,12 +171,15 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
             <div className="lesson-grid compact">
               {practiceLessons.map((lesson) => (
                 <button
-                  className={activeLesson.id === lesson.id ? 'lesson-card active' : 'lesson-card'}
+                  className={`${activeLesson.id === lesson.id ? 'lesson-card active' : 'lesson-card'} ${
+                    completedLessons.has(`lesson-${lesson.id}`) ? 'completed' : ''
+                  }`.trim()}
                   key={lesson.id}
                   type="button"
                   onClick={() => startLesson(lesson)}
                 >
                   <span>{lesson.level}</span>
+                  {perfectLessons.has(`perfect-${lesson.id}`) ? <em>Perfeita</em> : completedLessons.has(`lesson-${lesson.id}`) ? <em>Concluída</em> : null}
                   <strong>{lesson.title}</strong>
                   <small>{lesson.focus}</small>
                 </button>
@@ -258,7 +275,9 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
             <span>{correctCount}/{activeLesson.questions.length}</span>
             <h2>{correctCount === activeLesson.questions.length ? 'Sequência perfeita' : 'Lição concluída'}</h2>
             <p>{earnedXp} XP ganhos nesta prática.</p>
-            {savedResult && <div className={savedResult === 'Progresso salvo.' ? 'form-success' : 'form-error'}>{savedResult}</div>}
+            {savedResult && (
+              <div className={savedResult.includes('salvo') ? 'form-success' : 'form-error'}>{savedResult}</div>
+            )}
             <div className="lesson-actions">
               <button className="primary-button" type="button" disabled={isSaving} onClick={saveProgress}>
                 {isSaving ? 'Salvando...' : 'Salvar progresso'}

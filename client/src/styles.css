@@ -1751,6 +1751,10 @@ body[data-theme='light'] .placement-layout.result {
   background: rgb(255 140 0 / 11%);
 }
 
+.lesson-card.completed {
+  border-color: rgb(0 255 136 / 34%);
+}
+
 .lesson-card span {
   display: inline-grid;
   width: fit-content;
@@ -1765,6 +1769,18 @@ body[data-theme='light'] .placement-layout.result {
   font-weight: 900;
   line-height: 1.05;
   white-space: nowrap;
+}
+
+.lesson-card em {
+  width: fit-content;
+  padding: 0.18rem 0.45rem;
+  border: 1px solid rgb(0 255 136 / 34%);
+  border-radius: 999px;
+  color: #82ffc4;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .lesson-card strong {
