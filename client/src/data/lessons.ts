@@ -349,5 +349,415 @@ export const lessonSets: LessonSet[] = [
         explain: '"I think" introduz uma opinião simples.'
       }
     ]
+  },
+  {
+    id: 'introductions-a1',
+    title: 'Apresentações simples',
+    level: 'A1',
+    focus: 'Nome, origem, idade, profissão e primeiras conversas.',
+    xp: 60,
+    questions: [
+      {
+        id: 'intro-a1-1',
+        prompt: 'Como você diz "Meu nome é Ana" em inglês?',
+        helper: 'Use a estrutura mais comum para se apresentar.',
+        choices: ['My name is Ana', 'I name Ana', 'Me name is Ana', 'My Ana name'],
+        answer: 0,
+        explain: '"My name is..." é a forma direta e natural de dizer seu nome.'
+      },
+      {
+        id: 'intro-a1-2',
+        prompt: 'Complete: "I ___ from Brazil."',
+        helper: 'Use o verbo to be com I.',
+        choices: ['am', 'is', 'are', 'be'],
+        answer: 0,
+        explain: 'Com "I", o verbo to be fica "am".'
+      },
+      {
+        id: 'intro-a1-3',
+        prompt: 'O que significa "Nice to meet you"?',
+        helper: 'Frase usada quando você conhece alguém.',
+        choices: ['Prazer em conhecer você', 'Boa noite', 'Até amanhã', 'Qual é seu nome?'],
+        answer: 0,
+        explain: '"Nice to meet you" é usado ao conhecer uma pessoa.'
+      },
+      {
+        id: 'intro-a1-4',
+        prompt: 'Escolha a pergunta correta para "De onde você é?"',
+        helper: 'Pergunta comum em apresentação.',
+        choices: ['Where are you from?', 'Where you are from?', 'What are you from?', 'From where you?'],
+        answer: 0,
+        explain: 'Em perguntas com verbo to be, usamos "are" antes de "you".'
+      }
+    ]
+  },
+  {
+    id: 'food-orders-a1',
+    title: 'Comida e pedidos',
+    level: 'A1',
+    focus: 'Pedir comida, bebida e entender frases simples de restaurante.',
+    xp: 60,
+    questions: [
+      {
+        id: 'food-a1-1',
+        prompt: 'Como pedir "um café, por favor"?',
+        helper: 'Pedido simples e educado.',
+        choices: ['A coffee, please', 'Coffee one, please', 'One please coffee', 'I coffee please'],
+        answer: 0,
+        explain: '"A coffee, please" é curto, correto e educado.'
+      },
+      {
+        id: 'food-a1-2',
+        prompt: 'O que significa "menu"?',
+        helper: 'Você pede isso no restaurante.',
+        choices: ['Cardápio', 'Conta', 'Mesa', 'Garçom'],
+        answer: 0,
+        explain: '"Menu" é o cardápio com comidas e bebidas.'
+      },
+      {
+        id: 'food-a1-3',
+        prompt: 'Complete: "I would like ___ water."',
+        helper: 'Use uma palavra para pedir água.',
+        choices: ['some', 'many', 'anys', 'muchs'],
+        answer: 0,
+        explain: '"Some water" soa natural em um pedido.'
+      },
+      {
+        id: 'food-a1-4',
+        prompt: 'Como perguntar "A conta, por favor"?',
+        helper: 'Frase útil no fim da refeição.',
+        choices: ['The check, please', 'The money, please', 'A table, please', 'Food, please'],
+        answer: 0,
+        explain: 'Nos EUA, "the check" é uma forma comum de pedir a conta.'
+      }
+    ]
+  },
+  {
+    id: 'shopping-a2',
+    title: 'Compras e preços',
+    level: 'A2',
+    focus: 'Tamanho, preço, pagamento e trocas em lojas.',
+    xp: 65,
+    questions: [
+      {
+        id: 'shopping-a2-1',
+        prompt: 'Como perguntar "Você tem tamanho médio?"',
+        helper: 'Pergunta comum em loja de roupa.',
+        choices: ['Do you have medium?', 'Are you medium?', 'Have you medium?', 'Is medium you?'],
+        answer: 0,
+        explain: '"Do you have..." é usado para perguntar se a loja tem algo.'
+      },
+      {
+        id: 'shopping-a2-2',
+        prompt: 'O que significa "receipt"?',
+        helper: 'Você recebe depois de pagar.',
+        choices: ['Recibo', 'Desconto', 'Provador', 'Entrega'],
+        answer: 0,
+        explain: '"Receipt" é o comprovante da compra.'
+      },
+      {
+        id: 'shopping-a2-3',
+        prompt: 'Complete: "Can I pay ___ card?"',
+        helper: 'Forma comum de perguntar sobre pagamento.',
+        choices: ['by', 'on', 'in', 'at'],
+        answer: 0,
+        explain: 'A expressão correta é "pay by card".'
+      },
+      {
+        id: 'shopping-a2-4',
+        prompt: 'Qual frase pede um desconto?',
+        helper: 'Use uma pergunta educada.',
+        choices: ['Is there any discount?', 'Give me cheap', 'You discount now?', 'This less money?'],
+        answer: 0,
+        explain: '"Is there any discount?" é clara e educada.'
+      }
+    ]
+  },
+  {
+    id: 'health-a2',
+    title: 'Saúde e emergência',
+    level: 'A2',
+    focus: 'Descrever sintomas, pedir ajuda e explicar necessidades básicas.',
+    xp: 70,
+    questions: [
+      {
+        id: 'health-a2-1',
+        prompt: 'Como dizer "Estou com dor de cabeça"?',
+        helper: 'Use a expressão com "have".',
+        choices: ['I have a headache', 'I am headache', 'I do headache', 'I take headache'],
+        answer: 0,
+        explain: 'Em inglês, dizemos "I have a headache".'
+      },
+      {
+        id: 'health-a2-2',
+        prompt: 'O que significa "pharmacy"?',
+        helper: 'Lugar para comprar remédio.',
+        choices: ['Farmácia', 'Hospital', 'Consulta', 'Receita'],
+        answer: 0,
+        explain: '"Pharmacy" é farmácia.'
+      },
+      {
+        id: 'health-a2-3',
+        prompt: 'Complete: "I need ___ doctor."',
+        helper: 'Use artigo antes de profissão.',
+        choices: ['a', 'an', 'the always', 'some'],
+        answer: 0,
+        explain: 'Antes de "doctor", usamos "a doctor".'
+      },
+      {
+        id: 'health-a2-4',
+        prompt: 'Qual frase pede ajuda em emergência?',
+        helper: 'Frase direta e urgente.',
+        choices: ['Call an ambulance, please', 'Buy an ambulance, please', 'Where ambulance is?', 'I am ambulance'],
+        answer: 0,
+        explain: '"Call an ambulance, please" pede para chamar uma ambulância.'
+      }
+    ]
+  },
+  {
+    id: 'opinions-b1',
+    title: 'Opiniões naturais',
+    level: 'B1',
+    focus: 'Concordar, discordar e explicar preferências com naturalidade.',
+    xp: 75,
+    questions: [
+      {
+        id: 'opinions-b1-1',
+        prompt: 'Qual frase soa natural para dar opinião?',
+        helper: 'Comece com uma estrutura comum.',
+        choices: ['In my opinion, it is useful', 'My opinion it useful', 'For me opinion useful', 'I opinion that useful'],
+        answer: 0,
+        explain: '"In my opinion..." é uma forma comum de introduzir opinião.'
+      },
+      {
+        id: 'opinions-b1-2',
+        prompt: 'O que "I agree with you" significa?',
+        helper: 'Resposta em discussão.',
+        choices: ['Eu concordo com você', 'Eu discordo de você', 'Eu espero por você', 'Eu entendo você'],
+        answer: 0,
+        explain: '"Agree with" significa concordar com alguém.'
+      },
+      {
+        id: 'opinions-b1-3',
+        prompt: 'Complete: "I prefer coffee ___ tea."',
+        helper: 'Comparação de preferência.',
+        choices: ['to', 'than', 'from', 'by'],
+        answer: 0,
+        explain: 'Com "prefer", a estrutura comum é "prefer X to Y".'
+      },
+      {
+        id: 'opinions-b1-4',
+        prompt: 'Qual frase discorda de forma educada?',
+        helper: 'Evite soar agressivo.',
+        choices: ['I am not sure I agree', 'You are totally wrong', 'No, never', 'This is stupid'],
+        answer: 0,
+        explain: '"I am not sure I agree" suaviza a discordância.'
+      }
+    ]
+  },
+  {
+    id: 'storytelling-b1',
+    title: 'Contar histórias',
+    level: 'B1',
+    focus: 'Narrar acontecimentos, conectar ideias e usar passado com clareza.',
+    xp: 75,
+    questions: [
+      {
+        id: 'story-b1-1',
+        prompt: 'Complete: "Yesterday, I ___ to the mall."',
+        helper: 'Use passado de go.',
+        choices: ['went', 'go', 'gone', 'going'],
+        answer: 0,
+        explain: 'O passado de "go" é "went".'
+      },
+      {
+        id: 'story-b1-2',
+        prompt: 'O que "then" faz em uma história?',
+        helper: 'Conecta acontecimentos.',
+        choices: ['Mostra a próxima ação', 'Mostra uma negação', 'Mostra quantidade', 'Mostra posse'],
+        answer: 0,
+        explain: '"Then" organiza sequência: primeiro algo aconteceu, depois outra coisa.'
+      },
+      {
+        id: 'story-b1-3',
+        prompt: 'Qual frase está no passado correto?',
+        helper: 'Procure verbo regular com -ed.',
+        choices: ['She watched a movie', 'She watch a movie', 'She watches yesterday', 'She watching a movie'],
+        answer: 0,
+        explain: '"Watched" é o passado regular de "watch".'
+      },
+      {
+        id: 'story-b1-4',
+        prompt: 'Complete: "I was tired, ___ I went home."',
+        helper: 'Use conector de consequência.',
+        choices: ['so', 'because', 'but', 'although'],
+        answer: 0,
+        explain: '"So" conecta causa e consequência.'
+      }
+    ]
+  },
+  {
+    id: 'debates-b2',
+    title: 'Debates e argumentos',
+    level: 'B2',
+    focus: 'Defender ideias, contrastar pontos e construir argumentos melhores.',
+    xp: 85,
+    questions: [
+      {
+        id: 'debate-b2-1',
+        prompt: 'Qual expressão apresenta contraste?',
+        helper: 'Use para comparar ideias opostas.',
+        choices: ['On the other hand', 'At the same time yesterday', 'By the money', 'In the final table'],
+        answer: 0,
+        explain: '"On the other hand" introduz um ponto contrastante.'
+      },
+      {
+        id: 'debate-b2-2',
+        prompt: 'Complete: "The main argument ___ this idea is cost."',
+        helper: 'Expressão para argumento contrário.',
+        choices: ['against', 'under', 'between', 'during'],
+        answer: 0,
+        explain: '"Argument against" significa argumento contra algo.'
+      },
+      {
+        id: 'debate-b2-3',
+        prompt: 'O que "evidence" significa em uma discussão?',
+        helper: 'Algo que apoia um argumento.',
+        choices: ['Evidência', 'Opinião aleatória', 'Desculpa', 'Pergunta'],
+        answer: 0,
+        explain: '"Evidence" são fatos, dados ou exemplos que sustentam uma ideia.'
+      },
+      {
+        id: 'debate-b2-4',
+        prompt: 'Qual frase reconhece um ponto antes de discordar?',
+        helper: 'Tom maduro em debate.',
+        choices: ['That is a fair point, however...', 'No, you failed', 'I do not care', 'This is obviously false'],
+        answer: 0,
+        explain: '"That is a fair point, however..." reconhece o argumento e abre espaço para contraste.'
+      }
+    ]
+  },
+  {
+    id: 'news-b2',
+    title: 'Notícias e atualidades',
+    level: 'B2',
+    focus: 'Entender manchetes, causa, consequência e vocabulário de notícias.',
+    xp: 80,
+    questions: [
+      {
+        id: 'news-b2-1',
+        prompt: 'O que "according to" significa?',
+        helper: 'Muito usado para citar fonte.',
+        choices: ['De acordo com', 'Apesar de', 'Em vez de', 'Perto de'],
+        answer: 0,
+        explain: '"According to" apresenta a fonte de uma informação.'
+      },
+      {
+        id: 'news-b2-2',
+        prompt: 'Complete: "The report was released ___ Monday."',
+        helper: 'Dias da semana usam preposição específica.',
+        choices: ['on', 'in', 'at', 'by always'],
+        answer: 0,
+        explain: 'Usamos "on" com dias da semana.'
+      },
+      {
+        id: 'news-b2-3',
+        prompt: 'Qual palavra indica aumento?',
+        helper: 'Contexto de números em notícias.',
+        choices: ['increase', 'drop', 'decline', 'fall'],
+        answer: 0,
+        explain: '"Increase" significa aumento.'
+      },
+      {
+        id: 'news-b2-4',
+        prompt: 'O que "due to" indica?',
+        helper: 'Conecta causa.',
+        choices: ['Por causa de', 'Apesar de', 'Antes de', 'Ao lado de'],
+        answer: 0,
+        explain: '"Due to" introduz a causa de algo.'
+      }
+    ]
+  },
+  {
+    id: 'formal-writing-c1',
+    title: 'Escrita formal',
+    level: 'C1',
+    focus: 'E-mails, clareza profissional e escolhas mais precisas.',
+    xp: 90,
+    questions: [
+      {
+        id: 'writing-c1-1',
+        prompt: 'Qual abertura é mais adequada para um e-mail formal?',
+        helper: 'Procure tom profissional.',
+        choices: ['Dear Ms. Johnson,', 'Hey bro,', 'Yo Johnson,', 'Hiya boss,'],
+        answer: 0,
+        explain: '"Dear Ms. Johnson," é uma abertura formal e adequada.'
+      },
+      {
+        id: 'writing-c1-2',
+        prompt: 'Complete: "I would appreciate it if you could ___ the document."',
+        helper: 'Pedido formal.',
+        choices: ['review', 'see on', 'look me', 'watch to'],
+        answer: 0,
+        explain: '"Review the document" significa revisar o documento.'
+      },
+      {
+        id: 'writing-c1-3',
+        prompt: 'Qual frase soa mais profissional?',
+        helper: 'Evite linguagem agressiva.',
+        choices: ['Could you clarify this point?', 'Explain now', 'This makes no sense', 'You wrote wrong'],
+        answer: 0,
+        explain: '"Could you clarify this point?" pede explicação com respeito.'
+      },
+      {
+        id: 'writing-c1-4',
+        prompt: 'O que "regarding" significa em e-mails?',
+        helper: 'Usado para introduzir assunto.',
+        choices: ['Sobre', 'Apesar de', 'Antes de', 'Debaixo de'],
+        answer: 0,
+        explain: '"Regarding" significa "sobre" ou "em relação a".'
+      }
+    ]
+  },
+  {
+    id: 'nuance-c1',
+    title: 'Nuance e precisão',
+    level: 'C1',
+    focus: 'Diferenças sutis entre expressões parecidas.',
+    xp: 95,
+    questions: [
+      {
+        id: 'nuance-c1-1',
+        prompt: 'Qual palavra indica uma possibilidade fraca?',
+        helper: 'Mais fraca que "probably".',
+        choices: ['possibly', 'certainly', 'definitely', 'undoubtedly'],
+        answer: 0,
+        explain: '"Possibly" indica possibilidade, mas com baixa certeza.'
+      },
+      {
+        id: 'nuance-c1-2',
+        prompt: 'O que "subtle difference" significa?',
+        helper: 'Algo difícil de perceber.',
+        choices: ['Diferença sutil', 'Diferença enorme', 'Erro óbvio', 'Resposta final'],
+        answer: 0,
+        explain: '"Subtle" descreve algo discreto ou pouco evidente.'
+      },
+      {
+        id: 'nuance-c1-3',
+        prompt: 'Complete: "His comment was technically correct, yet somewhat ___."',
+        helper: 'Ideia de falta de sensibilidade.',
+        choices: ['misleading', 'hungry', 'wooden', 'colorful'],
+        answer: 0,
+        explain: '"Misleading" significa enganoso ou que pode levar a uma interpretação errada.'
+      },
+      {
+        id: 'nuance-c1-4',
+        prompt: 'Qual frase expressa cautela ao afirmar algo?',
+        helper: 'Tom analítico.',
+        choices: ['It appears to be the case that...', 'It is 100% always true', 'No doubt ever', 'Everyone knows it'],
+        answer: 0,
+        explain: '"It appears to be..." sinaliza cuidado e evita uma afirmação absoluta.'
+      }
+    ]
   }
 ];
