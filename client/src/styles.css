@@ -1727,6 +1727,42 @@ body[data-theme='light'] .placement-layout.result {
   text-align: left;
 }
 
+.lesson-next-card {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid rgb(255 140 0 / 55%);
+  border-radius: 8px;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 12% 18%, rgb(255 204 0 / 16%), transparent 34%),
+    linear-gradient(135deg, rgb(255 92 0 / 16%), rgb(18 18 28 / 92%));
+  text-align: left;
+  cursor: pointer;
+}
+
+.lesson-next-card span {
+  color: var(--fire-3);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lesson-next-card strong {
+  font-family: var(--display-font);
+  font-size: 1.35rem;
+  line-height: 1.05;
+}
+
+.lesson-next-card small {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .lesson-grid {
   display: grid;
   gap: 0.75rem;

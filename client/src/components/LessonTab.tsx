@@ -66,6 +66,11 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     () => new Set((user.achievements || []).filter((achievement) => achievement.startsWith('perfect-'))),
     [user.achievements]
   );
+  const nextLesson = useMemo(() => {
+    const unfinishedRecommended = primaryLessons.find((lesson) => !completedLessons.has(`lesson-${lesson.id}`));
+    if (unfinishedRecommended) return unfinishedRecommended;
+    return practiceLessons.find((lesson) => !completedLessons.has(`lesson-${lesson.id}`)) || primaryLessons[0];
+  }, [completedLessons, practiceLessons, primaryLessons]);
 
   useEffect(() => {
     startLesson(recommendedLessons[0]);
@@ -182,6 +187,18 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
         <span className="section-kicker">Trilha de prática</span>
         <h1>Lições rápidas para ganhar XP</h1>
         <p className="lead">Seu nível atual é {englishLevel}: {levelProfile.practice}</p>
+
+        {nextLesson && (
+          <button className="lesson-next-card" type="button" onClick={() => startLesson(nextLesson)}>
+            <span>Comece por aqui</span>
+            <strong>{nextLesson.title}</strong>
+            <small>
+              {completedLessons.has(`lesson-${nextLesson.id}`)
+                ? 'Você já concluiu as principais. Repetir esta lição reforça o conteúdo.'
+                : `Melhor próximo treino para o seu nível ${englishLevel}.`}
+            </small>
+          </button>
+        )}
 
         <span className="section-kicker secondary-kicker">Recomendadas para você</span>
         <div className="lesson-grid">
