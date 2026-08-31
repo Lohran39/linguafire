@@ -1812,6 +1812,31 @@ body[data-theme='light'] .placement-layout.result {
   background: var(--surface);
 }
 
+.lesson-briefing {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgb(255 204 0 / 28%);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgb(255 204 0 / 10%), rgb(255 92 0 / 6%));
+}
+
+.lesson-briefing span {
+  color: var(--fire-3);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lesson-briefing p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .lesson-question {
   display: grid;
   gap: 0.5rem;

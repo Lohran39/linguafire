@@ -171,8 +171,13 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
 
         {!isComplete ? (
           <>
+            <article className="lesson-briefing">
+              <span>Antes de responder</span>
+              <p>{activeQuestion.helper}</p>
+            </article>
+
             <article className="lesson-question">
-              <span>{activeQuestion.helper}</span>
+              <span>{activeLesson.focus}</span>
               <h3>{activeQuestion.prompt}</h3>
             </article>
 
