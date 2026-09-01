@@ -109,14 +109,27 @@ function formatMusicTime(value?: number) {
 function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (seconds: number) => void }) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [embedFailed, setEmbedFailed] = useState(false);
+  const [embedLoaded, setEmbedLoaded] = useState(false);
+  const [embedHost, setEmbedHost] = useState<'youtube' | 'nocookie'>('youtube');
   const watchUrl = `https://www.youtube.com/watch?v=${song.ytId}`;
   const thumbUrl = `https://img.youtube.com/vi/${song.ytId}/hqdefault.jpg`;
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${song.ytId}?enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&rel=0&modestbranding=1&playsinline=1`;
+  const embedBaseUrl = embedHost === 'youtube' ? 'https://www.youtube.com' : 'https://www.youtube-nocookie.com';
+  const embedUrl = `${embedBaseUrl}/embed/${song.ytId}?enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&rel=0&modestbranding=1&playsinline=1`;
 
   useEffect(() => {
     setEmbedFailed(false);
+    setEmbedLoaded(false);
+    setEmbedHost('youtube');
     onTimeChange(0);
-  }, [onTimeChange, song.ytId]);
+  }, [embedUrl, onTimeChange, song.ytId]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (!embedLoaded) setEmbedFailed(true);
+    }, 8000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [embedLoaded, embedUrl]);
 
   useEffect(() => {
     let player: { destroy?: () => void } | null = null;
@@ -167,19 +180,41 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
   return (
     <section className="video-frame music-embed" aria-label={`Vídeo de ${song.title}`}>
       <iframe
+        key={embedUrl}
         ref={iframeRef}
         src={embedUrl}
         title={`${song.title} - ${song.artist}`}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
         loading="lazy"
+        onLoad={() => {
+          setEmbedLoaded(true);
+          setEmbedFailed(false);
+        }}
       />
+      {!embedLoaded && !embedFailed && (
+        <div className="video-loading">
+          <img src={thumbUrl} alt="" loading="lazy" />
+          <span className="video-play" aria-hidden="true">▶</span>
+          <strong>Carregando vídeo...</strong>
+        </div>
+      )}
       {embedFailed && (
         <div className="video-fallback">
           <img src={thumbUrl} alt="" loading="lazy" />
           <div>
-            <strong>Esse vídeo não permite reprodução aqui.</strong>
-            <span>Alguns vídeos bloqueiam player externo. A letra continua funcionando no modo estudo.</span>
+            <strong>Não consegui carregar o player agora.</strong>
+            <span>A letra já carregou. Tente recarregar o vídeo dentro do site ou abra no YouTube se o dono bloquear embed.</span>
+            <button
+              type="button"
+              onClick={() => {
+                setEmbedLoaded(false);
+                setEmbedFailed(false);
+                setEmbedHost((host) => (host === 'youtube' ? 'nocookie' : 'youtube'));
+              }}
+            >
+              Tentar carregar aqui
+            </button>
             <a href={watchUrl} target="_blank" rel="noreferrer">Abrir no YouTube</a>
           </div>
         </div>
