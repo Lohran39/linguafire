@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   analyzeGrammar,
+  formulateConversationResponse,
   getConversationTopics,
   sendConversationMessage,
   type ConversationMessage,
@@ -31,6 +32,8 @@ const topicLevels: Record<string, string> = {
   job_interview: 'B2'
 };
 
+const contextLockMessage = 'This practice is locked because you kept leaving the scenario. Start a new situation to continue.';
+
 function sortTopicsForLevel(topics: ConversationTopic[], userLevel: string) {
   return [...topics].sort((a, b) => {
     const aDistance = Math.abs(englishLevelIndex(topicLevels[a.id] || 'A1') - englishLevelIndex(userLevel));
@@ -49,7 +52,10 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isFormulating, setIsFormulating] = useState(false);
   const [notice, setNotice] = useState('');
+  const [lastFailedMessage, setLastFailedMessage] = useState('');
+  const [isContextLocked, setIsContextLocked] = useState(false);
   const [grammarErrors, setGrammarErrors] = useState<GrammarError[]>([]);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const englishLevel = normalizeEnglishLevel(user.english_level);
@@ -86,6 +92,8 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
     setActiveTopic(topic);
     setGrammarErrors([]);
     setNotice('');
+    setLastFailedMessage('');
+    setIsContextLocked(false);
     setMessages([
       {
         role: 'assistant',
@@ -97,25 +105,54 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = input.trim();
-    if (!trimmed || !activeTopic || isSending) return;
+    if (!trimmed || !activeTopic || isSending || isContextLocked) return;
 
     const nextMessages: ConversationMessage[] = [...messages, { role: 'user', content: trimmed }];
     setMessages(nextMessages);
     setInput('');
     setNotice('');
+    setLastFailedMessage('');
     setIsSending(true);
 
     try {
-      const reply = await sendConversationMessage(activeTopic.id, trimmed, nextMessages, englishLevel);
+      const reply = await sendConversationMessage(activeTopic.id, trimmed, messages, englishLevel);
       setMessages([...nextMessages, { role: 'assistant', content: reply }]);
+      if (reply.includes(contextLockMessage)) {
+        setIsContextLocked(true);
+        setNotice('Essa prática foi bloqueada por sair do contexto. Escolha outro cenário para continuar.');
+      }
       onProfileRefresh({ ...user, ai_uses_today: Number(user.ai_uses_today || 0) + 1 });
     } catch (error) {
+      setLastFailedMessage(trimmed);
+      setNotice(error instanceof Error ? error.message : 'Erro na conversa.');
       setMessages([
         ...nextMessages,
-        { role: 'assistant', content: error instanceof Error ? `Erro: ${error.message}` : 'Erro na conversa.' }
+        { role: 'assistant', content: 'Não consegui responder agora. Você pode tentar novamente sem perder a conversa.' }
       ]);
     } finally {
       setIsSending(false);
+    }
+  }
+
+  function retryLastMessage() {
+    if (!lastFailedMessage || isSending) return;
+    setInput(lastFailedMessage);
+    setNotice('');
+  }
+
+  async function formulateResponse() {
+    if (!activeTopic || isSending || isFormulating || isContextLocked) return;
+
+    try {
+      setIsFormulating(true);
+      setNotice('');
+      const suggestion = await formulateConversationResponse(activeTopic.id, messages, englishLevel);
+      setInput(suggestion);
+      onProfileRefresh({ ...user, ai_uses_today: Number(user.ai_uses_today || 0) + 1 });
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Não foi possível formular a resposta.');
+    } finally {
+      setIsFormulating(false);
     }
   }
 
@@ -188,6 +225,17 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
 
       <div className="hint-strip">{hints[activeTopic.id]?.[messages.length % hints[activeTopic.id].length]}</div>
 
+      {notice && (
+        <div className="conversation-notice">
+          <span>{notice}</span>
+          {lastFailedMessage && (
+            <button type="button" onClick={retryLastMessage}>
+              Recarregar texto
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="message-list" ref={messagesRef}>
         {messages.map((message, index) => (
           <article className={`message ${message.role}`} key={`${message.role}-${index}`}>
@@ -200,13 +248,17 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
       <form className="conversation-form" onSubmit={handleSubmit}>
         <input
           className="field"
+          disabled={isContextLocked}
           maxLength={2000}
-          placeholder="Type your answer in English..."
+          placeholder={isContextLocked ? 'Escolha outro cenário para continuar.' : 'Type your answer in English...'}
           value={input}
           onChange={(event) => setInput(event.target.value)}
         />
-        <button className="primary-button" disabled={isSending || !input.trim()} type="submit">
+        <button className="primary-button" disabled={isSending || isContextLocked || !input.trim()} type="submit">
           Enviar
+        </button>
+        <button className="secondary-button" disabled={isSending || isFormulating || isContextLocked} type="button" onClick={formulateResponse}>
+          {isFormulating ? 'Formulando...' : 'Formular resposta'}
         </button>
       </form>
     </section>

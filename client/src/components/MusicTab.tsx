@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { findSong, getSongByKey, SONGS, SUGGESTIONS, type LyricLine, type Song } from '../data/music';
 import { englishLevelDistance, normalizeEnglishLevel } from '../data/levels';
 import { updateProfile, type FavoriteSong, type UserProfile } from '../services/auth';
-import { extractYouTubeId, fetchSongLyrics, fetchYouTubeMetadata } from '../services/lyrics';
+import { extractYouTubeId, fetchSongLyrics, fetchYouTubeMetadata, musicSearchToLyrics, parseYouTubeMusicMetadata, searchMusicByName } from '../services/lyrics';
 
 type MusicTabProps = {
   user: UserProfile;
@@ -13,7 +13,36 @@ type QuizQuestion = {
   line: LyricLine;
   choices: string[];
   correct: string;
+  prompt: string;
 };
+
+declare global {
+  interface Window {
+    YT?: {
+      Player: new (
+        element: HTMLIFrameElement,
+        options: {
+          events?: {
+            onReady?: (event: { target: { getCurrentTime: () => number } }) => void;
+            onError?: () => void;
+          };
+        }
+      ) => { destroy?: () => void };
+      PlayerState?: Record<string, number>;
+    };
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
+const MUSIC_FILTERS = [
+  { key: 'recommended', label: 'Meu nível' },
+  { key: 'slow', label: 'Mais claras' },
+  { key: 'pop', label: 'Pop' },
+  { key: 'conversation', label: 'Conversa' },
+  { key: 'past', label: 'Passado' }
+] as const;
+
+type MusicFilter = (typeof MUSIC_FILTERS)[number]['key'];
 
 function toFavorite(song: Song): FavoriteSong {
   return {
@@ -25,17 +54,34 @@ function toFavorite(song: Song): FavoriteSong {
   };
 }
 
+function shuffleItems<T>(items: T[]) {
+  const next = [...items];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[randomIndex]] = [next[randomIndex], next[index]];
+  }
+  return next;
+}
+
 function createQuiz(song: Song): QuizQuestion[] {
-  return song.lyrics
+  const usableLines = shuffleItems(song.lyrics.filter((line) => line.en && line.pt));
+
+  return usableLines
     .filter((line) => line.en && line.pt)
     .slice(0, 5)
-    .map((line, index, lines) => {
-      const wrongChoices = lines
-        .filter((_, lineIndex) => lineIndex !== index)
+    .map((line, index) => {
+      const wrongChoices = shuffleItems(usableLines)
+        .filter((candidate) => candidate.pt !== line.pt)
         .map((candidate) => candidate.pt)
         .slice(0, 3);
-      const choices = [line.pt, ...wrongChoices].sort(() => Math.random() - 0.5);
-      return { line, choices, correct: line.pt };
+      const fallbackChoices = [
+        'Essa frase fala sobre rotina.',
+        'Essa frase fala sobre sentimento.',
+        'Essa frase fala sobre decisão.'
+      ].filter((choice) => choice !== line.pt);
+      const choices = shuffleItems([line.pt, ...wrongChoices, ...fallbackChoices].slice(0, 4));
+      const prompt = index % 2 === 0 ? 'Qual é a melhor tradução?' : 'Escolha o sentido mais natural da frase.';
+      return { line, choices, correct: line.pt, prompt };
     });
 }
 
@@ -55,46 +101,141 @@ function sortSongsForLevel(songs: Song[], userLevel: string) {
   });
 }
 
-function YouTubeFrame({ song }: { song: Song }) {
+function formatMusicTime(value?: number) {
+  if (value === undefined || !Number.isFinite(value)) return '';
+  return `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}`;
+}
+
+function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (seconds: number) => void }) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [embedFailed, setEmbedFailed] = useState(false);
   const watchUrl = `https://www.youtube.com/watch?v=${song.ytId}`;
   const thumbUrl = `https://img.youtube.com/vi/${song.ytId}/hqdefault.jpg`;
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${song.ytId}?enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&rel=0&modestbranding=1&playsinline=1`;
+
+  useEffect(() => {
+    setEmbedFailed(false);
+    onTimeChange(0);
+  }, [onTimeChange, song.ytId]);
+
+  useEffect(() => {
+    let player: { destroy?: () => void } | null = null;
+    let intervalId: number | undefined;
+    let cancelled = false;
+
+    function startPlayer() {
+      if (cancelled || !iframeRef.current || !window.YT?.Player) return;
+      player = new window.YT.Player(iframeRef.current, {
+        events: {
+          onReady: (event) => {
+            intervalId = window.setInterval(() => {
+              const currentTime = Number(event.target.getCurrentTime?.() || 0);
+              if (Number.isFinite(currentTime)) onTimeChange(currentTime);
+            }, 600);
+          },
+          onError: () => {
+            setEmbedFailed(true);
+          }
+        }
+      });
+    }
+
+    if (window.YT?.Player) {
+      startPlayer();
+    } else {
+      const previousReady = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        previousReady?.();
+        startPlayer();
+      };
+
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        script.async = true;
+        document.body.appendChild(script);
+      }
+    }
+
+    return () => {
+      cancelled = true;
+      if (intervalId) window.clearInterval(intervalId);
+      player?.destroy?.();
+    };
+  }, [onTimeChange, song.ytId]);
 
   return (
-    <a className="video-frame video-link" href={watchUrl} target="_blank" rel="noreferrer">
-      <img src={thumbUrl} alt="" loading="lazy" />
-      <span className="video-play" aria-hidden="true">▶</span>
-      <strong>Assistir no YouTube</strong>
-    </a>
+    <section className="video-frame music-embed" aria-label={`Vídeo de ${song.title}`}>
+      <iframe
+        ref={iframeRef}
+        src={embedUrl}
+        title={`${song.title} - ${song.artist}`}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        loading="lazy"
+      />
+      {embedFailed && (
+        <div className="video-fallback">
+          <img src={thumbUrl} alt="" loading="lazy" />
+          <div>
+            <strong>Esse vídeo não permite reprodução aqui.</strong>
+            <span>Alguns vídeos bloqueiam player externo. A letra continua funcionando no modo estudo.</span>
+            <a href={watchUrl} target="_blank" rel="noreferrer">Abrir no YouTube</a>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
 export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   const englishLevel = normalizeEnglishLevel(user.english_level);
-  const suggestedSongs = useMemo(() => sortSongsForLevel(SUGGESTIONS as Song[], englishLevel), [englishLevel]);
   const [query, setQuery] = useState('');
-  const [activeSong, setActiveSong] = useState<Song>(suggestedSongs[0] || SONGS[0]);
+  const [musicFilter, setMusicFilter] = useState<MusicFilter>('recommended');
+  const suggestedSongs = useMemo(() => {
+    const sorted = sortSongsForLevel(SUGGESTIONS as Song[], englishLevel);
+    if (musicFilter === 'recommended') return sorted;
+    return sorted.filter((song) => song.tags.includes(musicFilter));
+  }, [englishLevel, musicFilter]);
+  const visibleSongs = suggestedSongs.length ? suggestedSongs : sortSongsForLevel(SUGGESTIONS as Song[], englishLevel);
+  const [activeSong, setActiveSong] = useState<Song>(visibleSongs[0] || SONGS[0]);
   const [lyricMode, setLyricMode] = useState<'both' | 'en' | 'pt'>('both');
   const [expandedLine, setExpandedLine] = useState<number | null>(0);
   const [notice, setNotice] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingLyrics, setIsLoadingLyrics] = useState(false);
+  const [lyricsTriedKeys, setLyricsTriedKeys] = useState<Set<string>>(() => new Set());
   const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
   const [quizIndex, setQuizIndex] = useState(0);
   const [quizAnswer, setQuizAnswer] = useState('');
   const [quizCorrect, setQuizCorrect] = useState(0);
   const [quizRewarded, setQuizRewarded] = useState(false);
+  const [playerSeconds, setPlayerSeconds] = useState(0);
 
   const favorites = useMemo(() => user.favorites || [], [user.favorites]);
   const isFavorite = favorites.some((favorite) => favorite.key === activeSong.key || favorite.ytId === activeSong.ytId);
   const currentQuestion = quiz[quizIndex] || null;
   const quizDone = quiz.length > 0 && quizIndex >= quiz.length;
   const quizXp = quizCorrect * 10 + (quiz.length > 0 && quizCorrect === quiz.length ? 25 : 0);
+  const syncedLyrics = activeSong.lyrics.filter((line) => line.time !== undefined);
+  const activeLyricIndex = syncedLyrics.reduce((activeIndex, line, index) => {
+    return Number(line.time) <= playerSeconds + 0.2 ? index : activeIndex;
+  }, 0);
+  const activeKaraokeLine = syncedLyrics[activeLyricIndex] || null;
+  const nextKaraokeLine = syncedLyrics[activeLyricIndex + 1] || null;
 
   useEffect(() => {
-    if (activeSong.key === SONGS[0].key) {
-      setActiveSong(suggestedSongs[0] || SONGS[0]);
+    if (activeSong.tags.includes('custom') || activeSong.tags.includes('favorite')) return;
+    if (!visibleSongs.some((song) => song.key === activeSong.key)) {
+      setActiveSong(visibleSongs[0] || SONGS[0]);
     }
-  }, [activeSong.key, suggestedSongs]);
+  }, [activeSong.key, visibleSongs]);
+
+  useEffect(() => {
+    if (!activeSong.lyrics.length) {
+      void hydrateLyrics(activeSong);
+    }
+  }, [activeSong.key]);
 
   useEffect(() => {
     if (!quizDone || quizRewarded) return;
@@ -115,23 +256,35 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
       });
   }, [onProfileRefresh, quizCorrect, quizDone, quizRewarded, quizXp, user]);
 
-  function openSong(song: Song) {
+  function openSong(song: Song, autoLoadLyrics = true) {
     setActiveSong(song);
     setExpandedLine(0);
     setNotice('');
     closeQuiz();
+    if (autoLoadLyrics) {
+      void hydrateLyrics(song);
+    }
   }
 
-  async function hydrateLyrics(song: Song) {
+  async function hydrateLyrics(
+    song: Song,
+    force = false,
+    source?: { videoTitle?: string; channelName?: string }
+  ) {
     if (song.lyrics.length || isLoadingLyrics) return;
+    if (!force && lyricsTriedKeys.has(song.key)) return;
 
     try {
+      setLyricsTriedKeys((keys) => new Set(keys).add(song.key));
       setIsLoadingLyrics(true);
       setNotice('Buscando letra completa...');
-      const lyrics = await fetchSongLyrics(song.title, song.artist);
+      const lyrics = await fetchSongLyrics(song.title, song.artist, 80, source);
       const hydratedSong = { ...song, lyrics };
       setActiveSong(hydratedSong);
-      setNotice(`Letra carregada com ${lyrics.length} linhas.`);
+      const hasSyncedLines = lyrics.some((line) => line.time !== undefined);
+      setNotice(hasSyncedLines
+        ? `Legenda sincronizada carregada com ${lyrics.length} linhas.`
+        : `Letra carregada com ${lyrics.length} linhas. Esta música não tem sincronismo disponível agora.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não foi possível carregar a letra agora.');
     } finally {
@@ -145,32 +298,52 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
     const song = findSong(trimmedQuery);
 
     if (song) {
-      openSong(song as Song);
-      await hydrateLyrics(song as Song);
-      return;
-    }
-
-    if (!youtubeId) {
-      setNotice('Não encontrei essa música. Tente nome + artista ou cole um link do YouTube.');
+      openSong(song as Song, false);
+      await hydrateLyrics(song as Song, true);
       return;
     }
 
     try {
       setIsSearching(true);
-      setNotice('Lendo dados do YouTube...');
-      const metadata = await fetchYouTubeMetadata(youtubeId);
-      const [rawTitle, rawArtist = metadata.author || 'YouTube'] = metadata.title.split(' - ');
+      setNotice(youtubeId ? 'Lendo dados do YouTube...' : 'Buscando música no YouTube...');
+      const foundMusic = youtubeId ? null : await searchMusicByName(trimmedQuery);
+      const metadata = youtubeId ? await fetchYouTubeMetadata(youtubeId) : null;
+      const parsedMetadata = youtubeId && metadata
+        ? parseYouTubeMusicMetadata(metadata)
+        : {
+            title: foundMusic?.title || trimmedQuery,
+            artist: foundMusic?.artist || 'YouTube',
+            videoTitle: foundMusic?.videoTitle || trimmedQuery,
+            channelName: foundMusic?.channelName || 'YouTube'
+          };
+      const finalYoutubeId = youtubeId || foundMusic?.videoId || '';
+      if (!finalYoutubeId) {
+        throw new Error('Não encontrei vídeo para essa música.');
+      }
+      const lyricsFromSearch = foundMusic ? await musicSearchToLyrics(foundMusic) : [];
       const youtubeSong: Song = {
-        key: `youtube-${youtubeId}`,
-        title: rawTitle.trim() || metadata.title,
-        artist: rawArtist.trim() || metadata.author || 'YouTube',
-        ytId: youtubeId,
+        key: `youtube-${finalYoutubeId}`,
+        title: parsedMetadata.title,
+        artist: parsedMetadata.artist,
+        ytId: finalYoutubeId,
         level: 'Livre',
         thumb: 'YouTube',
-        lyrics: []
+        focus: youtubeId ? 'Música enviada pelo usuário' : 'Resultado encontrado pelo nome',
+        tags: ['custom'],
+        lyrics: lyricsFromSearch
       };
-      openSong(youtubeSong);
-      await hydrateLyrics(youtubeSong);
+      openSong(youtubeSong, false);
+      if (lyricsFromSearch.length) {
+        const hasSyncedLines = lyricsFromSearch.some((line) => line.time !== undefined);
+        setNotice(hasSyncedLines
+          ? `Vídeo e legenda sincronizada carregados com ${lyricsFromSearch.length} linhas.`
+          : `Vídeo e letra carregados com ${lyricsFromSearch.length} linhas. Esta música não tem sincronismo disponível agora.`);
+      } else {
+        await hydrateLyrics(youtubeSong, true, {
+          videoTitle: parsedMetadata.videoTitle,
+          channelName: parsedMetadata.channelName
+        });
+      }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não consegui abrir esse link.');
     } finally {
@@ -202,6 +375,8 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
       ytId: favorite.ytId,
       level: favorite.level || 'Livre',
       thumb: 'Favorita',
+      focus: 'Música salva para revisão',
+      tags: ['favorite'],
       lyrics: []
     });
   }
@@ -248,7 +423,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
         <section className="side-panel">
           <div className="panel-heading">
             <h2>Buscar música</h2>
-            <span>{SONGS.length} locais</span>
+            <span>{SUGGESTIONS.length} músicas</span>
           </div>
           <div className="search-row">
             <input
@@ -272,8 +447,20 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
             <h2>Sugestões</h2>
             <span>{englishLevel}</span>
           </div>
+          <div className="music-filter-row" aria-label="Filtros de música">
+            {MUSIC_FILTERS.map((filter) => (
+              <button
+                className={musicFilter === filter.key ? 'active' : ''}
+                key={filter.key}
+                type="button"
+                onClick={() => setMusicFilter(filter.key)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
           <div className="song-list">
-            {suggestedSongs.map((song) => (
+            {visibleSongs.map((song) => (
               <button
                 className={activeSong.key === song.key ? 'song-row active' : 'song-row'}
                 key={song.key}
@@ -282,7 +469,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
               >
                 <span>{song.thumb}</span>
                 <strong>{song.title}</strong>
-                <small>{song.artist}</small>
+                <small>{song.artist} · {song.focus}</small>
               </button>
             ))}
           </div>
@@ -315,12 +502,13 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
             <p className="kicker">{activeSong.level}</p>
             <h1>{activeSong.title}</h1>
             <p className="lead">{activeSong.artist}</p>
+            <p className="music-focus">{activeSong.focus}</p>
           </div>
           <div className="music-actions">
             <button className="secondary-button" type="button" onClick={toggleFavorite}>
               {isFavorite ? 'Remover favorito' : 'Favoritar'}
             </button>
-            <button className="secondary-button" type="button" disabled={isLoadingLyrics || activeSong.lyrics.length > 0} onClick={() => hydrateLyrics(activeSong)}>
+            <button className="secondary-button" type="button" disabled={isLoadingLyrics || activeSong.lyrics.length > 0} onClick={() => hydrateLyrics(activeSong, true)}>
               {isLoadingLyrics ? 'Carregando...' : 'Carregar letra'}
             </button>
             <button className="primary-button" type="button" onClick={startQuiz}>
@@ -329,7 +517,16 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
           </div>
         </header>
 
-        <YouTubeFrame song={activeSong} />
+        <YouTubeFrame song={activeSong} onTimeChange={setPlayerSeconds} />
+
+        {activeKaraokeLine && (
+          <section className="karaoke-panel" aria-label="Legenda da música">
+            <span>{formatMusicTime(activeKaraokeLine.time)}</span>
+            <strong>{activeKaraokeLine.en}</strong>
+            <p>{activeKaraokeLine.pt}</p>
+            {nextKaraokeLine && <small>Próxima: {nextKaraokeLine.en}</small>}
+          </section>
+        )}
 
         <div className="mode-switch" aria-label="Modo da letra">
           <button className={lyricMode === 'both' ? 'active' : ''} type="button" onClick={() => setLyricMode('both')}>
@@ -346,7 +543,8 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
         {activeSong.lyrics.length ? (
           <div className="lyrics-list">
             {activeSong.lyrics.map((line, index) => (
-              <button className="lyric-card" key={`${line.en}-${index}`} type="button" onClick={() => setExpandedLine(index)}>
+              <button className={line.time !== undefined && Math.abs((line.time || 0) - (activeKaraokeLine?.time || -999)) < 0.01 ? 'lyric-card active' : 'lyric-card'} key={`${line.en}-${index}`} type="button" onClick={() => setExpandedLine(index)}>
+                {line.time !== undefined && <em>{formatMusicTime(line.time)}</em>}
                 {(lyricMode === 'both' || lyricMode === 'en') && <strong>{line.en}</strong>}
                 {(lyricMode === 'both' || lyricMode === 'pt') && <span>{line.pt}</span>}
                 {expandedLine === index && <small>{line.explain}</small>}
@@ -356,8 +554,8 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
         ) : (
           <section className="empty-lyrics">
             <h2>Letra não carregada</h2>
-            <p>Use o botão de letra para consultar a API e montar o modo de estudo automaticamente.</p>
-            <button className="primary-button" type="button" disabled={isLoadingLyrics} onClick={() => hydrateLyrics(activeSong)}>
+            <p>Carregue a letra para transformar a música em estudo com tradução, explicação e quiz.</p>
+            <button className="primary-button" type="button" disabled={isLoadingLyrics} onClick={() => hydrateLyrics(activeSong, true)}>
               {isLoadingLyrics ? 'Carregando...' : 'Carregar letra'}
             </button>
           </section>
@@ -383,6 +581,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
                 <p className="kicker">
                   {quizIndex + 1}/{quiz.length}
                 </p>
+                <p className="quiz-prompt">{currentQuestion?.prompt}</p>
                 <h2>{currentQuestion?.line.en}</h2>
                 <div className="quiz-choices">
                   {currentQuestion?.choices.map((choice) => {

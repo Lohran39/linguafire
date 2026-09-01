@@ -2,6 +2,7 @@ export type LyricLine = {
   en: string;
   pt: string;
   explain: string;
+  time?: number;
 };
 
 export type Song = {
@@ -11,6 +12,8 @@ export type Song = {
   ytId: string;
   level: string;
   thumb: string;
+  focus: string;
+  tags: string[];
   lyrics: LyricLine[];
 };
 
@@ -22,6 +25,8 @@ export const SONGS: Song[] = [
     ytId: '4NRXx6U8ABQ',
     level: 'Intermediário',
     thumb: 'Night drive',
+    focus: 'Velocidade, contrações e frases emocionais',
+    tags: ['pop', 'listening', 'phrasal'],
     lyrics: [
       {
         en: "I've been tryna call",
@@ -52,6 +57,8 @@ export const SONGS: Song[] = [
     ytId: 'JGwWNGJdvx8',
     level: 'Iniciante',
     thumb: 'Pop guitar',
+    focus: 'Rotina, lugares e conversa informal',
+    tags: ['pop', 'daily', 'conversation'],
     lyrics: [
       {
         en: "The club isn't the best place to find a lover",
@@ -82,6 +89,8 @@ export const SONGS: Song[] = [
     ytId: 'hLQl3WQQoQ0',
     level: 'Intermediário',
     thumb: 'Piano ballad',
+    focus: 'Passado, sentimentos e expressões naturais',
+    tags: ['ballad', 'past', 'emotion'],
     lyrics: [
       {
         en: "I heard that you're settled down",
@@ -112,6 +121,8 @@ export const SONGS: Song[] = [
     ytId: 'kTJczUoc26U',
     level: 'Iniciante',
     thumb: 'Pop vocal',
+    focus: 'Necessidade, promessa e fala rápida',
+    tags: ['pop', 'daily', 'pronunciation'],
     lyrics: [
       {
         en: 'I do the same thing I told you that I never would',
@@ -139,9 +150,116 @@ export const SONGS: Song[] = [
 
 export const SUGGESTIONS = [
   ...SONGS,
-  { key: 'hello', title: 'Hello', artist: 'Adele', ytId: 'YQHsXMglC9A', level: 'Intermediário', thumb: 'Vocal', lyrics: [] },
-  { key: 'believer', title: 'Believer', artist: 'Imagine Dragons', ytId: '7wtfhZwyrcc', level: 'Intermediário', thumb: 'Rock', lyrics: [] },
-  { key: 'yellow', title: 'Yellow', artist: 'Coldplay', ytId: 'yKNxeF4KMsY', level: 'Iniciante', thumb: 'Alt pop', lyrics: [] }
+  {
+    key: 'hello',
+    title: 'Hello',
+    artist: 'Adele',
+    ytId: 'YQHsXMglC9A',
+    level: 'Intermediário',
+    thumb: 'Vocal',
+    focus: 'Cumprimentos, passado e reconexão',
+    tags: ['ballad', 'past', 'emotion'],
+    lyrics: []
+  },
+  {
+    key: 'believer',
+    title: 'Believer',
+    artist: 'Imagine Dragons',
+    ytId: '7wtfhZwyrcc',
+    level: 'Intermediário',
+    thumb: 'Rock',
+    focus: 'Ritmo forte, vocabulário de superação',
+    tags: ['rock', 'listening', 'energy'],
+    lyrics: []
+  },
+  {
+    key: 'yellow',
+    title: 'Yellow',
+    artist: 'Coldplay',
+    ytId: 'yKNxeF4KMsY',
+    level: 'Iniciante',
+    thumb: 'Alt pop',
+    focus: 'Adjetivos, descrição e pronúncia lenta',
+    tags: ['pop', 'slow', 'description'],
+    lyrics: []
+  },
+  {
+    key: 'counting-stars',
+    title: 'Counting Stars',
+    artist: 'OneRepublic',
+    ytId: 'hT_nvWreIhg',
+    level: 'Intermediário',
+    thumb: 'Pop rock',
+    focus: 'Sonhos, escolhas e contraste de ideias',
+    tags: ['pop', 'rock', 'listening'],
+    lyrics: []
+  },
+  {
+    key: 'a-thousand-years',
+    title: 'A Thousand Years',
+    artist: 'Christina Perri',
+    ytId: 'rtOvBOTyX00',
+    level: 'Iniciante',
+    thumb: 'Slow',
+    focus: 'Pronúncia clara, futuro e sentimentos',
+    tags: ['slow', 'ballad', 'pronunciation'],
+    lyrics: []
+  },
+  {
+    key: 'bad-habits',
+    title: 'Bad Habits',
+    artist: 'Ed Sheeran',
+    ytId: 'orJSJGHjBLI',
+    level: 'Intermediário',
+    thumb: 'Pop beat',
+    focus: 'Hábitos, presente simples e vocabulário urbano',
+    tags: ['pop', 'daily', 'grammar'],
+    lyrics: []
+  },
+  {
+    key: 'drivers-license',
+    title: 'drivers license',
+    artist: 'Olivia Rodrigo',
+    ytId: 'ZmDBbnmKpqQ',
+    level: 'Intermediário',
+    thumb: 'Story',
+    focus: 'Narrativa, passado e emoção',
+    tags: ['ballad', 'past', 'story'],
+    lyrics: []
+  },
+  {
+    key: 'viva-la-vida',
+    title: 'Viva La Vida',
+    artist: 'Coldplay',
+    ytId: 'dvgZkm1xWPE',
+    level: 'Avançado',
+    thumb: 'Classic',
+    focus: 'Metáforas, narrativa e vocabulário abstrato',
+    tags: ['rock', 'story', 'advanced'],
+    lyrics: []
+  },
+  {
+    key: 'no-idea',
+    title: 'No Idea',
+    artist: 'Don Toliver',
+    ytId: '_r-nPqWGG6c',
+    level: 'Intermediário',
+    thumb: 'Trap',
+    focus: 'Slang, ritmo urbano e contrações',
+    tags: ['pop', 'listening', 'slang'],
+    lyrics: []
+  },
+  {
+    key: 'raindance',
+    title: 'Raindance',
+    artist: 'Dave',
+    ytId: 'SG8PCmIom_U',
+    level: 'Avançado',
+    thumb: 'UK rap',
+    focus: 'Inglês britânico, ritmo rápido e vocabulário urbano',
+    tags: ['listening', 'advanced', 'slang'],
+    lyrics: []
+  }
 ];
 
 export function normalizeSongText(value: string) {

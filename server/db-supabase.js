@@ -331,6 +331,43 @@ async function supabaseUpsertNativesCache(cacheKey, payload) {
   return { data };
 }
 
+async function supabaseGetNativeSavedVideos(userId) {
+  const { data, error } = await supabase
+    .from('native_saved_videos')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(80);
+  if (error) return [];
+  return data || [];
+}
+
+async function supabaseSaveNativeVideo(userId, payload) {
+  const { data, error } = await supabase
+    .from('native_saved_videos')
+    .upsert([{
+      user_id: userId,
+      video_id: payload.videoId,
+      query: payload.query,
+      lang: payload.lang || 'english',
+      created_at: new Date().toISOString()
+    }], { onConflict: 'user_id,video_id', returning: 'representation' })
+    .select()
+    .single();
+  if (error) return { error: error.message };
+  return { data };
+}
+
+async function supabaseDeleteNativeVideo(userId, videoId) {
+  const { error } = await supabase
+    .from('native_saved_videos')
+    .delete()
+    .eq('user_id', userId)
+    .eq('video_id', videoId);
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 // Lyrics cache operations
 async function supabaseGetLyricsCache(cacheKey) {
   const { data, error } = await supabase
@@ -400,6 +437,9 @@ module.exports = {
   supabaseUpsertFlashcard,
   supabaseGetNativesCache,
   supabaseUpsertNativesCache,
+  supabaseGetNativeSavedVideos,
+  supabaseSaveNativeVideo,
+  supabaseDeleteNativeVideo,
   supabaseGetLyricsCache,
   supabaseUpsertLyricsCache,
   supabaseDeleteUser

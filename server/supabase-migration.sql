@@ -182,6 +182,19 @@ CREATE TABLE IF NOT EXISTS public.natives_cache (
 );
 
 -- ============================================
+-- NATIVE SAVED VIDEOS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.native_saved_videos (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  video_id TEXT NOT NULL,
+  query TEXT NOT NULL,
+  lang TEXT NOT NULL DEFAULT 'english',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, video_id)
+);
+
+-- ============================================
 -- LYRICS CACHE TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.lyrics_cache (
@@ -239,6 +252,7 @@ CREATE INDEX IF NOT EXISTS idx_user_rewards_user ON public.user_rewards(user_id)
 CREATE INDEX IF NOT EXISTS idx_grammar_errors_user ON public.grammar_errors(user_id);
 CREATE INDEX IF NOT EXISTS idx_natives_cache_key ON public.natives_cache(cache_key);
 CREATE INDEX IF NOT EXISTS idx_natives_cache_updated ON public.natives_cache(updated_at);
+CREATE INDEX IF NOT EXISTS idx_native_saved_videos_user ON public.native_saved_videos(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_lyrics_cache_key ON public.lyrics_cache(cache_key);
 CREATE INDEX IF NOT EXISTS idx_lyrics_cache_track_artist ON public.lyrics_cache(track, artist);
 

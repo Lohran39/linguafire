@@ -6,6 +6,8 @@ type LyricsFindResponse = {
   success?: boolean;
   reason?: string;
   source?: string;
+  fallbackSource?: string;
+  mode?: 'synced' | 'plain';
   synced?: boolean;
   syncedLyrics?: string | null;
   plainLyrics?: string | null;
@@ -19,7 +21,25 @@ type YouTubeOEmbedResponse = {
   thumbnail?: string | null;
 };
 
+type MusicSearchResponse = {
+  success?: boolean;
+  reason?: string;
+  videoId: string;
+  title: string;
+  artist: string;
+  videoTitle: string;
+  channelName: string;
+  thumbnail?: string | null;
+  durationSeconds?: number;
+  synced?: boolean;
+  syncedLyrics?: string | null;
+  plainLyrics?: string | null;
+  source?: string;
+  fallbackSource?: string;
+};
+
 const translationCache = new Map<string, string>();
+const YOUTUBE_TITLE_SUFFIX_PATTERN = /\b(official|music|video|lyrics?|lyric|audio|visualizer|remaster(?:ed)?|hd|4k|vevo|topic)\b/gi;
 
 function parseSyncedLyrics(value: string): LyricsApiLine[] {
   return value
@@ -86,11 +106,86 @@ export async function fetchYouTubeMetadata(youtubeId: string) {
   return (await response.json()) as YouTubeOEmbedResponse;
 }
 
-export async function fetchSongLyrics(track: string, artist: string, maxLines = 80): Promise<LyricLine[]> {
+export async function searchMusicByName(query: string) {
+  const params = new URLSearchParams({ q: query });
+  const response = await fetch(`/api/music/search?${params.toString()}`);
+  const data = (await response.json().catch(() => null)) as MusicSearchResponse | null;
+
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.reason || 'Não encontrei essa música. Tente música + artista.');
+  }
+
+  return data;
+}
+
+export async function lyricsResponseToLines(data: LyricsFindResponse, maxLines = 80): Promise<LyricLine[]> {
+  const rawLines = data.synced && data.syncedLyrics
+    ? parseSyncedLyrics(data.syncedLyrics)
+    : parsePlainLyrics(data.plainLyrics || '');
+
+  const usableLines = rawLines
+    .map((line) => {
+      if (typeof line === 'string') return { text: line.trim(), time: undefined };
+      return { text: String(line.text || '').trim(), time: line.time };
+    })
+    .filter((line) => line.text.length > 1)
+    .slice(0, maxLines);
+
+  return Promise.all(
+    usableLines.map(async (line) => ({
+      en: line.text,
+      pt: await translateText(line.text),
+      explain: line.time === undefined
+        ? `Fonte: ${data.fallbackSource === 'genius-metadata' ? 'Genius + LRCLIB' : data.source || 'letras'}`
+        : `Legenda sincronizada em ${Math.floor(line.time / 60)}:${String(Math.floor(line.time % 60)).padStart(2, '0')}.`,
+      time: line.time
+    }))
+  );
+}
+
+export async function musicSearchToLyrics(data: MusicSearchResponse, maxLines = 80) {
+  if (!data.syncedLyrics && !data.plainLyrics) return [];
+  return lyricsResponseToLines(data, maxLines);
+}
+
+export function parseYouTubeMusicMetadata(metadata: YouTubeOEmbedResponse) {
+  const originalTitle = String(metadata.title || '').trim();
+  const originalAuthor = String(metadata.author || '').trim();
+  const cleanText = (value: string) => value
+    .replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')
+    .replace(YOUTUBE_TITLE_SUFFIX_PATTERN, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  let title = cleanText(originalTitle);
+  let artist = cleanText(originalAuthor) || 'YouTube';
+  const dashMatch = originalTitle.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+
+  if (dashMatch) {
+    artist = cleanText(dashMatch[1]) || artist;
+    title = cleanText(dashMatch[2]) || title;
+  }
+
+  return {
+    title: title || originalTitle || 'Música do YouTube',
+    artist,
+    videoTitle: originalTitle,
+    channelName: originalAuthor
+  };
+}
+
+export async function fetchSongLyrics(
+  track: string,
+  artist: string,
+  maxLines = 80,
+  source?: { videoTitle?: string; channelName?: string }
+): Promise<LyricLine[]> {
   const params = new URLSearchParams({
     track_name: track,
     artist_name: artist
   });
+  if (source?.videoTitle) params.set('video_title', source.videoTitle);
+  if (source?.channelName) params.set('channel_name', source.channelName);
   const response = await fetch(`/api/lyrics/find?${params.toString()}`);
   const data = (await response.json().catch(() => null)) as LyricsFindResponse | null;
 
@@ -98,23 +193,5 @@ export async function fetchSongLyrics(track: string, artist: string, maxLines = 
     throw new Error(data?.reason || 'Letra não encontrada automaticamente.');
   }
 
-  const rawLines = data.synced && data.syncedLyrics
-    ? parseSyncedLyrics(data.syncedLyrics)
-    : parsePlainLyrics(data.plainLyrics || '');
-
-  const usableLines = rawLines
-    .map((line) => (typeof line === 'string' ? line : line.text || ''))
-    .map((line) => line.trim())
-    .filter((line) => line.length > 1)
-    .slice(0, maxLines);
-
-  const translated = await Promise.all(
-    usableLines.map(async (line) => ({
-      en: line,
-      pt: await translateText(line),
-      explain: `Fonte: ${data.source || 'letras'}`
-    }))
-  );
-
-  return translated;
+  return lyricsResponseToLines(data, maxLines);
 }

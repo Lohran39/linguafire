@@ -35,3 +35,18 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     })
   );
 }
+
+export async function saveCuratedNativeVideos(payload: {
+  query: string;
+  lang: string;
+  videoIds: string[];
+}): Promise<{ cacheKey: string; videoIds: string[] }> {
+  return parseJson<{ cacheKey: string; videoIds: string[] }>(
+    await fetch('/api/natives/curated', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    })
+  );
+}

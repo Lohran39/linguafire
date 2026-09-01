@@ -34,6 +34,13 @@ export type NativeCoachResult = {
   nextReply: string;
 };
 
+export type NativeSavedVideo = {
+  id: string;
+  query: string;
+  lang: NativesLanguage;
+  date: string;
+};
+
 export const nativeSuggestions = [
   'look forward to',
   'give up',
@@ -90,6 +97,51 @@ export async function coachNativeReply(payload: NativeCoachPayload): Promise<Nat
   }
 
   return data;
+}
+
+export async function reportBadNativeVideo(payload: {
+  query: string;
+  lang: NativesLanguage;
+  videoId: string;
+  reason?: string;
+}): Promise<void> {
+  await fetch('/api/natives/report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload)
+  }).catch(() => undefined);
+}
+
+export async function getSavedNativeVideos(): Promise<NativeSavedVideo[]> {
+  const response = await fetch('/api/natives/saved', { credentials: 'include' });
+  const data = (await response.json().catch(() => ({}))) as { videos?: NativeSavedVideo[]; error?: string };
+  if (!response.ok) throw new Error(data.error || 'Erro ao carregar vídeos salvos');
+  return Array.isArray(data.videos) ? data.videos : [];
+}
+
+export async function saveNativeVideo(payload: {
+  query: string;
+  lang: NativesLanguage;
+  videoId: string;
+}): Promise<void> {
+  const response = await fetch('/api/natives/saved', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload)
+  });
+  const data = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) throw new Error(data.error || 'Erro ao salvar vídeo');
+}
+
+export async function deleteSavedNativeVideo(videoId: string): Promise<void> {
+  const response = await fetch(`/api/natives/saved/${encodeURIComponent(videoId)}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  const data = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) throw new Error(data.error || 'Erro ao remover vídeo');
 }
 
 export function buildNativesFallbackUrl(query: string, lang: NativesLanguage) {

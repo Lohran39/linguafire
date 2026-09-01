@@ -5,13 +5,19 @@ const {
   NATIVES_CACHE_SOURCE,
   NATIVES_CURATED_CACHE_SOURCE,
   NATIVES_EMPTY_CACHE_SOURCE,
+  NATIVES_FALLBACK_CACHE_SOURCE,
   NATIVES_MIN_SCORE,
+  NATIVES_REPORT_CACHE_SOURCE,
+  NATIVES_REPORT_CACHE_VERSION,
   buildNativesCacheKey,
   buildNativesCuratedCacheKey,
   buildNativesEmptyCacheKey,
+  buildNativesReportCacheKey,
   buildNativesSearchQueries,
   canWriteCuratedNativesCache,
+  getYouTubeLocale,
   hasExactPhraseMatch,
+  hasMainTermsMatch,
   isBlockedNativeCandidate,
   isUsableCuratedNativesCache,
   isUsableEmptyNativesCache,
@@ -20,18 +26,24 @@ const {
   isUsableNativesCache,
   normalizeNativesText,
   parseCachedVideoIds,
+  parseYouTubeDuration,
+  sanitizeNativesQuery,
   scoreNativesCandidate
 } = require('../routes/natives-routes');
 
 test('normalizes native search text consistently', () => {
   assert.equal(normalizeNativesText('  Me, and YOU!  '), 'me and you');
   assert.equal(normalizeNativesText('Café com leite'), 'cafe com leite');
+  assert.equal(sanitizeNativesQuery('Translate "Can I have" in English'), 'can i have');
 });
 
 test('native cache key is versioned to ignore old loose results', () => {
-  assert.equal(buildNativesCacheKey('Me and You', 'english'), 'strict-v4::english::me and you');
+  assert.equal(buildNativesCacheKey('Me and You', 'english'), 'strict-v5::english::me and you');
   assert.equal(buildNativesCuratedCacheKey('Me and You', 'english'), 'curated-v1::english::me and you');
   assert.equal(buildNativesEmptyCacheKey('Me and You', 'english'), 'empty-v1::english::me and you');
+  assert.equal(buildNativesReportCacheKey('Me and You', 'english'), 'reported-v1::english::me and you');
+  assert.equal(NATIVES_REPORT_CACHE_VERSION, 'reported-v1');
+  assert.equal(NATIVES_REPORT_CACHE_SOURCE, 'reported-bad-video-v1');
 });
 
 test('exact phrase matching respects word boundaries', () => {
@@ -64,6 +76,21 @@ test('native candidates need the phrase in title or description, not only channe
 
   assert.equal(isStrictNativesCandidate(badCandidate, 'me and you'), false);
   assert.equal(scoreNativesCandidate(badCandidate, 'me and you'), -1000);
+});
+
+test('native candidates can match the main terms of a practical phrase', () => {
+  const airportCandidate = {
+    videoId: 'abc123XYZ_1',
+    title: 'Flight delayed? Real airport conversation #shorts',
+    author: 'Native English Clips',
+    description: 'A short real life dialogue at the airport.',
+    durationSeconds: 38
+  };
+
+  assert.equal(hasExactPhraseMatch('Is my flight delayed?', airportCandidate.title), false);
+  assert.equal(hasMainTermsMatch('Is my flight delayed?', airportCandidate.title), true);
+  assert.equal(isStrictNativesCandidate(airportCandidate, 'Is my flight delayed?'), true);
+  assert.ok(scoreNativesCandidate(airportCandidate, 'Is my flight delayed?') >= NATIVES_MIN_SCORE);
 });
 
 test('native candidates longer than one minute are rejected', () => {
@@ -116,9 +143,18 @@ test('native cache only accepts current source, fresh date and matching query/la
 
   assert.deepEqual(parseCachedVideoIds(row.video_ids), ['abc123XYZ_1']);
   assert.equal(isUsableNativesCache(row, 'give up', 'english'), true);
+  assert.equal(isUsableNativesCache({ ...row, source: NATIVES_FALLBACK_CACHE_SOURCE }, 'give up', 'english'), true);
   assert.equal(isUsableNativesCache({ ...row, source: 'verified-short' }, 'give up', 'english'), false);
   assert.equal(isUsableNativesCache(row, 'give in', 'english'), false);
   assert.equal(isUsableNativesCache(row, 'give up', 'english-uk'), false);
+});
+
+test('youtube duration parser supports short ISO 8601 durations', () => {
+  assert.equal(parseYouTubeDuration('PT45S'), 45);
+  assert.equal(parseYouTubeDuration('PT1M'), 60);
+  assert.equal(parseYouTubeDuration('PT1M05S'), 65);
+  assert.equal(parseYouTubeDuration('PT1H2M3S'), 3723);
+  assert.equal(parseYouTubeDuration('bad-duration'), 0);
 });
 
 test('curated native cache is separate from automatic strict cache', () => {
@@ -156,6 +192,21 @@ test('native search queries are strict and avoid music results', () => {
   assert.ok(queries.every((query) => query.includes('"me and you"')));
   assert.ok(queries.every((query) => query.includes('-lyrics')));
   assert.ok(queries.every((query) => query.includes('-song')));
+  assert.ok(queries.every((query) => query.includes('-music')));
+});
+
+test('native search queries support single words without broken quoting', () => {
+  const queries = buildNativesSearchQueries('serendipity', 'english');
+
+  assert.ok(queries.length >= 3);
+  assert.ok(queries.every((query) => query.includes('serendipity')));
+  assert.ok(queries.every((query) => !query.includes('"serendipity"')));
+});
+
+test('youtube locale follows selected language variant', () => {
+  assert.deepEqual(getYouTubeLocale('english-us'), { relevanceLanguage: 'en', regionCode: 'US' });
+  assert.deepEqual(getYouTubeLocale('english-uk'), { relevanceLanguage: 'en', regionCode: 'GB' });
+  assert.deepEqual(getYouTubeLocale('spanish'), { relevanceLanguage: 'es', regionCode: 'ES' });
 });
 
 test('curated native cache writes require token in production or local dev request', () => {

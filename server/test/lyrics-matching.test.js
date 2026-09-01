@@ -6,10 +6,12 @@ const {
   LYRICS_CACHE_VERSION,
   LYRICS_PROVIDER_CACHE_SOURCE,
   buildLyricsCacheKey,
+  buildLyricsLookupCandidates,
   canWriteApprovedLyricsCache,
   isUsableLyricsCache,
   normalizeLyricsText,
   parseYouTubeMusicTitle,
+  scoreMusicVideoCandidate,
   getLyricsMatchDetails,
   MIN_LYRICS_CONFIDENCE,
   scoreLyricsMatch,
@@ -28,6 +30,30 @@ test('parses common YouTube music titles without keeping video suffixes', () => 
 test('normalizes music metadata consistently', () => {
   assert.equal(normalizeLyricsText('Raindance (Official Audio) [HD]'), 'raindance');
   assert.equal(normalizeLyricsText('No Idea ft. Artist - Official Video'), 'no idea artist');
+});
+
+test('builds lyrics lookup variants without featured artists', () => {
+  const candidates = buildLyricsLookupCandidates('Raindance ft. Tems', 'Dave');
+
+  assert.deepEqual(candidates.slice(0, 2), [
+    { track: 'Raindance ft. Tems', artist: 'Dave' },
+    { track: 'Raindance', artist: 'Dave' }
+  ]);
+});
+
+test('scores official music video above weak music search candidates', () => {
+  const official = scoreMusicVideoCandidate({
+    title: 'Dave - Raindance ft. Tems (Official Video)',
+    author: 'DaveVEVO',
+    durationSeconds: 218
+  }, 'raindance');
+  const weak = scoreMusicVideoCandidate({
+    title: 'Raindance karaoke slowed remix 1 hour',
+    author: 'Random Channel',
+    durationSeconds: 3600
+  }, 'raindance');
+
+  assert.ok(official > weak);
 });
 
 test('accepts only lyrics that match both track and artist', () => {

@@ -29,6 +29,7 @@ const GEMINI_BASE_URL = (process.env.GEMINI_BASE_URL || 'https://generativelangu
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 const OPENAI_MODEL_ALIAS = process.env.OPENAI_MODEL_ALIAS || GEMINI_MODEL;
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || '';
 const PROXY_TIMEOUT_MS = Number(process.env.PROXY_TIMEOUT_MS || 60000);
 const AGENT_MAX_STEPS = Number(process.env.AGENT_MAX_STEPS || 8);
 const AGENT_CMD_TIMEOUT_MS = Number(process.env.AGENT_CMD_TIMEOUT_MS || 15000);
@@ -125,6 +126,7 @@ const {
   supabaseGetGrammarErrors, supabaseAddGrammarError,
   supabaseGetFlashcards, supabaseUpsertFlashcard,
   supabaseGetNativesCache, supabaseUpsertNativesCache,
+  supabaseGetNativeSavedVideos, supabaseSaveNativeVideo, supabaseDeleteNativeVideo,
   supabaseGetLyricsCache, supabaseUpsertLyricsCache,
   supabaseDeleteUser
 } = require('./db-supabase');
@@ -380,17 +382,22 @@ setupPushRoutes(app, {
 });
 
 // Lyrics routes
-registerLyricsRoutes(app, { logger, supabaseGetLyricsCache, supabaseUpsertLyricsCache });
+registerLyricsRoutes(app, { logger, supabaseGetLyricsCache, supabaseUpsertLyricsCache, YOUTUBE_API_KEY });
 
 // Natives routes
 registerNativesRoutes(app, {
   supabaseGetNativesCache,
   supabaseUpsertNativesCache,
+  supabaseGetNativeSavedVideos,
+  supabaseSaveNativeVideo,
+  supabaseDeleteNativeVideo,
+  supabaseGetUserById,
   authenticateToken,
   checkAILimit,
   callMiniMaxChat,
   OPENAI_MODEL_ALIAS,
   AI_API_KEY: GEMINI_API_KEY,
+  YOUTUBE_API_KEY,
   logger
 });
 

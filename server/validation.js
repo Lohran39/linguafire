@@ -245,6 +245,12 @@ const conversationSchema = objectSchema((data, output, issues) => {
   optional(data, 'englishLevel', englishLevelValidator, output, issues);
 });
 
+const conversationFormulateSchema = objectSchema((data, output, issues) => {
+  required(data, 'topicId', topicValidator, output, issues, 'Topico obrigatorio');
+  optional(data, 'history', arrayValidator(messageValidator, { max: 20 }), output, issues);
+  optional(data, 'englishLevel', englishLevelValidator, output, issues);
+});
+
 const grammarAnalyzeSchema = objectSchema((data, output, issues) => {
   required(data, 'conversationHistory', arrayValidator(messageValidator, { min: 1, message: 'Historico obrigatorio' }), output, issues, 'Historico obrigatorio');
   optional(data, 'topicId', stringValidator({ max: 50 }), output, issues);
@@ -256,6 +262,13 @@ const nativeCoachSchema = objectSchema((data, output, issues) => {
   required(data, 'answer', stringValidator({ min: 1, max: 1000, trim: true, message: 'Resposta obrigatoria' }), output, issues, 'Resposta obrigatoria');
   optional(data, 'target', stringValidator({ max: 800, trim: true }), output, issues);
   optional(data, 'englishLevel', englishLevelValidator, output, issues);
+});
+
+const nativeReportSchema = objectSchema((data, output, issues) => {
+  required(data, 'query', stringValidator({ min: 1, max: 200, trim: true, message: 'Busca obrigatoria' }), output, issues, 'Busca obrigatoria');
+  required(data, 'videoId', stringValidator({ min: 11, max: 11, trim: true, message: 'Video obrigatorio' }), output, issues, 'Video obrigatorio');
+  optional(data, 'lang', stringValidator({ max: 40, trim: true }), output, issues);
+  optional(data, 'reason', stringValidator({ max: 120, trim: true }), output, issues);
 });
 
 const pushSubscribeSchema = objectSchema((data, output, issues) => {
@@ -359,8 +372,10 @@ module.exports = {
   shopBuySchema,
   flashcardReviewSchema,
   conversationSchema,
+  conversationFormulateSchema,
   grammarAnalyzeSchema,
   nativeCoachSchema,
+  nativeReportSchema,
   pushSubscribeSchema,
   streakClaimSchema,
   chatCompletionsSchema,

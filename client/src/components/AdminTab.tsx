@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { getAdminSummary, type AdminSummary } from '../services/admin';
+import { FormEvent, useEffect, useState } from 'react';
+import { getAdminSummary, saveCuratedNativeVideos, type AdminSummary } from '../services/admin';
+import { nativeLanguages } from '../services/natives';
 
 function maskEmail(email = '') {
   const [name, domain] = email.split('@');
@@ -18,10 +19,23 @@ function formatDate(value?: string) {
   }).format(new Date(value));
 }
 
+function extractYouTubeVideoIds(value: string) {
+  const matches = value.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)?([a-zA-Z0-9_-]{11})/g) || [];
+  return [...new Set(matches
+    .map((match) => match.replace(/^(v=|youtu\.be\/|embed\/|shorts\/)/, ''))
+    .filter((item) => /^[a-zA-Z0-9_-]{11}$/.test(item)))];
+}
+
 export function AdminTab() {
   const [summary, setSummary] = useState<AdminSummary | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [curatedQuery, setCuratedQuery] = useState('');
+  const [curatedLang, setCuratedLang] = useState('english');
+  const [curatedVideoIds, setCuratedVideoIds] = useState('');
+  const [curatedMessage, setCuratedMessage] = useState('');
+  const [isSavingCurated, setIsSavingCurated] = useState(false);
+  const previewVideoIds = extractYouTubeVideoIds(curatedVideoIds);
 
   async function loadSummary() {
     setError('');
@@ -39,6 +53,29 @@ export function AdminTab() {
   useEffect(() => {
     loadSummary();
   }, []);
+
+  async function handleCuratedSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const ids = extractYouTubeVideoIds(curatedVideoIds);
+
+    if (!curatedQuery.trim() || ids.length === 0 || isSavingCurated) return;
+
+    try {
+      setIsSavingCurated(true);
+      setCuratedMessage('');
+      const saved = await saveCuratedNativeVideos({
+        query: curatedQuery.trim(),
+        lang: curatedLang,
+        videoIds: ids
+      });
+      setCuratedMessage(`Curadoria salva: ${saved.videoIds.length} video(s).`);
+      setCuratedVideoIds(saved.videoIds.join('\n'));
+    } catch (saveError) {
+      setCuratedMessage(saveError instanceof Error ? saveError.message : 'Erro ao salvar curadoria.');
+    } finally {
+      setIsSavingCurated(false);
+    }
+  }
 
   return (
     <section className="admin-layout" aria-label="Painel admin">
@@ -75,6 +112,42 @@ export function AdminTab() {
           </div>
 
           <div className="admin-grid">
+            <section className="admin-panel">
+              <div className="panel-heading">
+                <h2>Curadoria Nativos</h2>
+                <span>YouTube</span>
+              </div>
+              <form className="admin-curated-form" onSubmit={handleCuratedSubmit}>
+                <input
+                  className="field"
+                  placeholder="Expressão: look forward to"
+                  value={curatedQuery}
+                  onChange={(event) => setCuratedQuery(event.target.value)}
+                />
+                <select value={curatedLang} onChange={(event) => setCuratedLang(event.target.value)}>
+                  {nativeLanguages.map((item) => (
+                    <option key={item.value} value={item.value}>{item.label}</option>
+                  ))}
+                </select>
+                <textarea
+                  placeholder="Cole links do YouTube, Shorts ou IDs dos vídeos"
+                  value={curatedVideoIds}
+                  onChange={(event) => setCuratedVideoIds(event.target.value)}
+                />
+                {previewVideoIds.length > 0 && (
+                  <div className="admin-video-preview">
+                    {previewVideoIds.slice(0, 6).map((id) => (
+                      <img alt="" key={id} src={`https://img.youtube.com/vi/${id}/mqdefault.jpg`} />
+                    ))}
+                  </div>
+                )}
+                <button className="primary-button" disabled={isSavingCurated || !curatedQuery.trim() || previewVideoIds.length === 0} type="submit">
+                  {isSavingCurated ? 'Salvando...' : 'Salvar vídeos curados'}
+                </button>
+                {curatedMessage && <div className={curatedMessage.includes('Erro') || curatedMessage.includes('Acesso') ? 'form-error' : 'form-success'}>{curatedMessage}</div>}
+              </form>
+            </section>
+
             <section className="admin-panel">
               <div className="panel-heading">
                 <h2>Top XP</h2>
