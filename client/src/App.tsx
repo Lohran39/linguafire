@@ -407,6 +407,17 @@ function AppHome({
       )}
       {currentTab === 'profile' && <ProfileTab user={user} onProfileRefresh={onProfileRefresh} />}
       {currentTab === 'admin' && isAdmin && <AdminTab />}
+
+      <footer className="app-footer" aria-label="Contato e direitos autorais">
+        <div>
+          <strong>Contato</strong>
+          <a href="https://www.linkedin.com/in/lohran-lira-/" target="_blank" rel="noreferrer">
+            LinkedIn: Lohran Lira
+          </a>
+          <a href="mailto:Lohrandev39@gmail.com">Email: Lohrandev39@gmail.com</a>
+        </div>
+        <span>© 2026. Lohran Lira. Todos os direitos reservados.</span>
+      </footer>
     </main>
   );
 }
