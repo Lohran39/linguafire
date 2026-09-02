@@ -210,6 +210,21 @@ CREATE TABLE IF NOT EXISTS public.lyrics_cache (
 );
 
 -- ============================================
+-- TRANSLATION CACHE TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.translation_cache (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  cache_key TEXT UNIQUE NOT NULL,
+  from_lang TEXT NOT NULL DEFAULT 'en',
+  to_lang TEXT NOT NULL DEFAULT 'pt-BR',
+  original_text TEXT NOT NULL,
+  translated_text TEXT NOT NULL,
+  provider TEXT DEFAULT 'provider',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
 -- MUSIC VIDEO CACHE TABLES
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.working_music_videos (
@@ -243,6 +258,7 @@ ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.grammar_errors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.natives_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.lyrics_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.translation_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quests_seed ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "users_select_anon" ON public.users;
@@ -276,6 +292,8 @@ CREATE INDEX IF NOT EXISTS idx_natives_cache_updated ON public.natives_cache(upd
 CREATE INDEX IF NOT EXISTS idx_native_saved_videos_user ON public.native_saved_videos(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_lyrics_cache_key ON public.lyrics_cache(cache_key);
 CREATE INDEX IF NOT EXISTS idx_lyrics_cache_track_artist ON public.lyrics_cache(track, artist);
+CREATE INDEX IF NOT EXISTS idx_translation_cache_key ON public.translation_cache(cache_key);
+CREATE INDEX IF NOT EXISTS idx_translation_cache_updated ON public.translation_cache(updated_at);
 
 -- ============================================
 -- FUNCTION FOR ANON AUTH (if needed)

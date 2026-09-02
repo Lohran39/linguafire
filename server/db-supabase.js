@@ -398,6 +398,35 @@ async function supabaseUpsertLyricsCache(cacheKey, payload) {
   return { data };
 }
 
+async function supabaseGetTranslationCache(cacheKey) {
+  const { data, error } = await supabase
+    .from('translation_cache')
+    .select('*')
+    .eq('cache_key', cacheKey)
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return data || null;
+}
+
+async function supabaseUpsertTranslationCache(cacheKey, payload) {
+  const { data, error } = await supabase
+    .from('translation_cache')
+    .upsert([{
+      cache_key: cacheKey,
+      from_lang: payload.fromLang || 'en',
+      to_lang: payload.toLang || 'pt-BR',
+      original_text: payload.originalText || '',
+      translated_text: payload.translatedText || '',
+      provider: payload.provider || 'provider',
+      updated_at: new Date().toISOString()
+    }], { onConflict: 'cache_key', returning: 'representation' })
+    .select()
+    .single();
+  if (error) return { error: error.message };
+  return { data };
+}
+
 async function supabaseGetWorkingMusicVideo(trackKey) {
   const { data, error } = await supabase
     .from('working_music_videos')
@@ -493,6 +522,8 @@ module.exports = {
   supabaseDeleteNativeVideo,
   supabaseGetLyricsCache,
   supabaseUpsertLyricsCache,
+  supabaseGetTranslationCache,
+  supabaseUpsertTranslationCache,
   supabaseGetWorkingMusicVideo,
   supabaseGetBadMusicVideos,
   supabaseSaveWorkingMusicVideo,

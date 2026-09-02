@@ -128,6 +128,7 @@ const {
   supabaseGetNativesCache, supabaseUpsertNativesCache,
   supabaseGetNativeSavedVideos, supabaseSaveNativeVideo, supabaseDeleteNativeVideo,
   supabaseGetLyricsCache, supabaseUpsertLyricsCache,
+  supabaseGetTranslationCache, supabaseUpsertTranslationCache,
   supabaseGetWorkingMusicVideo, supabaseGetBadMusicVideos, supabaseSaveWorkingMusicVideo, supabaseSaveBadMusicVideo,
   supabaseDeleteUser
 } = require('./db-supabase');
@@ -387,6 +388,8 @@ registerLyricsRoutes(app, {
   logger,
   supabaseGetLyricsCache,
   supabaseUpsertLyricsCache,
+  supabaseGetTranslationCache,
+  supabaseUpsertTranslationCache,
   supabaseGetWorkingMusicVideo,
   supabaseGetBadMusicVideos,
   supabaseSaveWorkingMusicVideo,

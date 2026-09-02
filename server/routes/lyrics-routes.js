@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 async function fetchJsonWithTimeout(url, timeoutMs = 12000, extraHeaders = {}) {
   const response = await fetch(url, {
     headers: {
@@ -38,12 +40,44 @@ const MIN_LYRICS_CONFIDENCE = 190;
 const MIN_TRACK_OVERLAP = 0.92;
 const MIN_ARTIST_OVERLAP = 0.82;
 const LYRICS_CACHE_VERSION = 'lyrics-strict-v1';
+const TRANSLATION_CACHE_VERSION = 'translation-v1';
 const LYRICS_PROVIDER_CACHE_SOURCE = 'lrclib-strict-v1';
 const LYRICS_APPROVED_CACHE_SOURCE = 'approved-lyrics-v1';
 const LYRICS_VARIANT_PATTERN = /\b(remix|cover|karaoke|instrumental|live|acoustic|sped up|slowed|nightcore|edit|version)\b/i;
 const LYRICS_FEATURE_PATTERN = /\s*(?:\(|\[)?\b(?:feat|ft|featuring|with)\b\.?\s+[^()[\]-]+(?:\)|\])?/gi;
 const MUSIC_VIDEO_REJECT_PATTERN = /\b(karaoke|instrumental|cover|reaction|tutorial|lesson|playlist|mix|sped up|slowed|nightcore|remix|loop|hour|extended)\b/i;
 const TRANSLATION_SEPARATOR = 'LF_LINE_BREAK';
+const MAX_ACTIVE_TRANSLATIONS = Number(process.env.TRANSLATION_CONCURRENCY || 2);
+let activeTranslations = 0;
+const pendingTranslations = [];
+
+function acquireTranslationSlot() {
+  if (activeTranslations < MAX_ACTIVE_TRANSLATIONS) {
+    activeTranslations += 1;
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    pendingTranslations.push(resolve);
+  }).then(() => {
+    activeTranslations += 1;
+  });
+}
+
+function releaseTranslationSlot() {
+  activeTranslations = Math.max(0, activeTranslations - 1);
+  const next = pendingTranslations.shift();
+  if (next) next();
+}
+
+async function withTranslationSlot(task) {
+  await acquireTranslationSlot();
+  try {
+    return await task();
+  } finally {
+    releaseTranslationSlot();
+  }
+}
 
 function normalizeLyricsText(value = '') {
   return String(value)
@@ -106,6 +140,21 @@ function hasTranslationBlock(text = '') {
 function hasMatchingTranslationBlockShape(original = '', translated = '') {
   if (!hasTranslationBlock(original)) return true;
   return splitTranslationBlock(original).length === splitTranslationBlock(translated).length;
+}
+
+function buildTranslationCacheKey(text = '', from = 'en', to = 'pt-BR') {
+  const hash = crypto
+    .createHash('sha256')
+    .update(`${TRANSLATION_CACHE_VERSION}|${from}|${to}|${String(text || '').trim()}`)
+    .digest('hex');
+  return `${TRANSLATION_CACHE_VERSION}:${hash}`;
+}
+
+function shouldCacheTranslation(translated = '', provider = '') {
+  const clean = cleanTranslationText(translated);
+  if (!clean) return false;
+  if (provider === 'line-fallback' && clean.includes('Tradução em revisão.')) return false;
+  return true;
 }
 
 function parseJsonArrayFromText(text = '') {
@@ -922,6 +971,8 @@ function registerLyricsRoutes(app, deps = {}) {
     logger = console,
     supabaseGetLyricsCache = async () => null,
     supabaseUpsertLyricsCache = async () => {},
+    supabaseGetTranslationCache = async () => null,
+    supabaseUpsertTranslationCache = async () => {},
     supabaseGetWorkingMusicVideo = async () => null,
     supabaseGetBadMusicVideos = async () => [],
     supabaseSaveWorkingMusicVideo = async () => {},
@@ -1247,17 +1298,24 @@ function registerLyricsRoutes(app, deps = {}) {
     }
   });
 
-  app.get('/api/translate', async (req, res) => {
-    const text = String(req.query.q || '').trim();
-    const from = String(req.query.from || 'en').trim();
-    const to = String(req.query.to || 'pt-BR').trim();
+  async function handleTranslateRequest(req, res) {
+    const source = req.method === 'POST' ? req.body || {} : req.query || {};
+    const text = String(source.q || source.text || '').trim();
+    const from = String(source.from || 'en').trim();
+    const to = String(source.to || 'pt-BR').trim();
 
-    if (!text || text.length > 3000) {
-      return res.status(400).json({ error: 'Texto obrigatorio com ate 3000 caracteres' });
+    if (!text || text.length > 12000) {
+      return res.status(400).json({ error: 'Texto obrigatorio com ate 12000 caracteres' });
     }
 
     try {
-      let result = await translateTextSmart(text, from, to, process.env, logger);
+      const cacheKey = buildTranslationCacheKey(text, from, to);
+      const cached = await supabaseGetTranslationCache(cacheKey);
+      if (cached?.translated_text && hasMatchingTranslationBlockShape(text, cached.translated_text)) {
+        return res.json(asTranslationResponse(cached.translated_text, cached.provider || 'translation-cache'));
+      }
+
+      let result = await withTranslationSlot(() => translateTextSmart(text, from, to, process.env, logger));
       if (result && !hasMatchingTranslationBlockShape(text, result.translated)) {
         logger.warn?.('Translation block shape mismatch after provider', {
           provider: result.provider,
@@ -1267,7 +1325,7 @@ function registerLyricsRoutes(app, deps = {}) {
         result = null;
       }
       if (!result && hasTranslationBlock(text)) {
-        const translatedBlock = await translateBlockByLines(text, from, to, process.env, logger);
+        const translatedBlock = await withTranslationSlot(() => translateBlockByLines(text, from, to, process.env, logger));
         if (translatedBlock) {
           result = {
             provider: 'line-fallback',
@@ -1288,6 +1346,16 @@ function registerLyricsRoutes(app, deps = {}) {
         });
       }
 
+      if (shouldCacheTranslation(result.translated, result.provider)) {
+        await supabaseUpsertTranslationCache(cacheKey, {
+          fromLang: from,
+          toLang: to,
+          originalText: text,
+          translatedText: result.translated,
+          provider: result.provider
+        });
+      }
+
       return res.json(asTranslationResponse(result.translated, result.provider));
     } catch (error) {
       logger.warn?.('Translation route crashed', {
@@ -1302,7 +1370,10 @@ function registerLyricsRoutes(app, deps = {}) {
         detail: error.message
       });
     }
-  });
+  }
+
+  app.get('/api/translate', handleTranslateRequest);
+  app.post('/api/translate', handleTranslateRequest);
 
   app.get('/api/translate/diagnostics', async (_req, res) => {
     const sample = 'Hello world';

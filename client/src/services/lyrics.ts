@@ -133,8 +133,11 @@ async function translateText(text: string) {
 
   let translated = '';
   try {
-    const params = new URLSearchParams({ q: text, from: 'en', to: 'pt-BR' });
-    const response = await fetch(`/api/translate?${params.toString()}`);
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: text, from: 'en', to: 'pt-BR' })
+    });
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       console.error('Falha na tradução:', {
@@ -160,7 +163,7 @@ async function translateText(text: string) {
   return translated;
 }
 
-function chunkLinesForTranslation(lines: string[], maxChars = 1400) {
+function chunkLinesForTranslation(lines: string[], maxChars = 9000) {
   const chunks: string[][] = [];
   let current: string[] = [];
   let currentSize = 0;
@@ -184,9 +187,7 @@ async function translateLines(lines: string[]) {
   const chunks = chunkLinesForTranslation(lines);
   const translatedChunks: string[][] = [];
 
-  for (let index = 0; index < chunks.length; index += 2) {
-    const group = chunks.slice(index, index + 2);
-    const groupResults = await Promise.all(group.map(async (chunk) => {
+  for (const chunk of chunks) {
     const missingIndexes: number[] = [];
     const missingLines: string[] = [];
     const cachedChunk = chunk.map((line, index) => {
@@ -211,9 +212,7 @@ async function translateLines(lines: string[]) {
       });
     }
 
-    return cachedChunk;
-    }));
-    translatedChunks.push(...groupResults);
+    translatedChunks.push(cachedChunk);
   }
 
   return translatedChunks.flat();
