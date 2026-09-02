@@ -117,6 +117,7 @@ function formatMusicTime(value?: number) {
 
 function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (seconds: number) => void }) {
   const playerRef = useRef<HTMLDivElement | null>(null);
+  const playerInstanceRef = useRef<{ destroy?: () => void } | null>(null);
   const [embedFailed, setEmbedFailed] = useState(false);
   const [embedLoaded, setEmbedLoaded] = useState(false);
   const [embedHost, setEmbedHost] = useState<'youtube' | 'nocookie'>('youtube');
@@ -173,14 +174,16 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
   }, [embedLoaded, playerKey, failCurrentVideo]);
 
   useEffect(() => {
-    let player: { destroy?: () => void } | null = null;
     let intervalId: number | undefined;
     let cancelled = false;
 
     function startPlayer() {
       if (cancelled || !playerRef.current || !window.YT?.Player) return;
-      playerRef.current.innerHTML = '';
-      player = new window.YT.Player(playerRef.current, {
+      playerInstanceRef.current?.destroy?.();
+      const playerTarget = document.createElement('div');
+      playerRef.current.replaceChildren(playerTarget);
+
+      playerInstanceRef.current = new window.YT.Player(playerTarget, {
         videoId: currentVideoId,
         host: embedBaseUrl,
         playerVars: {
@@ -220,6 +223,9 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
         const script = document.createElement('script');
         script.src = 'https://www.youtube.com/iframe_api';
         script.async = true;
+        script.onerror = () => {
+          failCurrentVideo('iframe_api_blocked');
+        };
         document.body.appendChild(script);
       }
     }
@@ -227,7 +233,9 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
     return () => {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
-      player?.destroy?.();
+      playerInstanceRef.current?.destroy?.();
+      playerInstanceRef.current = null;
+      playerRef.current?.replaceChildren();
     };
   }, [currentVideoId, failCurrentVideo, onTimeChange, reportCurrentVideo]);
 
