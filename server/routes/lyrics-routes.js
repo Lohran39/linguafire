@@ -1226,6 +1226,50 @@ function registerLyricsRoutes(app, deps = {}) {
       });
     }
   });
+
+  app.get('/api/translate/diagnostics', async (_req, res) => {
+    const sample = 'Hello world';
+    const geminiConfigured = Boolean(String(process.env.GEMINI_API_KEY || '').trim());
+    const geminiModel = String(process.env.GEMINI_MODEL || 'not-set').trim();
+    const diagnostics = {
+      success: false,
+      geminiConfigured,
+      geminiModel,
+      deeplConfigured: Boolean(String(process.env.DEEPL_API_KEY || '').trim()),
+      sample,
+      gemini: {
+        ok: false,
+        translated: '',
+        error: ''
+      },
+      providerChain: {
+        ok: false,
+        provider: '',
+        translated: '',
+        error: ''
+      }
+    };
+
+    try {
+      const geminiTranslated = await translateWithGemini(sample, 'en', 'pt-BR', process.env, logger);
+      diagnostics.gemini.ok = Boolean(geminiTranslated);
+      diagnostics.gemini.translated = geminiTranslated || '';
+    } catch (error) {
+      diagnostics.gemini.error = error.message;
+    }
+
+    try {
+      const chainResult = await translateTextSmart(sample, 'en', 'pt-BR', process.env, logger);
+      diagnostics.providerChain.ok = Boolean(chainResult?.translated);
+      diagnostics.providerChain.provider = chainResult?.provider || '';
+      diagnostics.providerChain.translated = chainResult?.translated || '';
+    } catch (error) {
+      diagnostics.providerChain.error = error.message;
+    }
+
+    diagnostics.success = diagnostics.gemini.ok || diagnostics.providerChain.ok;
+    return res.status(diagnostics.success ? 200 : 502).json(diagnostics);
+  });
 }
 
 module.exports = {

@@ -15,6 +15,7 @@ const DEFAULT_RATE_LIMITS = {
   '/api/music/search': 20,
   '/api/music/video-status': 60,
   '/api/translate': 30,
+  '/api/translate/diagnostics': 10,
   '/api/natives/search': 30,
   '/api/natives/curated': 10
 };
