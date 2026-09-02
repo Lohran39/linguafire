@@ -507,7 +507,6 @@ async function translateWithMyMemoryLogged(text, from, to, logger = console) {
 async function translateTextSmart(text, from = 'en', to = 'pt-BR', env = process.env, logger = console) {
   const providers = [
     ['deepl', () => translateWithDeepL(text, from, to, env, logger)],
-    ['gemini', () => translateWithGemini(text, from, to, env, logger)],
     ['mymemory', () => translateWithMyMemoryLogged(text, from, to, logger)]
   ];
 
@@ -1471,18 +1470,18 @@ function registerLyricsRoutes(app, deps = {}) {
     const sample = 'Hello world';
     const geminiConfigured = Boolean(String(process.env.GEMINI_API_KEY || '').trim());
     const geminiModel = String(process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim();
-    const modelCandidates = [...new Set([geminiModel].filter(Boolean))];
     const diagnostics = {
       success: false,
       geminiConfigured,
       geminiModel,
-      modelCandidates,
+      geminiDisabledForLyrics: true,
+      modelCandidates: [],
       deeplConfigured: Boolean(String(process.env.DEEPL_API_KEY || '').trim()),
       sample,
       gemini: {
         ok: false,
         translated: '',
-        error: '',
+        error: 'Gemini desativado para tradução de letras.',
         attempts: []
       },
       providerChain: {
@@ -1494,18 +1493,6 @@ function registerLyricsRoutes(app, deps = {}) {
     };
 
     try {
-      diagnostics.gemini.attempts = await Promise.all(
-        modelCandidates.map((model) => diagnoseGeminiModel(model, sample, process.env))
-      );
-      const workingAttempt = diagnostics.gemini.attempts.find((attempt) => attempt.ok);
-      diagnostics.gemini.ok = Boolean(workingAttempt);
-      diagnostics.gemini.translated = workingAttempt?.translated || '';
-      diagnostics.gemini.error = workingAttempt ? '' : diagnostics.gemini.attempts.map((attempt) => `${attempt.model}: ${attempt.statusCode || 'erro'} ${attempt.error}`).join(' | ');
-    } catch (error) {
-      diagnostics.gemini.error = error.message;
-    }
-
-    try {
       const chainResult = await translateTextSmart(sample, 'en', 'pt-BR', process.env, logger);
       diagnostics.providerChain.ok = Boolean(chainResult?.translated);
       diagnostics.providerChain.provider = chainResult?.provider || '';
@@ -1514,7 +1501,7 @@ function registerLyricsRoutes(app, deps = {}) {
       diagnostics.providerChain.error = error.message;
     }
 
-    diagnostics.success = diagnostics.gemini.ok || diagnostics.providerChain.ok;
+    diagnostics.success = diagnostics.providerChain.ok;
     return res.status(diagnostics.success ? 200 : 502).json(diagnostics);
   });
 }

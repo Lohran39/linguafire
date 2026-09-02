@@ -51,6 +51,8 @@ const MUSIC_FILTERS = [
   { key: 'past', label: 'Passado' }
 ] as const;
 
+const MAX_VISIBLE_SUGGESTIONS = 5;
+
 type MusicFilter = (typeof MUSIC_FILTERS)[number]['key'];
 
 function toFavorite(song: Song): FavoriteSong {
@@ -284,6 +286,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
     return sorted.filter((song) => song.tags.includes(musicFilter));
   }, [englishLevel, musicFilter]);
   const visibleSongs = suggestedSongs.length ? suggestedSongs : sortSongsForLevel(SUGGESTIONS as Song[], englishLevel);
+  const displayedSongs = visibleSongs.slice(0, MAX_VISIBLE_SUGGESTIONS);
   const [activeSong, setActiveSong] = useState<Song>(visibleSongs[0] || SONGS[0]);
   const [lyricMode, setLyricMode] = useState<'both' | 'en' | 'pt'>('both');
   const [expandedLine, setExpandedLine] = useState<number | null>(0);
@@ -505,7 +508,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
         <section className="side-panel">
           <div className="panel-heading">
             <h2>Buscar música</h2>
-            <span>{SUGGESTIONS.length} músicas</span>
+            <span>{displayedSongs.length} sugestões</span>
           </div>
           <div className="search-row">
             <input
@@ -542,7 +545,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
             ))}
           </div>
           <div className="song-list">
-            {visibleSongs.map((song) => (
+            {displayedSongs.map((song) => (
               <button
                 className={activeSong.key === song.key ? 'song-row active' : 'song-row'}
                 key={song.key}
