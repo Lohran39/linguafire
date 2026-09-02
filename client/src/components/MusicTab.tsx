@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { findSong, getSongByKey, SONGS, SUGGESTIONS, type LyricLine, type Song } from '../data/music';
 import { englishLevelDistance, normalizeEnglishLevel } from '../data/levels';
 import { updateProfile, type FavoriteSong, type UserProfile } from '../services/auth';
-import { extractYouTubeId, fetchSongLyrics, fetchYouTubeMetadata, musicSearchToLyrics, parseYouTubeMusicMetadata, reportMusicVideoStatus, searchMusicByName } from '../services/lyrics';
+import { extractYouTubeId, fetchSongLyrics, fetchYouTubeMetadata, parseYouTubeMusicMetadata, reportMusicVideoStatus, searchMusicByName } from '../services/lyrics';
 
 type MusicTabProps = {
   user: UserProfile;
@@ -385,7 +385,8 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
 
     if (song) {
       openSong(song as Song, false);
-      await hydrateLyrics(song as Song, true);
+      setNotice('Música aberta. Buscando letra em segundo plano...');
+      void hydrateLyrics(song as Song, true);
       return;
     }
 
@@ -406,7 +407,6 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
       if (!finalYoutubeId) {
         throw new Error('Não encontrei vídeo para essa música.');
       }
-      const lyricsFromSearch = foundMusic ? await musicSearchToLyrics(foundMusic) : [];
       const youtubeSong: Song = {
         key: `youtube-${finalYoutubeId}`,
         title: parsedMetadata.title,
@@ -418,20 +418,14 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
         thumb: 'YouTube',
         focus: youtubeId ? 'Música enviada pelo usuário' : 'Resultado encontrado pelo nome',
         tags: ['custom'],
-        lyrics: lyricsFromSearch
+        lyrics: []
       };
       openSong(youtubeSong, false);
-      if (lyricsFromSearch.length) {
-        const hasSyncedLines = lyricsFromSearch.some((line) => line.time !== undefined);
-        setNotice(hasSyncedLines
-          ? `Vídeo e legenda sincronizada carregados com ${lyricsFromSearch.length} linhas.`
-          : `Vídeo e letra carregados com ${lyricsFromSearch.length} linhas. Esta música não tem sincronismo disponível agora.`);
-      } else {
-        await hydrateLyrics(youtubeSong, true, {
-          videoTitle: parsedMetadata.videoTitle,
-          channelName: parsedMetadata.channelName
-        });
-      }
+      setNotice('Vídeo encontrado. Buscando letra em segundo plano...');
+      void hydrateLyrics(youtubeSong, true, {
+        videoTitle: parsedMetadata.videoTitle,
+        channelName: parsedMetadata.channelName
+      });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não consegui abrir esse link.');
     } finally {

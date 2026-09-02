@@ -828,9 +828,6 @@ function registerLyricsRoutes(app, deps = {}) {
       const parsed = parseYouTubeMusicTitle(video.title, video.author);
       const track = parsed.trackOriginal || video.title;
       const artist = parsed.artistOriginal || video.author || 'YouTube';
-      const lyrics = artist && normalizeArtistName(artist).length >= 2
-        ? await findLyricsWithFallbacks(track, artist)
-        : null;
       return res.json({
         success: true,
         videoId: video.videoId,
@@ -851,15 +848,7 @@ function registerLyricsRoutes(app, deps = {}) {
           score: candidate.score,
           cached: Boolean(candidate.cached)
         })),
-        lyricsFound: Boolean(lyrics),
-        ...(lyrics ? {
-          ...lyrics,
-          cached: false,
-          searchedTrack: track,
-          searchedArtist: artist,
-          fallbackSource: lyrics.fallbackSource || 'lrclib',
-          mode: lyrics.synced ? 'synced' : 'plain'
-        } : {})
+        lyricsFound: false
       });
     } catch (error) {
       logger.warn?.('Music search failed', { error });
