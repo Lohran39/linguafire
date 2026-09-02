@@ -129,7 +129,7 @@ async function translateText(text: string) {
   return translated;
 }
 
-function chunkLinesForTranslation(lines: string[], maxChars = 2200) {
+function chunkLinesForTranslation(lines: string[], maxChars = 1400) {
   const chunks: string[][] = [];
   let current: string[] = [];
   let currentSize = 0;
@@ -150,9 +150,7 @@ function chunkLinesForTranslation(lines: string[], maxChars = 2200) {
 }
 
 async function translateLines(lines: string[]) {
-  const translatedLines: string[] = [];
-
-  for (const chunk of chunkLinesForTranslation(lines)) {
+  const translatedChunks = await Promise.all(chunkLinesForTranslation(lines).map(async (chunk) => {
     const missingIndexes: number[] = [];
     const missingLines: string[] = [];
     const cachedChunk = chunk.map((line, index) => {
@@ -177,10 +175,10 @@ async function translateLines(lines: string[]) {
       });
     }
 
-    translatedLines.push(...cachedChunk);
-  }
+    return cachedChunk;
+  }));
 
-  return translatedLines;
+  return translatedChunks.flat();
 }
 
 export function extractYouTubeId(value: string) {

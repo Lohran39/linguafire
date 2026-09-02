@@ -108,6 +108,26 @@ function hasMatchingTranslationBlockShape(original = '', translated = '') {
   return splitTranslationBlock(original).length === splitTranslationBlock(translated).length;
 }
 
+function parseJsonArrayFromText(text = '') {
+  const clean = String(text || '')
+    .replace(/^```(?:json)?/i, '')
+    .replace(/```$/i, '')
+    .trim();
+  try {
+    const parsed = JSON.parse(clean);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch (_error) {
+    const match = clean.match(/\[[\s\S]*\]/);
+    if (!match) return null;
+    try {
+      const parsed = JSON.parse(match[0]);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (_nestedError) {
+      return null;
+    }
+  }
+}
+
 async function translateWithDeepL(text, from, to, env = process.env) {
   const apiKey = String(env.DEEPL_API_KEY || '').trim();
   if (!apiKey) return null;
@@ -148,14 +168,23 @@ async function translateWithGemini(text, from, to, env = process.env) {
     'gemini-1.5-flash'
   ].filter(Boolean))];
   const baseUrl = String(env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
-  const prompt = [
-    `Traduza do ${from || 'en'} para ${to || 'pt-BR'} em portugues brasileiro natural.`,
-    'Contexto: letras de musica e frases curtas para estudo de ingles.',
-    `Se houver varias linhas separadas por ${TRANSLATION_SEPARATOR}, mantenha exatamente o mesmo separador e a mesma quantidade de linhas.`,
-    'Nao explique. Nao adicione aspas. Responda somente com a traducao.',
-    '',
-    text
-  ].join('\n');
+  const blockLines = splitTranslationBlock(text).map((line) => cleanTranslationText(line));
+  const isBlock = blockLines.length > 1;
+  const prompt = isBlock
+    ? [
+        `Traduza este array do ${from || 'en'} para ${to || 'pt-BR'} em portugues brasileiro natural.`,
+        'Contexto: letras de musica, girias e frases curtas para estudo de ingles.',
+        'Responda somente com um JSON array valido, na mesma ordem e com a mesma quantidade de itens.',
+        'Nao explique. Nao use markdown.',
+        JSON.stringify(blockLines)
+      ].join('\n')
+    : [
+        `Traduza do ${from || 'en'} para ${to || 'pt-BR'} em portugues brasileiro natural.`,
+        'Contexto: letras de musica, girias e frases curtas para estudo de ingles.',
+        'Nao explique. Nao adicione aspas. Responda somente com a traducao.',
+        '',
+        text
+      ].join('\n');
 
   for (const model of modelCandidates) {
     const modelPath = model.startsWith('models/') ? model : `models/${model}`;
@@ -179,6 +208,16 @@ async function translateWithGemini(text, from, to, env = process.env) {
       .map((part) => part?.text || '')
       .filter(Boolean)
       .join('\n'));
+    if (response.ok && isBlock) {
+      const translatedArray = parseJsonArrayFromText(translated);
+      if (translatedArray?.length === blockLines.length) {
+        const translatedLines = translatedArray.map((item, index) => {
+          const candidate = cleanTranslationText(String(item || ''));
+          return isUsefulTranslation(blockLines[index], candidate) ? candidate : translateNoLiteralLine(blockLines[index]);
+        });
+        return translatedLines.join(`\n${TRANSLATION_SEPARATOR}\n`);
+      }
+    }
     if (response.ok && isUsefulTranslation(text, translated)) return translated;
   }
 
