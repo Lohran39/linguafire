@@ -487,6 +487,24 @@ function stripFeaturedArtistsFromTrack(value = '') {
     .trim();
 }
 
+function stripParentheticalInfo(value = '') {
+  return String(value || '')
+    .replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function splitArtistAliases(value = '') {
+  const clean = String(value || '')
+    .replace(/\s*(?:,|&|\+|\bx\b|\band\b)\s*/gi, '|')
+    .replace(/\b(feat|ft|featuring|with)\b\.?/gi, '|');
+
+  return clean
+    .split('|')
+    .map((part) => part.trim())
+    .filter((part) => normalizeArtistName(part).length > 1);
+}
+
 function buildLyricsLookupCandidates(trackName = '', artistName = '') {
   const track = String(trackName || '').trim();
   const artist = String(artistName || '').trim();
@@ -503,13 +521,30 @@ function buildLyricsLookupCandidates(trackName = '', artistName = '') {
   }
 
   add(track, artist);
+  add(stripFeaturedArtistsFromTrack(stripParentheticalInfo(track)), artist);
+  add(stripParentheticalInfo(track), artist);
   add(stripFeaturedArtistsFromTrack(track), artist);
 
   const artistWithoutFeatures = stripFeaturedArtistsFromTrack(artist);
   if (artistWithoutFeatures !== artist) {
     add(track, artistWithoutFeatures);
+    add(stripFeaturedArtistsFromTrack(stripParentheticalInfo(track)), artistWithoutFeatures);
+    add(stripParentheticalInfo(track), artistWithoutFeatures);
     add(stripFeaturedArtistsFromTrack(track), artistWithoutFeatures);
   }
+
+  const artistAliases = splitArtistAliases(artist);
+  for (const artistAlias of artistAliases) {
+    add(track, artistAlias);
+    add(stripFeaturedArtistsFromTrack(stripParentheticalInfo(track)), artistAlias);
+    add(stripParentheticalInfo(track), artistAlias);
+    add(stripFeaturedArtistsFromTrack(track), artistAlias);
+  }
+
+  add(track, '');
+  add(stripFeaturedArtistsFromTrack(stripParentheticalInfo(track)), '');
+  add(stripParentheticalInfo(track), '');
+  add(stripFeaturedArtistsFromTrack(track), '');
 
   return candidates;
 }
@@ -823,11 +858,14 @@ function scoreLyricsMatch(candidate = {}, expectedTrack = '', expectedArtist = '
 
 function isReliableLyricsMatch(candidate = {}, expectedTrack = '', expectedArtist = '') {
   const match = getLyricsMatchDetails(candidate, expectedTrack, expectedArtist);
+  const expectedArtistNorm = normalizeArtistName(expectedArtist);
+  const minConfidence = expectedArtistNorm ? MIN_LYRICS_CONFIDENCE : 145;
   return match.hasLyrics
     && !match.variantRejected
     && match.trackAccepted
     && match.artistAccepted
-    && match.score >= MIN_LYRICS_CONFIDENCE;
+    && (expectedArtistNorm || match.exactTrack)
+    && match.score >= minConfidence;
 }
 
 function normalizeLyricsResult(candidate, expectedTrack, expectedArtist) {

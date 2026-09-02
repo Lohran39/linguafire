@@ -42,6 +42,15 @@ test('builds lyrics lookup variants without featured artists', () => {
   ]);
 });
 
+test('builds lyrics lookup variants for featured tracks and artist aliases', () => {
+  const candidates = buildLyricsLookupCandidates('Song Name (Official Audio) ft. Guest', 'Main Artist & Guest Artist');
+
+  assert.ok(candidates.some((candidate) => candidate.track === 'Song Name' && candidate.artist === 'Main Artist & Guest Artist'));
+  assert.ok(candidates.some((candidate) => candidate.track === 'Song Name' && candidate.artist === 'Main Artist'));
+  assert.ok(candidates.some((candidate) => candidate.track === 'Song Name' && candidate.artist === 'Guest Artist'));
+  assert.ok(candidates.some((candidate) => candidate.track === 'Song Name' && candidate.artist === ''));
+});
+
 test('scores official music video above weak music search candidates', () => {
   const official = scoreMusicVideoCandidate({
     title: 'Dave - Raindance ft. Tems (Official Video)',
@@ -93,6 +102,22 @@ test('rejects partial artist matches that commonly return wrong lyrics', () => {
   assert.equal(details.trackAccepted, true);
   assert.equal(details.artistAccepted, false);
   assert.equal(isReliableLyricsMatch(wrongArtist, 'Raindance', 'Dave'), false);
+});
+
+test('accepts title-only lyrics fallback only for exact track matches', () => {
+  const exactTrack = {
+    trackName: 'Yellow',
+    artistName: 'Coldplay',
+    plainLyrics: 'Look at the stars'
+  };
+  const partialTrack = {
+    trackName: 'Yellow Submarine',
+    artistName: 'The Beatles',
+    plainLyrics: 'Wrong song'
+  };
+
+  assert.equal(isReliableLyricsMatch(exactTrack, 'Yellow', ''), true);
+  assert.equal(isReliableLyricsMatch(partialTrack, 'Yellow', ''), false);
 });
 
 test('rejects remixes and alternate versions unless explicitly requested', () => {
