@@ -127,6 +127,11 @@ function fallbackTranslateText(text: string) {
   return 'Tradução em revisão. Tente recarregar a letra em alguns segundos.';
 }
 
+function isTemporaryTranslationFallback(text: string) {
+  return text.includes('Tradução em revisão.')
+    || text.includes('Tradução automática indisponível');
+}
+
 async function translateText(text: string) {
   const cacheKey = text.toLowerCase().trim();
   if (translationCache.has(cacheKey)) return translationCache.get(cacheKey) || text;
@@ -159,7 +164,9 @@ async function translateText(text: string) {
     translated = fallbackTranslateText(text);
   }
 
-  translationCache.set(cacheKey, translated);
+  if (!isTemporaryTranslationFallback(translated)) {
+    translationCache.set(cacheKey, translated);
+  }
   return translated;
 }
 
@@ -207,7 +214,9 @@ async function translateLines(lines: string[]) {
       missingLines.forEach((line, index) => {
         const candidate = splitTranslated[index] || '';
         const translated = isUsefulTranslation(line, candidate) ? decodeHtmlEntities(candidate).trim() : fallbackTranslateText(line);
-        translationCache.set(line.toLowerCase().trim(), translated);
+        if (!isTemporaryTranslationFallback(translated)) {
+          translationCache.set(line.toLowerCase().trim(), translated);
+        }
         cachedChunk[missingIndexes[index]] = translated;
       });
     }

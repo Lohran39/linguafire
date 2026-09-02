@@ -153,7 +153,8 @@ function buildTranslationCacheKey(text = '', from = 'en', to = 'pt-BR') {
 function shouldCacheTranslation(translated = '', provider = '') {
   const clean = cleanTranslationText(translated);
   if (!clean) return false;
-  if (provider === 'line-fallback' && clean.includes('Tradução em revisão.')) return false;
+  if (clean.includes('Tradução em revisão.')) return false;
+  if (clean.includes('Tradução automática indisponível')) return false;
   return true;
 }
 
@@ -425,7 +426,27 @@ async function translateTextWithoutGemini(text, from = 'en', to = 'pt-BR', env =
   return null;
 }
 
-async function translateWithMyMemoryLogged(text, from, to, logger = console) {
+function chunkTranslationLines(lines = [], maxChars = 900) {
+  const chunks = [];
+  let current = [];
+  let currentSize = 0;
+
+  for (const line of lines) {
+    const nextSize = currentSize + String(line || '').length + TRANSLATION_SEPARATOR.length + 2;
+    if (current.length && nextSize > maxChars) {
+      chunks.push(current);
+      current = [];
+      currentSize = 0;
+    }
+    current.push(line);
+    currentSize = nextSize;
+  }
+
+  if (current.length) chunks.push(current);
+  return chunks;
+}
+
+async function translateWithMyMemorySingle(text, from, to, logger = console) {
   const targetLang = String(to || '').toLowerCase().startsWith('pt') ? 'pt' : to;
   const langPair = encodeURIComponent(`${from}|${targetLang}`);
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
@@ -448,6 +469,39 @@ async function translateWithMyMemoryLogged(text, from, to, logger = console) {
     return null;
   }
   return translated;
+}
+
+async function translateBlockWithMyMemory(text, from, to, logger = console) {
+  const lines = splitTranslationBlock(text).map((line) => cleanTranslationText(line));
+  if (lines.length <= 1) return null;
+
+  const translatedChunks = [];
+  const chunks = chunkTranslationLines(lines);
+  for (let index = 0; index < chunks.length; index += 2) {
+    const group = chunks.slice(index, index + 2);
+    const groupResults = await Promise.all(group.map(async (chunk) => {
+      const originalBlock = chunk.join(`\n${TRANSLATION_SEPARATOR}\n`);
+      const translatedBlock = await translateWithMyMemorySingle(originalBlock, from, to, logger);
+      if (!translatedBlock || !hasMatchingTranslationBlockShape(originalBlock, translatedBlock)) {
+        return chunk.map((line) => translateNoLiteralLine(line));
+      }
+      return splitTranslationBlock(translatedBlock).map((line, lineIndex) => {
+        const clean = cleanTranslationText(line);
+        return isUsefulTranslation(chunk[lineIndex], clean) ? clean : translateNoLiteralLine(chunk[lineIndex]);
+      });
+    }));
+    translatedChunks.push(...groupResults);
+  }
+
+  return translatedChunks.flat().join(`\n${TRANSLATION_SEPARATOR}\n`);
+}
+
+async function translateWithMyMemoryLogged(text, from, to, logger = console) {
+  if (hasTranslationBlock(text) && text.length > 900) {
+    return translateBlockWithMyMemory(text, from, to, logger);
+  }
+
+  return translateWithMyMemorySingle(text, from, to, logger);
 }
 
 async function translateTextSmart(text, from = 'en', to = 'pt-BR', env = process.env, logger = console) {
