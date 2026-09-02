@@ -818,6 +818,18 @@ function comparePracticeText(expectedValue: string, receivedValue: string) {
   };
 }
 
+function buildNativeEmbedUrl(videoId: string) {
+  const params = new URLSearchParams({
+    rel: '0',
+    modestbranding: '1',
+    playsinline: '1',
+    enablejsapi: '1',
+    origin: window.location.origin
+  });
+
+  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+}
+
 export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
   const englishLevel = normalizeEnglishLevel(user.english_level);
   const [query, setQuery] = useState('look forward to');
@@ -1560,7 +1572,9 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               id="nativesIframe"
-              src={`https://www.youtube-nocookie.com/embed/${activeVideo}?rel=0&modestbranding=1`}
+              key={activeVideo}
+              referrerPolicy="strict-origin-when-cross-origin"
+              src={buildNativeEmbedUrl(activeVideo)}
               title={`Native result for ${lastQuery}`}
             />
           </div>
