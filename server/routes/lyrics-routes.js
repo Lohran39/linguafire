@@ -19,6 +19,21 @@ async function fetchJsonWithTimeout(url, timeoutMs = 12000, extraHeaders = {}) {
   return { response, data };
 }
 
+async function fetchTextWithTimeout(url, options = {}, timeoutMs = 12000) {
+  const response = await fetch(url, {
+    ...options,
+    signal: AbortSignal.timeout(timeoutMs)
+  });
+  const body = await response.text();
+  let data = null;
+  try {
+    data = body ? JSON.parse(body) : null;
+  } catch (_error) {
+    data = { raw: body };
+  }
+  return { response, data };
+}
+
 const MIN_LYRICS_CONFIDENCE = 190;
 const MIN_TRACK_OVERLAP = 0.92;
 const MIN_ARTIST_OVERLAP = 0.82;
@@ -28,6 +43,7 @@ const LYRICS_APPROVED_CACHE_SOURCE = 'approved-lyrics-v1';
 const LYRICS_VARIANT_PATTERN = /\b(remix|cover|karaoke|instrumental|live|acoustic|sped up|slowed|nightcore|edit|version)\b/i;
 const LYRICS_FEATURE_PATTERN = /\s*(?:\(|\[)?\b(?:feat|ft|featuring|with)\b\.?\s+[^()[\]-]+(?:\)|\])?/gi;
 const MUSIC_VIDEO_REJECT_PATTERN = /\b(karaoke|instrumental|cover|reaction|tutorial|lesson|playlist|mix|sped up|slowed|nightcore|remix|loop|hour|extended)\b/i;
+const TRANSLATION_SEPARATOR = 'LF_LINE_BREAK';
 
 function normalizeLyricsText(value = '') {
   return String(value)
@@ -42,6 +58,135 @@ function normalizeLyricsText(value = '') {
     .replace(/^\s*[-–—]\s*/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizeTranslationCompare(value = '') {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/&(?:amp|quot|#39|lt|gt);/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanTranslationText(value = '') {
+  return String(value || '')
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/\r\n/g, '\n')
+    .trim();
+}
+
+function isUsefulTranslation(original = '', translated = '') {
+  const clean = cleanTranslationText(translated);
+  return Boolean(clean)
+    && clean !== TRANSLATION_SEPARATOR
+    && normalizeTranslationCompare(original) !== normalizeTranslationCompare(clean);
+}
+
+function asTranslationResponse(translatedText, provider) {
+  return {
+    responseStatus: 200,
+    provider,
+    responseData: {
+      translatedText
+    }
+  };
+}
+
+async function translateWithDeepL(text, from, to, env = process.env) {
+  const apiKey = String(env.DEEPL_API_KEY || '').trim();
+  if (!apiKey) return null;
+
+  const targetLang = to.toLowerCase().startsWith('pt') ? 'PT-BR' : to.toUpperCase();
+  const sourceLang = from ? from.toUpperCase() : 'EN';
+  const endpoint = apiKey.endsWith(':fx') ? 'https://api-free.deepl.com/v2/translate' : 'https://api.deepl.com/v2/translate';
+  const body = new URLSearchParams({
+    text,
+    source_lang: sourceLang,
+    target_lang: targetLang,
+    preserve_formatting: '1'
+  });
+
+  const { response, data } = await fetchTextWithTimeout(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `DeepL-Auth-Key ${apiKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json'
+    },
+    body
+  }, 12000);
+
+  const translated = cleanTranslationText(data?.translations?.[0]?.text || '');
+  if (!response.ok || !isUsefulTranslation(text, translated)) return null;
+  return translated;
+}
+
+async function translateWithGemini(text, from, to, env = process.env) {
+  const apiKey = String(env.GEMINI_API_KEY || '').trim();
+  if (!apiKey) return null;
+
+  const model = String(env.GEMINI_MODEL || 'gemini-3.6-flash').trim();
+  const modelPath = model.startsWith('models/') ? model : `models/${model}`;
+  const url = `${String(env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '')}/v1beta/${modelPath}:generateContent`;
+  const prompt = [
+    `Traduza do ${from || 'en'} para ${to || 'pt-BR'} em portugues brasileiro natural.`,
+    'Contexto: letras de musica e frases curtas para estudo de ingles.',
+    `Se houver varias linhas separadas por ${TRANSLATION_SEPARATOR}, mantenha exatamente o mesmo separador e a mesma quantidade de linhas.`,
+    'Nao explique. Nao adicione aspas. Responda somente com a traducao.',
+    '',
+    text
+  ].join('\n');
+
+  const { response, data } = await fetchTextWithTimeout(url, {
+    method: 'POST',
+    headers: {
+      'x-goog-api-key': apiKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.15,
+        maxOutputTokens: 1200
+      }
+    })
+  }, 16000);
+
+  const translated = cleanTranslationText((data?.candidates?.[0]?.content?.parts || [])
+    .map((part) => part?.text || '')
+    .filter(Boolean)
+    .join('\n'));
+  if (!response.ok || !isUsefulTranslation(text, translated)) return null;
+  return translated;
+}
+
+async function translateWithMyMemory(text, from, to) {
+  const langPair = encodeURIComponent(`${from}|${to}`);
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
+  const { response, data } = await fetchJsonWithTimeout(url, 12000);
+  const translated = cleanTranslationText(data?.responseData?.translatedText || '');
+  if (!response.ok || !isUsefulTranslation(text, translated)) return null;
+  return translated;
+}
+
+async function translateTextSmart(text, from = 'en', to = 'pt-BR', env = process.env) {
+  const providers = [
+    ['deepl', () => translateWithDeepL(text, from, to, env)],
+    ['gemini', () => translateWithGemini(text, from, to, env)],
+    ['mymemory', () => translateWithMyMemory(text, from, to)]
+  ];
+
+  for (const [provider, translate] of providers) {
+    try {
+      const translated = await translate();
+      if (translated) return { provider, translated };
+    } catch (_error) {}
+  }
+
+  return null;
 }
 
 function normalizeArtistName(value = '') {
@@ -881,19 +1026,28 @@ function registerLyricsRoutes(app, deps = {}) {
   app.get('/api/translate', async (req, res) => {
     const text = String(req.query.q || '').trim();
     const from = String(req.query.from || 'en').trim();
-    const to = String(req.query.to || 'pt').trim();
+    const to = String(req.query.to || 'pt-BR').trim();
 
-    if (!text || text.length > 500) {
-      return res.status(400).json({ error: 'Texto obrigatorio com ate 500 caracteres' });
+    if (!text || text.length > 3000) {
+      return res.status(400).json({ error: 'Texto obrigatorio com ate 3000 caracteres' });
     }
 
     try {
-      const langPair = encodeURIComponent(`${from}|${to}`);
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
-      const { response, data } = await fetchJsonWithTimeout(url);
-      return res.status(response.status).json(data);
+      const result = await translateTextSmart(text, from, to);
+      if (!result) {
+        return res.status(502).json({
+          responseStatus: 502,
+          error: 'Falha ao traduzir texto'
+        });
+      }
+
+      return res.json(asTranslationResponse(result.translated, result.provider));
     } catch (error) {
-      return res.status(502).json({ error: 'Falha ao traduzir texto', detail: error.message });
+      return res.status(502).json({
+        responseStatus: 502,
+        error: 'Falha ao traduzir texto',
+        detail: error.message
+      });
     }
   });
 }

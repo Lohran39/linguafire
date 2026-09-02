@@ -51,80 +51,6 @@ type MusicSearchResponse = {
 const translationCache = new Map<string, string>();
 const YOUTUBE_TITLE_SUFFIX_PATTERN = /\b(official|music|video|lyrics?|lyric|audio|visualizer|remaster(?:ed)?|hd|4k|vevo|topic)\b/gi;
 const TRANSLATION_SEPARATOR = '\nLF_LINE_BREAK\n';
-const COMMON_TRANSLATIONS: Record<string, string> = {
-  'i': 'eu',
-  'you': 'voce',
-  'we': 'nos',
-  'they': 'eles',
-  'he': 'ele',
-  'she': 'ela',
-  'it': 'isso',
-  'me': 'me',
-  'my': 'meu',
-  'your': 'seu',
-  'our': 'nosso',
-  'love': 'amor',
-  'like': 'gosto',
-  'want': 'quero',
-  'need': 'preciso',
-  'know': 'sei',
-  'go': 'ir',
-  'come': 'vir',
-  'stay': 'ficar',
-  'feel': 'sentir',
-  'think': 'pensar',
-  'say': 'dizer',
-  'tell': 'contar',
-  'get': 'pegar',
-  'make': 'fazer',
-  'take': 'pegar',
-  'see': 'ver',
-  'look': 'olhar',
-  'night': 'noite',
-  'day': 'dia',
-  'time': 'tempo',
-  'life': 'vida',
-  'heart': 'coracao',
-  'baby': 'amor',
-  'girl': 'garota',
-  'boy': 'garoto',
-  'home': 'casa',
-  'again': 'de novo',
-  'never': 'nunca',
-  'always': 'sempre',
-  'now': 'agora',
-  'here': 'aqui',
-  'there': 'la',
-  'with': 'com',
-  'without': 'sem',
-  'for': 'para',
-  'in': 'em',
-  'on': 'em',
-  'and': 'e',
-  'or': 'ou',
-  'but': 'mas',
-  'because': 'porque',
-  'when': 'quando',
-  'where': 'onde',
-  'what': 'o que',
-  'why': 'por que',
-  'how': 'como',
-  'can': 'posso',
-  'cannot': 'nao posso',
-  "can't": 'nao posso',
-  "don't": 'nao',
-  "won't": 'nao vou',
-  "i'm": 'eu estou',
-  "you're": 'voce esta',
-  "we're": 'nos estamos',
-  "it's": 'isso esta',
-  "let's": 'vamos',
-  'let': 'deixe',
-  'party': 'festa',
-  'started': 'comecar',
-  'flight': 'voo',
-  'delayed': 'atrasado'
-};
 
 function parseSyncedLyrics(value: string): LyricsApiLine[] {
   return value
@@ -176,16 +102,7 @@ function isUsefulTranslation(original: string, translated: string) {
 }
 
 function fallbackTranslateText(text: string) {
-  const words = text.match(/[a-zA-Z']+|[^a-zA-Z']+/g) || [text];
-  const translated = words.map((part) => {
-    if (!/[a-zA-Z]/.test(part)) return part;
-    const lower = part.toLowerCase();
-    return COMMON_TRANSLATIONS[lower] || part;
-  }).join('').replace(/\s+/g, ' ').trim();
-
-  return normalizeForCompare(translated) === normalizeForCompare(text)
-    ? 'Tradução automática indisponível para esta linha.'
-    : `Tradução aproximada: ${translated}`;
+  return text.trim() ? 'Tradução automática indisponível para esta linha.' : '';
 }
 
 async function translateText(text: string) {
@@ -194,7 +111,7 @@ async function translateText(text: string) {
 
   let translated = '';
   try {
-    const params = new URLSearchParams({ q: text, from: 'en', to: 'pt' });
+    const params = new URLSearchParams({ q: text, from: 'en', to: 'pt-BR' });
     const response = await fetch(`/api/translate?${params.toString()}`);
     const data = await response.json().catch(() => null);
     translated = data?.responseStatus === 200 && data?.responseData?.translatedText
@@ -212,7 +129,7 @@ async function translateText(text: string) {
   return translated;
 }
 
-function chunkLinesForTranslation(lines: string[], maxChars = 430) {
+function chunkLinesForTranslation(lines: string[], maxChars = 2200) {
   const chunks: string[][] = [];
   let current: string[] = [];
   let currentSize = 0;
