@@ -177,13 +177,8 @@ async function translateWithGemini(text, from, to, env = process.env, logger = c
   const apiKey = String(env.GEMINI_API_KEY || '').trim();
   if (!apiKey) return null;
 
-  const configuredModel = String(env.GEMINI_MODEL || '').trim();
-  const modelCandidates = [...new Set([
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    configuredModel
-  ].filter(Boolean))];
+  const configuredModel = String(env.GEMINI_MODEL || 'gemini-3.6-flash').trim();
+  const modelCandidates = [...new Set([configuredModel].filter(Boolean))];
   const baseUrl = String(env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
   const blockLines = splitTranslationBlock(text).map((line) => cleanTranslationText(line));
   const isBlock = blockLines.length > 1;
@@ -344,7 +339,7 @@ async function translateBlockByLines(text, from, to, env = process.env, logger =
       continue;
     }
 
-    const result = await translateTextSmart(cleanLine, from, to, env, logger);
+    const result = await translateTextWithoutGemini(cleanLine, from, to, env, logger);
     if (!result) fallbackCount += 1;
     translatedLines.push(result?.translated || translateNoLiteralLine(cleanLine));
   }
@@ -357,6 +352,28 @@ async function translateBlockByLines(text, from, to, env = process.env, logger =
   }
 
   return translatedLines.join(`\n${TRANSLATION_SEPARATOR}\n`);
+}
+
+async function translateTextWithoutGemini(text, from = 'en', to = 'pt-BR', env = process.env, logger = console) {
+  const providers = [
+    ['deepl', () => translateWithDeepL(text, from, to, env, logger)],
+    ['mymemory', () => translateWithMyMemoryLogged(text, from, to, logger)]
+  ];
+
+  for (const [provider, translate] of providers) {
+    try {
+      const translated = await translate();
+      if (translated) return { provider, translated };
+    } catch (error) {
+      logger.warn?.('Translation fallback provider threw', {
+        provider,
+        message: error.message,
+        textLength: text.length
+      });
+    }
+  }
+
+  return null;
 }
 
 async function translateWithMyMemoryLogged(text, from, to, logger = console) {
@@ -1290,13 +1307,8 @@ function registerLyricsRoutes(app, deps = {}) {
   app.get('/api/translate/diagnostics', async (_req, res) => {
     const sample = 'Hello world';
     const geminiConfigured = Boolean(String(process.env.GEMINI_API_KEY || '').trim());
-    const geminiModel = String(process.env.GEMINI_MODEL || 'not-set').trim();
-    const modelCandidates = [...new Set([
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-      geminiModel !== 'not-set' ? geminiModel : ''
-    ].filter(Boolean))];
+    const geminiModel = String(process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim();
+    const modelCandidates = [...new Set([geminiModel].filter(Boolean))];
     const diagnostics = {
       success: false,
       geminiConfigured,
