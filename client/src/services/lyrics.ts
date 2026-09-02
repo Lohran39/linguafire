@@ -96,13 +96,35 @@ function decodeHtmlEntities(text: string) {
 function isUsefulTranslation(original: string, translated: string) {
   const cleanTranslated = decodeHtmlEntities(translated).trim();
   if (!cleanTranslated) return false;
+  if (cleanTranslated === fallbackTranslateText(original)) return false;
   if (normalizeForCompare(original) === normalizeForCompare(cleanTranslated)) return false;
   if (cleanTranslated === TRANSLATION_SEPARATOR.trim()) return false;
   return true;
 }
 
 function fallbackTranslateText(text: string) {
-  return text.trim() ? 'Tradução automática indisponível para esta linha.' : '';
+  const normalized = normalizeForCompare(text);
+  if (!normalized) return '';
+
+  const exact: Record<string, string> = {
+    'one two three four': 'um, dois, tres, quatro',
+    'one two three': 'um, dois, tres',
+    'yeah yeah': 'sim, sim',
+    'yeah yeah uh uh uh uh': 'sim, sim, uh-uh, uh-uh',
+    'uh uh yeah yeah yeah yeah': 'uh-uh, sim, sim, sim, sim',
+    'uh uh yeah yeah': 'uh-uh, sim, sim',
+    'doo doo doo doo doo doo doo doo doo doo doo': 'Expressão sonora de refrão, sem tradução literal.',
+    'skrrt skrrt': 'Efeito sonoro usado em música, sem tradução literal.'
+  };
+  if (exact[normalized]) return exact[normalized];
+
+  const soundTokens = new Set(['yeah', 'yea', 'uh', 'ooh', 'oh', 'ah', 'la', 'na', 'doo', 'skrrt', 'hmm', 'mm']);
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  if (tokens.length && tokens.every((token) => soundTokens.has(token))) {
+    return 'Expressão sonora de música, sem tradução literal.';
+  }
+
+  return 'Tradução em revisão. Tente recarregar a letra em alguns segundos.';
 }
 
 async function translateText(text: string) {
@@ -159,7 +181,12 @@ function chunkLinesForTranslation(lines: string[], maxChars = 1400) {
 }
 
 async function translateLines(lines: string[]) {
-  const translatedChunks = await Promise.all(chunkLinesForTranslation(lines).map(async (chunk) => {
+  const chunks = chunkLinesForTranslation(lines);
+  const translatedChunks: string[][] = [];
+
+  for (let index = 0; index < chunks.length; index += 2) {
+    const group = chunks.slice(index, index + 2);
+    const groupResults = await Promise.all(group.map(async (chunk) => {
     const missingIndexes: number[] = [];
     const missingLines: string[] = [];
     const cachedChunk = chunk.map((line, index) => {
@@ -185,7 +212,9 @@ async function translateLines(lines: string[]) {
     }
 
     return cachedChunk;
-  }));
+    }));
+    translatedChunks.push(...groupResults);
+  }
 
   return translatedChunks.flat();
 }

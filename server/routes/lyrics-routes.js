@@ -179,9 +179,10 @@ async function translateWithGemini(text, from, to, env = process.env, logger = c
 
   const configuredModel = String(env.GEMINI_MODEL || '').trim();
   const modelCandidates = [...new Set([
-    configuredModel,
     'gemini-2.5-flash',
-    'gemini-1.5-flash'
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    configuredModel
   ].filter(Boolean))];
   const baseUrl = String(env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
   const blockLines = splitTranslationBlock(text).map((line) => cleanTranslationText(line));
@@ -260,6 +261,65 @@ async function translateWithGemini(text, from, to, env = process.env, logger = c
   }
 
   return null;
+}
+
+async function diagnoseGeminiModel(model, sample, env = process.env) {
+  const apiKey = String(env.GEMINI_API_KEY || '').trim();
+  const baseUrl = String(env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
+  const modelPath = String(model || '').startsWith('models/') ? model : `models/${model}`;
+  const url = `${baseUrl}/v1beta/${modelPath}:generateContent`;
+
+  if (!apiKey || !model) {
+    return {
+      model,
+      ok: false,
+      statusCode: 0,
+      translated: '',
+      error: !apiKey ? 'GEMINI_API_KEY ausente' : 'modelo ausente',
+      body: ''
+    };
+  }
+
+  try {
+    const { response, data } = await fetchTextWithTimeout(url, {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{ text: `Traduza para portugues brasileiro, responda só a tradução: ${sample}` }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 80
+        }
+      })
+    }, 12000);
+    const translated = cleanTranslationText((data?.candidates?.[0]?.content?.parts || [])
+      .map((part) => part?.text || '')
+      .filter(Boolean)
+      .join('\n'));
+    return {
+      model,
+      ok: response.ok && isUsefulTranslation(sample, translated),
+      statusCode: response.status,
+      translated,
+      error: response.ok ? '' : (data?.error?.message || data?.message || 'Gemini recusou a chamada'),
+      body: response.ok ? '' : compactProviderBody(data)
+    };
+  } catch (error) {
+    return {
+      model,
+      ok: false,
+      statusCode: 0,
+      translated: '',
+      error: error.message,
+      body: ''
+    };
+  }
 }
 
 function translateNoLiteralLine(text = '') {
@@ -1231,16 +1291,24 @@ function registerLyricsRoutes(app, deps = {}) {
     const sample = 'Hello world';
     const geminiConfigured = Boolean(String(process.env.GEMINI_API_KEY || '').trim());
     const geminiModel = String(process.env.GEMINI_MODEL || 'not-set').trim();
+    const modelCandidates = [...new Set([
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      geminiModel !== 'not-set' ? geminiModel : ''
+    ].filter(Boolean))];
     const diagnostics = {
       success: false,
       geminiConfigured,
       geminiModel,
+      modelCandidates,
       deeplConfigured: Boolean(String(process.env.DEEPL_API_KEY || '').trim()),
       sample,
       gemini: {
         ok: false,
         translated: '',
-        error: ''
+        error: '',
+        attempts: []
       },
       providerChain: {
         ok: false,
@@ -1251,9 +1319,13 @@ function registerLyricsRoutes(app, deps = {}) {
     };
 
     try {
-      const geminiTranslated = await translateWithGemini(sample, 'en', 'pt-BR', process.env, logger);
-      diagnostics.gemini.ok = Boolean(geminiTranslated);
-      diagnostics.gemini.translated = geminiTranslated || '';
+      diagnostics.gemini.attempts = await Promise.all(
+        modelCandidates.map((model) => diagnoseGeminiModel(model, sample, process.env))
+      );
+      const workingAttempt = diagnostics.gemini.attempts.find((attempt) => attempt.ok);
+      diagnostics.gemini.ok = Boolean(workingAttempt);
+      diagnostics.gemini.translated = workingAttempt?.translated || '';
+      diagnostics.gemini.error = workingAttempt ? '' : diagnostics.gemini.attempts.map((attempt) => `${attempt.model}: ${attempt.statusCode || 'erro'} ${attempt.error}`).join(' | ');
     } catch (error) {
       diagnostics.gemini.error = error.message;
     }
