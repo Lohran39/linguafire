@@ -89,6 +89,10 @@ function buildLyricsCacheKey(trackName = '', artistName = '') {
   return `${LYRICS_CACHE_VERSION}::${normalizeArtistName(artistName)}::${normalizeLyricsText(trackName)}`;
 }
 
+function buildMusicTrackKey(trackName = '', artistName = '') {
+  return `${normalizeLyricsText(trackName)}|${normalizeArtistName(artistName)}`;
+}
+
 function isFreshLyricsCache(row, ttlMs = 30 * 24 * 60 * 60 * 1000) {
   const updatedAt = row?.updated_at || row?.created_at;
   if (!updatedAt) return false;
@@ -245,27 +249,33 @@ function scoreMusicVideoCandidate(candidate = {}, query = '') {
 }
 
 async function searchYouTubeMusicByName(searchQuery, apiKey) {
+  const candidates = await searchYouTubeMusicCandidates(searchQuery, apiKey);
+  return candidates[0] || null;
+}
+
+async function searchYouTubeMusicCandidates(searchQuery, apiKey, ignoredVideoIds = []) {
   const query = String(searchQuery || '').trim();
-  if (!query || !apiKey) return null;
+  const ignored = new Set((ignoredVideoIds || []).map(String));
+  if (!query || !apiKey) return [];
 
   const searchUrl = buildMusicYouTubeSearchUrl(query, apiKey);
   const searchResult = await fetchJsonWithTimeout(searchUrl, 10000);
   if (!searchResult.response.ok || !Array.isArray(searchResult.data?.items)) {
-    return null;
+    return [];
   }
 
   const videoIds = [...new Set(searchResult.data.items
     .map((item) => item?.id?.videoId)
     .filter(isValidYouTubeId))];
-  if (!videoIds.length) return null;
+  if (!videoIds.length) return [];
 
   const videosUrl = buildMusicYouTubeVideosUrl(videoIds, apiKey);
   const videosResult = await fetchJsonWithTimeout(videosUrl, 10000);
   if (!videosResult.response.ok || !Array.isArray(videosResult.data?.items)) {
-    return null;
+    return [];
   }
 
-  const ranked = videosResult.data.items
+  return videosResult.data.items
     .map((item) => {
       const candidate = {
         videoId: item?.id || '',
@@ -278,10 +288,12 @@ async function searchYouTubeMusicByName(searchQuery, apiKey) {
       };
       return { ...candidate, score: scoreMusicVideoCandidate(candidate, query) };
     })
-    .filter((item) => isValidYouTubeId(item.videoId) && item.embeddable && item.privacyStatus === 'public')
-    .sort((a, b) => b.score - a.score);
-
-  return ranked[0] || null;
+    .filter((item) => isValidYouTubeId(item.videoId)
+      && item.embeddable
+      && item.privacyStatus === 'public'
+      && !ignored.has(item.videoId))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
 }
 
 function tokenSet(text = '') {
@@ -530,6 +542,10 @@ function registerLyricsRoutes(app, deps = {}) {
     logger = console,
     supabaseGetLyricsCache = async () => null,
     supabaseUpsertLyricsCache = async () => {},
+    supabaseGetWorkingMusicVideo = async () => null,
+    supabaseGetBadMusicVideos = async () => [],
+    supabaseSaveWorkingMusicVideo = async () => {},
+    supabaseSaveBadMusicVideo = async () => {},
     YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || ''
   } = deps;
   // YouTube oEmbed proxy - avoids CORS in browser
@@ -573,11 +589,43 @@ function registerLyricsRoutes(app, deps = {}) {
     }
 
     try {
-      const video = await searchYouTubeMusicByName(query, YOUTUBE_API_KEY);
-      if (!video) {
+      const initialCandidates = await searchYouTubeMusicCandidates(query, YOUTUBE_API_KEY);
+      if (!initialCandidates.length) {
         return res.status(404).json({
           success: false,
           reason: `Não encontrei um vídeo musical confiável para "${query}". Tente música + artista.`
+        });
+      }
+
+      const firstCandidate = initialCandidates[0];
+      const firstParsed = parseYouTubeMusicTitle(firstCandidate.title, firstCandidate.author);
+      const trackKey = buildMusicTrackKey(
+        firstParsed.trackOriginal || firstCandidate.title,
+        firstParsed.artistOriginal || firstCandidate.author
+      );
+      const knownBadIds = trackKey ? await supabaseGetBadMusicVideos(trackKey) : [];
+      const candidatesWithoutKnownBad = initialCandidates.filter((candidate) => !knownBadIds.includes(candidate.videoId));
+      const cachedWorkingVideo = trackKey ? await supabaseGetWorkingMusicVideo(trackKey) : null;
+      const cachedCandidate = cachedWorkingVideo?.video_id && !knownBadIds.includes(cachedWorkingVideo.video_id)
+        ? {
+            ...firstCandidate,
+            videoId: cachedWorkingVideo.video_id,
+            title: cachedWorkingVideo.track || firstCandidate.title,
+            author: cachedWorkingVideo.artist || firstCandidate.author,
+            cached: true,
+            score: firstCandidate.score + 1000
+          }
+        : null;
+      const candidates = [
+        ...(cachedCandidate ? [cachedCandidate] : []),
+        ...candidatesWithoutKnownBad.filter((candidate) => candidate.videoId !== cachedCandidate?.videoId)
+      ];
+      const video = candidates[0];
+
+      if (!video) {
+        return res.status(404).json({
+          success: false,
+          reason: `Os vídeos encontrados para "${query}" já falharam no player. Tente música + artista ou outra versão.`
         });
       }
 
@@ -597,6 +645,16 @@ function registerLyricsRoutes(app, deps = {}) {
         thumbnail: video.thumbnail,
         durationSeconds: video.durationSeconds,
         score: video.score,
+        trackKey,
+        candidates: candidates.map((candidate) => ({
+          videoId: candidate.videoId,
+          title: candidate.title,
+          channelName: candidate.author,
+          thumbnail: candidate.thumbnail,
+          durationSeconds: candidate.durationSeconds,
+          score: candidate.score,
+          cached: Boolean(candidate.cached)
+        })),
         lyricsFound: Boolean(lyrics),
         ...(lyrics ? {
           ...lyrics,
@@ -613,6 +671,35 @@ function registerLyricsRoutes(app, deps = {}) {
         success: false,
         reason: 'Falha ao pesquisar música no YouTube agora.'
       });
+    }
+  });
+
+  app.post('/api/music/video-status', async (req, res) => {
+    const body = req.body || {};
+    const track = String(body.track || '').trim();
+    const artist = String(body.artist || '').trim();
+    const videoId = String(body.videoId || '').trim();
+    const status = String(body.status || '').trim();
+    const reason = String(body.reason || '').trim() || 'embed_failed';
+    const trackKey = String(body.trackKey || buildMusicTrackKey(track, artist)).trim();
+
+    if (!trackKey || !isValidYouTubeId(videoId)) {
+      return res.status(400).json({ success: false, reason: 'Dados do vídeo incompletos.' });
+    }
+
+    try {
+      if (status === 'working') {
+        const result = await supabaseSaveWorkingMusicVideo(trackKey, { track, artist, videoId });
+        if (result?.error) return res.status(202).json({ success: false, reason: result.error });
+        return res.json({ success: true });
+      }
+
+      const result = await supabaseSaveBadMusicVideo(trackKey, videoId, reason);
+      if (result?.error) return res.status(202).json({ success: false, reason: result.error });
+      return res.json({ success: true });
+    } catch (error) {
+      logger.warn?.('Music video status write failed', { error });
+      return res.status(202).json({ success: false, reason: 'Status não salvo.' });
     }
   });
 
@@ -822,8 +909,10 @@ module.exports = {
   isUsableLyricsCache,
   normalizeLyricsText,
   parseYouTubeMusicTitle,
+  buildMusicTrackKey,
   scoreMusicVideoCandidate,
   searchYouTubeMusicByName,
+  searchYouTubeMusicCandidates,
   getLyricsMatchDetails,
   MIN_LYRICS_CONFIDENCE,
   scoreLyricsMatch,

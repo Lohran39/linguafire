@@ -398,6 +398,57 @@ async function supabaseUpsertLyricsCache(cacheKey, payload) {
   return { data };
 }
 
+async function supabaseGetWorkingMusicVideo(trackKey) {
+  const { data, error } = await supabase
+    .from('working_music_videos')
+    .select('*')
+    .eq('track_key', trackKey)
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return data || null;
+}
+
+async function supabaseGetBadMusicVideos(trackKey) {
+  const { data, error } = await supabase
+    .from('bad_music_videos')
+    .select('video_id')
+    .eq('track_key', trackKey);
+  if (error) return [];
+  return (data || []).map((row) => row.video_id).filter(Boolean);
+}
+
+async function supabaseSaveWorkingMusicVideo(trackKey, payload) {
+  const { data, error } = await supabase
+    .from('working_music_videos')
+    .upsert([{
+      track_key: trackKey,
+      track: payload.track || '',
+      artist: payload.artist || '',
+      video_id: payload.videoId,
+      confirmed_at: new Date().toISOString()
+    }], { onConflict: 'track_key', returning: 'representation' })
+    .select()
+    .single();
+  if (error) return { error: error.message };
+  return { data };
+}
+
+async function supabaseSaveBadMusicVideo(trackKey, videoId, reason = 'embed_failed') {
+  const { data, error } = await supabase
+    .from('bad_music_videos')
+    .upsert([{
+      track_key: trackKey,
+      video_id: videoId,
+      reason,
+      failed_at: new Date().toISOString()
+    }], { onConflict: 'track_key,video_id', returning: 'representation' })
+    .select()
+    .single();
+  if (error) return { error: error.message };
+  return { data };
+}
+
 // Delete user (cascade should handle related tables)
 async function supabaseDeleteUser(id) {
   const { error } = await supabase
@@ -442,5 +493,9 @@ module.exports = {
   supabaseDeleteNativeVideo,
   supabaseGetLyricsCache,
   supabaseUpsertLyricsCache,
+  supabaseGetWorkingMusicVideo,
+  supabaseGetBadMusicVideos,
+  supabaseSaveWorkingMusicVideo,
+  supabaseSaveBadMusicVideo,
   supabaseDeleteUser
 };

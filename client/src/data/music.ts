@@ -10,6 +10,16 @@ export type Song = {
   title: string;
   artist: string;
   ytId: string;
+  trackKey?: string;
+  videoCandidates?: {
+    videoId: string;
+    title: string;
+    channelName: string;
+    thumbnail?: string | null;
+    durationSeconds?: number;
+    score?: number;
+    cached?: boolean;
+  }[];
   level: string;
   thumb: string;
   focus: string;

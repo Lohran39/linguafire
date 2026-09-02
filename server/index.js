@@ -128,6 +128,7 @@ const {
   supabaseGetNativesCache, supabaseUpsertNativesCache,
   supabaseGetNativeSavedVideos, supabaseSaveNativeVideo, supabaseDeleteNativeVideo,
   supabaseGetLyricsCache, supabaseUpsertLyricsCache,
+  supabaseGetWorkingMusicVideo, supabaseGetBadMusicVideos, supabaseSaveWorkingMusicVideo, supabaseSaveBadMusicVideo,
   supabaseDeleteUser
 } = require('./db-supabase');
 
@@ -382,7 +383,16 @@ setupPushRoutes(app, {
 });
 
 // Lyrics routes
-registerLyricsRoutes(app, { logger, supabaseGetLyricsCache, supabaseUpsertLyricsCache, YOUTUBE_API_KEY });
+registerLyricsRoutes(app, {
+  logger,
+  supabaseGetLyricsCache,
+  supabaseUpsertLyricsCache,
+  supabaseGetWorkingMusicVideo,
+  supabaseGetBadMusicVideos,
+  supabaseSaveWorkingMusicVideo,
+  supabaseSaveBadMusicVideo,
+  YOUTUBE_API_KEY
+});
 
 // Natives routes
 registerNativesRoutes(app, {

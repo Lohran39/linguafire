@@ -12,6 +12,8 @@ const DEFAULT_RATE_LIMITS = {
   '/api/lyrics/lrclib/get': 30,
   '/api/lyrics/lrclib/search': 20,
   '/api/lyrics/approved': 10,
+  '/api/music/search': 20,
+  '/api/music/video-status': 60,
   '/api/translate': 30,
   '/api/natives/search': 30,
   '/api/natives/curated': 10

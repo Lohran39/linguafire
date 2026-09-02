@@ -8,6 +8,7 @@ const {
   buildLyricsCacheKey,
   buildLyricsLookupCandidates,
   canWriteApprovedLyricsCache,
+  buildMusicTrackKey,
   isUsableLyricsCache,
   normalizeLyricsText,
   parseYouTubeMusicTitle,
@@ -109,6 +110,11 @@ test('lyrics cache keys are normalized and versioned', () => {
     buildLyricsCacheKey('No Idea [Official Music Video]', 'Don Toliver'),
     `${LYRICS_CACHE_VERSION}::don toliver::no idea`
   );
+});
+
+test('music video cache key keeps track and artist separated', () => {
+  assert.equal(buildMusicTrackKey('No Idea [Official Video]', 'Don Toliver'), 'no idea|don toliver');
+  assert.equal(buildMusicTrackKey('Raindance ft. Tems', 'DaveVEVO'), 'raindance tems|davevevo');
 });
 
 test('lyrics cache accepts approved rows without freshness limit', () => {

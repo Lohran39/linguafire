@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { findSong, getSongByKey, SONGS, SUGGESTIONS, type LyricLine, type Song } from '../data/music';
 import { englishLevelDistance, normalizeEnglishLevel } from '../data/levels';
 import { updateProfile, type FavoriteSong, type UserProfile } from '../services/auth';
-import { extractYouTubeId, fetchSongLyrics, fetchYouTubeMetadata, musicSearchToLyrics, parseYouTubeMusicMetadata, searchMusicByName } from '../services/lyrics';
+import { extractYouTubeId, fetchSongLyrics, fetchYouTubeMetadata, musicSearchToLyrics, parseYouTubeMusicMetadata, reportMusicVideoStatus, searchMusicByName } from '../services/lyrics';
 
 type MusicTabProps = {
   user: UserProfile;
@@ -24,7 +24,7 @@ declare global {
         options: {
           events?: {
             onReady?: (event: { target: { getCurrentTime: () => number } }) => void;
-            onError?: () => void;
+            onError?: (event: { data?: number | string }) => void;
           };
         }
       ) => { destroy?: () => void };
@@ -111,25 +111,57 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
   const [embedFailed, setEmbedFailed] = useState(false);
   const [embedLoaded, setEmbedLoaded] = useState(false);
   const [embedHost, setEmbedHost] = useState<'youtube' | 'nocookie'>('youtube');
-  const watchUrl = `https://www.youtube.com/watch?v=${song.ytId}`;
-  const thumbUrl = `https://img.youtube.com/vi/${song.ytId}/hqdefault.jpg`;
+  const candidateIds = useMemo(() => {
+    const ids = [song.ytId, ...(song.videoCandidates || []).map((candidate) => candidate.videoId)];
+    return [...new Set(ids.filter(Boolean))];
+  }, [song.videoCandidates, song.ytId]);
+  const candidatesKey = candidateIds.join(',');
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const currentVideoId = candidateIds[candidateIndex] || song.ytId;
+  const watchUrl = `https://www.youtube.com/watch?v=${currentVideoId}`;
+  const thumbUrl = `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`;
   const embedBaseUrl = embedHost === 'youtube' ? 'https://www.youtube.com' : 'https://www.youtube-nocookie.com';
-  const embedUrl = `${embedBaseUrl}/embed/${song.ytId}?enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&rel=0&modestbranding=1&playsinline=1`;
+  const embedUrl = `${embedBaseUrl}/embed/${currentVideoId}?enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&rel=0&modestbranding=1&playsinline=1`;
+
+  const reportCurrentVideo = useCallback((status: 'working' | 'bad', reason?: string) => {
+    reportMusicVideoStatus({
+      trackKey: song.trackKey,
+      track: song.title,
+      artist: song.artist,
+      videoId: currentVideoId,
+      status,
+      reason
+    });
+  }, [currentVideoId, song.artist, song.title, song.trackKey]);
+
+  const failCurrentVideo = useCallback((reason = 'embed_failed') => {
+    reportCurrentVideo('bad', reason);
+    setEmbedLoaded(false);
+
+    if (candidateIndex + 1 < candidateIds.length) {
+      setEmbedFailed(false);
+      setCandidateIndex((index) => index + 1);
+      return;
+    }
+
+    setEmbedFailed(true);
+  }, [candidateIds.length, candidateIndex, reportCurrentVideo]);
 
   useEffect(() => {
     setEmbedFailed(false);
     setEmbedLoaded(false);
     setEmbedHost('youtube');
+    setCandidateIndex(0);
     onTimeChange(0);
-  }, [embedUrl, onTimeChange, song.ytId]);
+  }, [candidatesKey, onTimeChange, song.ytId]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      if (!embedLoaded) setEmbedFailed(true);
+      if (!embedLoaded) failCurrentVideo('timeout');
     }, 8000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [embedLoaded, embedUrl]);
+  }, [embedLoaded, embedUrl, failCurrentVideo]);
 
   useEffect(() => {
     let player: { destroy?: () => void } | null = null;
@@ -141,13 +173,16 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
       player = new window.YT.Player(iframeRef.current, {
         events: {
           onReady: (event) => {
+            setEmbedLoaded(true);
+            setEmbedFailed(false);
+            reportCurrentVideo('working');
             intervalId = window.setInterval(() => {
               const currentTime = Number(event.target.getCurrentTime?.() || 0);
               if (Number.isFinite(currentTime)) onTimeChange(currentTime);
             }, 600);
           },
-          onError: () => {
-            setEmbedFailed(true);
+          onError: (event) => {
+            failCurrentVideo(`youtube_${event.data || 'error'}`);
           }
         }
       });
@@ -175,7 +210,7 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
       if (intervalId) window.clearInterval(intervalId);
       player?.destroy?.();
     };
-  }, [onTimeChange, song.ytId]);
+  }, [currentVideoId, failCurrentVideo, onTimeChange, reportCurrentVideo]);
 
   return (
     <section className="video-frame music-embed" aria-label={`Vídeo de ${song.title}`}>
@@ -208,11 +243,12 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
             <button
               type="button"
               onClick={() => {
-                setEmbedLoaded(false);
-                setEmbedFailed(false);
-                setEmbedHost((host) => (host === 'youtube' ? 'nocookie' : 'youtube'));
-              }}
-            >
+              setEmbedLoaded(false);
+              setEmbedFailed(false);
+              setEmbedHost((host) => (host === 'youtube' ? 'nocookie' : 'youtube'));
+              setCandidateIndex(0);
+            }}
+          >
               Tentar carregar aqui
             </button>
             <a href={watchUrl} target="_blank" rel="noreferrer">Abrir no YouTube</a>
@@ -361,6 +397,8 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
         title: parsedMetadata.title,
         artist: parsedMetadata.artist,
         ytId: finalYoutubeId,
+        trackKey: foundMusic?.trackKey,
+        videoCandidates: foundMusic?.candidates || [],
         level: 'Livre',
         thumb: 'YouTube',
         focus: youtubeId ? 'Música enviada pelo usuário' : 'Resultado encontrado pelo nome',

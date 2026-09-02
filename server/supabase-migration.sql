@@ -210,6 +210,25 @@ CREATE TABLE IF NOT EXISTS public.lyrics_cache (
 );
 
 -- ============================================
+-- MUSIC VIDEO CACHE TABLES
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.working_music_videos (
+  track_key TEXT PRIMARY KEY,
+  track TEXT NOT NULL DEFAULT '',
+  artist TEXT NOT NULL DEFAULT '',
+  video_id TEXT NOT NULL,
+  confirmed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public.bad_music_videos (
+  track_key TEXT NOT NULL,
+  video_id TEXT NOT NULL,
+  reason TEXT DEFAULT 'embed_failed',
+  failed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (track_key, video_id)
+);
+
+-- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
 -- O frontend não usa Supabase direto. O backend usa SUPABASE_SERVICE_ROLE_KEY,
@@ -218,6 +237,8 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.flashcard_review ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_rewards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.working_music_videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bad_music_videos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.grammar_errors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.natives_cache ENABLE ROW LEVEL SECURITY;
