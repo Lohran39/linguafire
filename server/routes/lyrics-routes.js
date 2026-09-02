@@ -128,7 +128,12 @@ function parseJsonArrayFromText(text = '') {
   }
 }
 
-async function translateWithDeepL(text, from, to, env = process.env) {
+function compactProviderBody(data) {
+  const raw = typeof data?.raw === 'string' ? data.raw : JSON.stringify(data || {});
+  return String(raw || '').slice(0, 500);
+}
+
+async function translateWithDeepL(text, from, to, env = process.env, logger = console) {
   const apiKey = String(env.DEEPL_API_KEY || '').trim();
   if (!apiKey) return null;
 
@@ -153,11 +158,22 @@ async function translateWithDeepL(text, from, to, env = process.env) {
   }, 12000);
 
   const translated = cleanTranslationText(data?.translations?.[0]?.text || '');
-  if (!response.ok || !isUsefulTranslation(text, translated)) return null;
+  if (!response.ok) {
+    logger.warn?.('DeepL translation failed', {
+      statusCode: response.status,
+      textLength: text.length,
+      body: compactProviderBody(data)
+    });
+    return null;
+  }
+  if (!isUsefulTranslation(text, translated)) {
+    logger.warn?.('DeepL translation returned unusable text', { textLength: text.length });
+    return null;
+  }
   return translated;
 }
 
-async function translateWithGemini(text, from, to, env = process.env) {
+async function translateWithGemini(text, from, to, env = process.env, logger = console) {
   const apiKey = String(env.GEMINI_API_KEY || '').trim();
   if (!apiKey) return null;
 
@@ -208,6 +224,16 @@ async function translateWithGemini(text, from, to, env = process.env) {
       .map((part) => part?.text || '')
       .filter(Boolean)
       .join('\n'));
+    if (!response.ok) {
+      logger.warn?.('Gemini translation failed', {
+        statusCode: response.status,
+        model,
+        textLength: text.length,
+        isBlock,
+        body: compactProviderBody(data)
+      });
+      continue;
+    }
     if (response.ok && isBlock) {
       const translatedArray = parseJsonArrayFromText(translated);
       if (translatedArray?.length === blockLines.length) {
@@ -217,8 +243,20 @@ async function translateWithGemini(text, from, to, env = process.env) {
         });
         return translatedLines.join(`\n${TRANSLATION_SEPARATOR}\n`);
       }
+      logger.warn?.('Gemini translation JSON shape mismatch', {
+        model,
+        expectedLines: blockLines.length,
+        receivedLines: translatedArray?.length || 0,
+        responsePreview: translated.slice(0, 260)
+      });
     }
-    if (response.ok && isUsefulTranslation(text, translated)) return translated;
+    if (isUsefulTranslation(text, translated)) return translated;
+    logger.warn?.('Gemini translation returned unusable text', {
+      model,
+      textLength: text.length,
+      isBlock,
+      responsePreview: translated.slice(0, 260)
+    });
   }
 
   return null;
@@ -233,10 +271,11 @@ function translateNoLiteralLine(text = '') {
   return 'Tradução automática indisponível para esta linha.';
 }
 
-async function translateBlockByLines(text, from, to, env = process.env) {
+async function translateBlockByLines(text, from, to, env = process.env, logger = console) {
   const lines = splitTranslationBlock(text);
   if (lines.length <= 1) return null;
 
+  let fallbackCount = 0;
   const translatedLines = [];
   for (const line of lines) {
     const cleanLine = cleanTranslationText(line);
@@ -245,35 +284,64 @@ async function translateBlockByLines(text, from, to, env = process.env) {
       continue;
     }
 
-    const result = await translateTextSmart(cleanLine, from, to, env);
+    const result = await translateTextSmart(cleanLine, from, to, env, logger);
+    if (!result) fallbackCount += 1;
     translatedLines.push(result?.translated || translateNoLiteralLine(cleanLine));
+  }
+
+  if (fallbackCount > 0) {
+    logger.warn?.('Translation line fallback used', {
+      totalLines: lines.length,
+      fallbackLines: fallbackCount
+    });
   }
 
   return translatedLines.join(`\n${TRANSLATION_SEPARATOR}\n`);
 }
 
-async function translateWithMyMemory(text, from, to) {
+async function translateWithMyMemoryLogged(text, from, to, logger = console) {
   const targetLang = String(to || '').toLowerCase().startsWith('pt') ? 'pt' : to;
   const langPair = encodeURIComponent(`${from}|${targetLang}`);
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
   const { response, data } = await fetchJsonWithTimeout(url, 12000);
   const translated = cleanTranslationText(data?.responseData?.translatedText || '');
-  if (!response.ok || !isUsefulTranslation(text, translated)) return null;
+  if (!response.ok) {
+    logger.warn?.('MyMemory translation failed', {
+      statusCode: response.status,
+      textLength: text.length,
+      body: compactProviderBody(data)
+    });
+    return null;
+  }
+  if (!isUsefulTranslation(text, translated)) {
+    logger.warn?.('MyMemory translation returned unusable text', {
+      responseStatus: data?.responseStatus,
+      responseDetails: data?.responseDetails,
+      textLength: text.length
+    });
+    return null;
+  }
   return translated;
 }
 
-async function translateTextSmart(text, from = 'en', to = 'pt-BR', env = process.env) {
+async function translateTextSmart(text, from = 'en', to = 'pt-BR', env = process.env, logger = console) {
   const providers = [
-    ['deepl', () => translateWithDeepL(text, from, to, env)],
-    ['gemini', () => translateWithGemini(text, from, to, env)],
-    ['mymemory', () => translateWithMyMemory(text, from, to)]
+    ['deepl', () => translateWithDeepL(text, from, to, env, logger)],
+    ['gemini', () => translateWithGemini(text, from, to, env, logger)],
+    ['mymemory', () => translateWithMyMemoryLogged(text, from, to, logger)]
   ];
 
   for (const [provider, translate] of providers) {
     try {
       const translated = await translate();
       if (translated) return { provider, translated };
-    } catch (_error) {}
+    } catch (error) {
+      logger.warn?.('Translation provider threw', {
+        provider,
+        message: error.message,
+        textLength: text.length
+      });
+    }
   }
 
   return null;
@@ -1112,12 +1180,17 @@ function registerLyricsRoutes(app, deps = {}) {
     }
 
     try {
-      let result = await translateTextSmart(text, from, to);
+      let result = await translateTextSmart(text, from, to, process.env, logger);
       if (result && !hasMatchingTranslationBlockShape(text, result.translated)) {
+        logger.warn?.('Translation block shape mismatch after provider', {
+          provider: result.provider,
+          expectedLines: splitTranslationBlock(text).length,
+          receivedLines: splitTranslationBlock(result.translated).length
+        });
         result = null;
       }
       if (!result && hasTranslationBlock(text)) {
-        const translatedBlock = await translateBlockByLines(text, from, to);
+        const translatedBlock = await translateBlockByLines(text, from, to, process.env, logger);
         if (translatedBlock) {
           result = {
             provider: 'line-fallback',
@@ -1126,6 +1199,12 @@ function registerLyricsRoutes(app, deps = {}) {
         }
       }
       if (!result) {
+        logger.warn?.('Translation failed after all providers', {
+          textLength: text.length,
+          from,
+          to,
+          isBlock: hasTranslationBlock(text)
+        });
         return res.status(502).json({
           responseStatus: 502,
           error: 'Falha ao traduzir texto'
@@ -1134,6 +1213,12 @@ function registerLyricsRoutes(app, deps = {}) {
 
       return res.json(asTranslationResponse(result.translated, result.provider));
     } catch (error) {
+      logger.warn?.('Translation route crashed', {
+        message: error.message,
+        textLength: text.length,
+        from,
+        to
+      });
       return res.status(502).json({
         responseStatus: 502,
         error: 'Falha ao traduzir texto',

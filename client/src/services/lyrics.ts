@@ -114,10 +114,19 @@ async function translateText(text: string) {
     const params = new URLSearchParams({ q: text, from: 'en', to: 'pt-BR' });
     const response = await fetch(`/api/translate?${params.toString()}`);
     const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      console.error('Falha na tradução:', {
+        status: response.status,
+        error: data?.error,
+        detail: data?.detail,
+        textLength: text.length
+      });
+    }
     translated = data?.responseStatus === 200 && data?.responseData?.translatedText
       ? decodeHtmlEntities(String(data.responseData.translatedText))
       : '';
-  } catch (_error) {
+  } catch (error) {
+    console.error('Falha na tradução:', error instanceof Error ? error.message : error);
     translated = '';
   }
 
