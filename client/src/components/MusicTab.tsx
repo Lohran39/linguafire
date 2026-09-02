@@ -20,8 +20,17 @@ declare global {
   interface Window {
     YT?: {
       Player: new (
-        element: HTMLIFrameElement,
+        element: HTMLElement,
         options: {
+          videoId?: string;
+          host?: string;
+          playerVars?: {
+            origin?: string;
+            enablejsapi?: 1;
+            playsinline?: 1;
+            rel?: 0;
+            modestbranding?: 1;
+          };
           events?: {
             onReady?: (event: { target: { getCurrentTime: () => number } }) => void;
             onError?: (event: { data?: number | string }) => void;
@@ -107,7 +116,7 @@ function formatMusicTime(value?: number) {
 }
 
 function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (seconds: number) => void }) {
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const playerRef = useRef<HTMLDivElement | null>(null);
   const [embedFailed, setEmbedFailed] = useState(false);
   const [embedLoaded, setEmbedLoaded] = useState(false);
   const [embedHost, setEmbedHost] = useState<'youtube' | 'nocookie'>('youtube');
@@ -121,7 +130,7 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
   const watchUrl = `https://www.youtube.com/watch?v=${currentVideoId}`;
   const thumbUrl = `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`;
   const embedBaseUrl = embedHost === 'youtube' ? 'https://www.youtube.com' : 'https://www.youtube-nocookie.com';
-  const embedUrl = `${embedBaseUrl}/embed/${currentVideoId}?enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&rel=0&modestbranding=1&playsinline=1`;
+  const playerKey = `${embedHost}:${currentVideoId}`;
 
   const reportCurrentVideo = useCallback((status: 'working' | 'bad', reason?: string) => {
     reportMusicVideoStatus({
@@ -161,7 +170,7 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
     }, 8000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [embedLoaded, embedUrl, failCurrentVideo]);
+  }, [embedLoaded, playerKey, failCurrentVideo]);
 
   useEffect(() => {
     let player: { destroy?: () => void } | null = null;
@@ -169,8 +178,18 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
     let cancelled = false;
 
     function startPlayer() {
-      if (cancelled || !iframeRef.current || !window.YT?.Player) return;
-      player = new window.YT.Player(iframeRef.current, {
+      if (cancelled || !playerRef.current || !window.YT?.Player) return;
+      playerRef.current.innerHTML = '';
+      player = new window.YT.Player(playerRef.current, {
+        videoId: currentVideoId,
+        host: embedBaseUrl,
+        playerVars: {
+          origin: window.location.origin,
+          enablejsapi: 1,
+          playsinline: 1,
+          rel: 0,
+          modestbranding: 1
+        },
         events: {
           onReady: (event) => {
             setEmbedLoaded(true);
@@ -214,19 +233,7 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
 
   return (
     <section className="video-frame music-embed" aria-label={`Vídeo de ${song.title}`}>
-      <iframe
-        key={embedUrl}
-        ref={iframeRef}
-        src={embedUrl}
-        title={`${song.title} - ${song.artist}`}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowFullScreen
-        loading="lazy"
-        onLoad={() => {
-          setEmbedLoaded(true);
-          setEmbedFailed(false);
-        }}
-      />
+      <div key={playerKey} ref={playerRef} className="youtube-player" title={`${song.title} - ${song.artist}`} />
       {!embedLoaded && !embedFailed && (
         <div className="video-loading">
           <img src={thumbUrl} alt="" loading="lazy" />
