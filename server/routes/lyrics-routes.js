@@ -95,6 +95,19 @@ function asTranslationResponse(translatedText, provider) {
   };
 }
 
+function splitTranslationBlock(text = '') {
+  return String(text || '').split(/\n?LF_LINE_BREAK\n?/);
+}
+
+function hasTranslationBlock(text = '') {
+  return splitTranslationBlock(text).length > 1;
+}
+
+function hasMatchingTranslationBlockShape(original = '', translated = '') {
+  if (!hasTranslationBlock(original)) return true;
+  return splitTranslationBlock(original).length === splitTranslationBlock(translated).length;
+}
+
 async function translateWithDeepL(text, from, to, env = process.env) {
   const apiKey = String(env.DEEPL_API_KEY || '').trim();
   if (!apiKey) return null;
@@ -128,9 +141,13 @@ async function translateWithGemini(text, from, to, env = process.env) {
   const apiKey = String(env.GEMINI_API_KEY || '').trim();
   if (!apiKey) return null;
 
-  const model = String(env.GEMINI_MODEL || 'gemini-3.6-flash').trim();
-  const modelPath = model.startsWith('models/') ? model : `models/${model}`;
-  const url = `${String(env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '')}/v1beta/${modelPath}:generateContent`;
+  const configuredModel = String(env.GEMINI_MODEL || '').trim();
+  const modelCandidates = [...new Set([
+    configuredModel,
+    'gemini-2.5-flash',
+    'gemini-1.5-flash'
+  ].filter(Boolean))];
+  const baseUrl = String(env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
   const prompt = [
     `Traduza do ${from || 'en'} para ${to || 'pt-BR'} em portugues brasileiro natural.`,
     'Contexto: letras de musica e frases curtas para estudo de ingles.',
@@ -140,31 +157,65 @@ async function translateWithGemini(text, from, to, env = process.env) {
     text
   ].join('\n');
 
-  const { response, data } = await fetchTextWithTimeout(url, {
-    method: 'POST',
-    headers: {
-      'x-goog-api-key': apiKey,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.15,
-        maxOutputTokens: 1200
-      }
-    })
-  }, 16000);
+  for (const model of modelCandidates) {
+    const modelPath = model.startsWith('models/') ? model : `models/${model}`;
+    const url = `${baseUrl}/v1beta/${modelPath}:generateContent`;
+    const { response, data } = await fetchTextWithTimeout(url, {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.15,
+          maxOutputTokens: 1800
+        }
+      })
+    }, 16000);
 
-  const translated = cleanTranslationText((data?.candidates?.[0]?.content?.parts || [])
-    .map((part) => part?.text || '')
-    .filter(Boolean)
-    .join('\n'));
-  if (!response.ok || !isUsefulTranslation(text, translated)) return null;
-  return translated;
+    const translated = cleanTranslationText((data?.candidates?.[0]?.content?.parts || [])
+      .map((part) => part?.text || '')
+      .filter(Boolean)
+      .join('\n'));
+    if (response.ok && isUsefulTranslation(text, translated)) return translated;
+  }
+
+  return null;
+}
+
+function translateNoLiteralLine(text = '') {
+  const normalized = normalizeTranslationCompare(text).replace(/-/g, ' ');
+  if (!normalized) return '';
+  if (/^(yeah|yea|uh|uh huh|ooh|oh|ah|la|na|skrrt|hmm|mm)(\s+(yeah|yea|uh|uh huh|ooh|oh|ah|la|na|skrrt|hmm|mm))*$/.test(normalized)) {
+    return 'Expressão sonora, sem tradução literal.';
+  }
+  return 'Tradução automática indisponível para esta linha.';
+}
+
+async function translateBlockByLines(text, from, to, env = process.env) {
+  const lines = splitTranslationBlock(text);
+  if (lines.length <= 1) return null;
+
+  const translatedLines = [];
+  for (const line of lines) {
+    const cleanLine = cleanTranslationText(line);
+    if (!cleanLine) {
+      translatedLines.push('');
+      continue;
+    }
+
+    const result = await translateTextSmart(cleanLine, from, to, env);
+    translatedLines.push(result?.translated || translateNoLiteralLine(cleanLine));
+  }
+
+  return translatedLines.join(`\n${TRANSLATION_SEPARATOR}\n`);
 }
 
 async function translateWithMyMemory(text, from, to) {
-  const langPair = encodeURIComponent(`${from}|${to}`);
+  const targetLang = String(to || '').toLowerCase().startsWith('pt') ? 'pt' : to;
+  const langPair = encodeURIComponent(`${from}|${targetLang}`);
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
   const { response, data } = await fetchJsonWithTimeout(url, 12000);
   const translated = cleanTranslationText(data?.responseData?.translatedText || '');
@@ -1033,7 +1084,19 @@ function registerLyricsRoutes(app, deps = {}) {
     }
 
     try {
-      const result = await translateTextSmart(text, from, to);
+      let result = await translateTextSmart(text, from, to);
+      if (result && !hasMatchingTranslationBlockShape(text, result.translated)) {
+        result = null;
+      }
+      if (!result && hasTranslationBlock(text)) {
+        const translatedBlock = await translateBlockByLines(text, from, to);
+        if (translatedBlock) {
+          result = {
+            provider: 'line-fallback',
+            translated: translatedBlock
+          };
+        }
+      }
       if (!result) {
         return res.status(502).json({
           responseStatus: 502,
