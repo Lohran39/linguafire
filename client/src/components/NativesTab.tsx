@@ -1567,15 +1567,19 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
             <h2>{lastQuery}</h2>
             <span>{result?.curated ? 'curado' : result?.cached ? 'cache' : 'novo'}</span>
           </div>
-          <div className="video-frame">
+          <div className="video-frame native-video-frame">
             <iframe
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
+              className="native-video-iframe"
+              height="100%"
               id="nativesIframe"
               key={activeVideo}
               referrerPolicy="strict-origin-when-cross-origin"
               src={buildNativeEmbedUrl(activeVideo)}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
               title={`Native result for ${lastQuery}`}
+              width="100%"
             />
           </div>
           <div className="native-video-actions">
