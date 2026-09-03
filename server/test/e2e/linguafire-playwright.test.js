@@ -190,8 +190,9 @@ async function mockAuthenticatedApis(page) {
     body: JSON.stringify({
       active: Boolean(user.subscription_active),
       expires: Number(user.subscription_expires || 0),
-      plan: user.subscription_active ? 'monthly' : null,
-      price: 15
+      plan: user.subscription_active ? 'pro' : null,
+      price: 45,
+      aiDailyLimit: 300
     })
   }));
 
@@ -204,7 +205,7 @@ async function mockAuthenticatedApis(page) {
       contentType: 'application/json',
       body: JSON.stringify({
         success: true,
-        subscription: { active: true, expires, plan: 'monthly', price: 15 }
+        subscription: { active: true, expires, plan: 'pro', price: 45, aiDailyLimit: 300 }
       })
     });
   });

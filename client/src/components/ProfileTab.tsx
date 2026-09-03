@@ -12,10 +12,20 @@ import {
 import { getPushStatus, subscribeToPush, supportsPushNotifications, unsubscribeFromPush } from '../services/notifications';
 import { applyTheme, normalizeTheme, themeOptions, type Theme } from '../theme';
 
+const PROFILE_PLAN_AI_LIMITS: Record<string, number> = { pro: 300, max: 1000 };
+
 type ProfileTabProps = {
   user: UserProfile;
   onProfileRefresh: (user: UserProfile) => void;
 };
+
+function planDefaultLimit(plan: string | null | undefined) {
+  return PROFILE_PLAN_AI_LIMITS[String(plan || 'pro').toLowerCase()] || 300;
+}
+
+function planPrice(plan: string | null | undefined) {
+  return String(plan || 'pro').toLowerCase() === 'max' ? 85 : 45;
+}
 
 export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
   const [name, setName] = useState(user.name || '');
@@ -31,13 +41,29 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
   const [subscription, setSubscription] = useState({
     active: Boolean(user.subscription_active),
     expires: Number(user.subscription_expires || 0),
-    plan: user.subscription_active ? 'monthly' : null as string | null,
-    price: 15
+    plan: user.subscription_active ? user.plan || 'pro' : null as string | null,
+    price: planPrice(user.plan),
+    aiDailyLimit: Math.max(planDefaultLimit(user.plan), Number(user.ai_daily_limit || 0))
   });
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+
+  function normalizeSubscription(nextSubscription: {
+    active: boolean;
+    expires: number;
+    plan: string | null;
+    price: number;
+    aiDailyLimit?: number;
+  }) {
+    const plan = nextSubscription.plan || 'pro';
+    return {
+      ...nextSubscription,
+      price: nextSubscription.price || planPrice(plan),
+      aiDailyLimit: Math.max(planDefaultLimit(plan), Number(nextSubscription.aiDailyLimit || 0))
+    };
+  }
 
   useEffect(() => {
     setName(user.name || '');
@@ -63,14 +89,15 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
     async function loadSubscription() {
       try {
         const status = await getSubscriptionStatus();
-        if (isMounted) setSubscription(status);
+        if (isMounted) setSubscription(normalizeSubscription(status));
       } catch {
         if (isMounted) {
           setSubscription({
             active: Boolean(user.subscription_active),
             expires: Number(user.subscription_expires || 0),
-            plan: user.subscription_active ? 'monthly' : null,
-            price: 15
+            plan: user.subscription_active ? user.plan || 'pro' : null,
+            price: planPrice(user.plan),
+            aiDailyLimit: Math.max(planDefaultLimit(user.plan), Number(user.ai_daily_limit || 0))
           });
         }
       }
@@ -176,20 +203,27 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
     }
   }
 
-  async function toggleSubscription() {
+  async function toggleSubscription(plan: 'pro' | 'max' = 'pro') {
     setNotice('');
     setSubscriptionBusy(true);
 
     try {
       if (subscription.active) {
         await cancelSubscription();
-        setSubscription({ active: false, expires: 0, plan: null, price: 15 });
-        onProfileRefresh({ ...user, subscription_active: false, subscription_expires: 0 });
+        setSubscription({ active: false, expires: 0, plan: null, price: 45, aiDailyLimit: 300 });
+        onProfileRefresh({ ...user, subscription_active: false, subscription_expires: 0, plan: 'free', ai_daily_limit: 10 });
         setNotice('Assinatura cancelada.');
       } else {
-        const nextSubscription = await createSubscription();
-        setSubscription(nextSubscription);
-        onProfileRefresh({ ...user, subscription_active: true, subscription_expires: nextSubscription.expires });
+        const nextSubscription = await createSubscription(plan);
+        const normalizedSubscription = normalizeSubscription(nextSubscription);
+        setSubscription(normalizedSubscription);
+        onProfileRefresh({
+          ...user,
+          subscription_active: true,
+          subscription_expires: normalizedSubscription.expires,
+          plan: normalizedSubscription.plan || 'pro',
+          ai_daily_limit: normalizedSubscription.aiDailyLimit
+        });
         setNotice('Assinatura ativada.');
       }
     } catch (error) {
@@ -304,16 +338,31 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
       <section className="profile-settings">
         <div className="panel-heading">
           <h2>Assinatura</h2>
-          <span>{subscription.active ? 'pro' : 'free'}</span>
+          <span>{subscription.active ? String(subscription.plan || 'pro') : 'free'}</span>
         </div>
         <div className="profile-subscription">
-          <strong>{subscription.active ? 'Plano mensal ativo' : 'Plano gratuito'}</strong>
-          <span>{subscription.active ? `Renova até ${subscriptionExpires}` : `Plano Pro: R$ ${subscription.price}/mês`}</span>
+          <strong>{subscription.active ? 'Plano ativo' : 'Plano gratuito'}</strong>
+          <span>
+            {subscription.active
+              ? `Renova até ${subscriptionExpires} · ${subscription.aiDailyLimit || 300} usos de IA/dia`
+              : 'Pro: R$45/mês · 300 usos de IA/dia | Max: R$85/mês · 1000 usos de IA/dia'}
+          </span>
         </div>
         <div className="profile-actions">
-          <button className="primary-button" disabled={subscriptionBusy} type="button" onClick={toggleSubscription}>
-            {subscriptionBusy ? 'Atualizando...' : subscription.active ? 'Cancelar assinatura' : 'Ativar Pro'}
-          </button>
+          {subscription.active ? (
+            <button className="primary-button" disabled={subscriptionBusy} type="button" onClick={() => toggleSubscription()}>
+              {subscriptionBusy ? 'Atualizando...' : 'Cancelar assinatura'}
+            </button>
+          ) : (
+            <>
+              <button className="primary-button" disabled={subscriptionBusy} type="button" onClick={() => toggleSubscription('pro')}>
+                {subscriptionBusy ? 'Atualizando...' : 'Ativar Pro'}
+              </button>
+              <button className="secondary-button" disabled={subscriptionBusy} type="button" onClick={() => toggleSubscription('max')}>
+                Ativar Max
+              </button>
+            </>
+          )}
         </div>
       </section>
 

@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   last_quest_reset TEXT DEFAULT '',
   subscription_active INTEGER DEFAULT 0,
   subscription_expires BIGINT DEFAULT 0,
+  plan TEXT DEFAULT 'free',
+  ai_daily_limit INTEGER DEFAULT 10,
   stripe_customer_id TEXT DEFAULT '',
   stripe_subscription_id TEXT DEFAULT '',
   ai_uses_today INTEGER DEFAULT 0,
@@ -59,6 +61,8 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS xp_multiplier_until BIGINT DEF
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_quest_reset TEXT DEFAULT '';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_active INTEGER DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_expires BIGINT DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'free';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS ai_daily_limit INTEGER DEFAULT 10;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS ai_uses_today INTEGER DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS ai_uses_date TEXT DEFAULT '';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS titles TEXT DEFAULT '[]';
@@ -73,6 +77,10 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verification_token TEXT 
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verification_expires BIGINT DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS placement_completed INTEGER DEFAULT 1;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
+UPDATE public.users SET plan = 'free' WHERE plan IS NULL OR plan = '';
+UPDATE public.users SET ai_daily_limit = 10 WHERE ai_daily_limit IS NULL OR ai_daily_limit < 1;
+UPDATE public.users SET ai_daily_limit = 300 WHERE plan = 'pro';
+UPDATE public.users SET ai_daily_limit = 1000 WHERE plan = 'max';
 UPDATE public.users SET placement_completed = 1 WHERE placement_completed IS NULL;
 UPDATE public.users
 SET placement_completed = 1

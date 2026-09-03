@@ -46,7 +46,7 @@ function createStripeService(env = process.env, fetchImpl = fetch) {
     return data;
   }
 
-  async function createCheckoutSession(user, plan = 'monthly') {
+  async function createCheckoutSession(user, plan = 'pro') {
     if (!priceId) {
       const error = new Error('STRIPE_PRICE_ID nao configurado.');
       error.status = 501;

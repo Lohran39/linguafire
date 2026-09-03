@@ -53,12 +53,12 @@ test('subscription create returns Stripe checkout URL when configured', async ()
     const response = await fetch(`${baseUrl}/api/subscription/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: 'monthly' })
+      body: JSON.stringify({ plan: 'pro' })
     });
     const body = await response.json();
 
     assert.equal(response.status, 200);
-    assert.equal(body.checkoutSessionId, 'cs_monthly_user-1');
+    assert.equal(body.checkoutSessionId, 'cs_pro_user-1');
     assert.equal(body.checkoutUrl, 'https://checkout.stripe.com/c/pay');
   } finally {
     await stopTestServer(server);
@@ -83,7 +83,7 @@ test('subscription create rejects fake activation in production without Stripe',
     const response = await fetch(`${baseUrl}/api/subscription/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: 'monthly' })
+      body: JSON.stringify({ plan: 'pro' })
     });
     const body = await response.json();
 
@@ -123,7 +123,7 @@ test('Stripe webhook activates subscription only with valid signature', async ()
         client_reference_id: 'user-1',
         customer: 'cus_123',
         subscription: 'sub_123',
-        metadata: { user_id: 'user-1' }
+                metadata: { user_id: 'user-1', plan: 'max' }
       }
     }
   });
@@ -146,6 +146,8 @@ test('Stripe webhook activates subscription only with valid signature', async ()
     assert.equal(updates.length, 1);
     assert.equal(updates[0].id, 'user-1');
     assert.equal(updates[0].update.subscription_active, 1);
+    assert.equal(updates[0].update.plan, 'max');
+    assert.equal(updates[0].update.ai_daily_limit, 1000);
     assert.equal(updates[0].update.stripe_customer_id, 'cus_123');
     assert.equal(updates[0].update.stripe_subscription_id, 'sub_123');
   } finally {

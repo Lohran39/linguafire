@@ -33,6 +33,7 @@ const topicLevels: Record<string, string> = {
 };
 
 const contextLockMessage = 'This practice is locked because you kept leaving the scenario. Start a new situation to continue.';
+const PLAN_AI_LIMITS: Record<string, number> = { free: 10, pro: 300, max: 1000 };
 
 function sortTopicsForLevel(topics: ConversationTopic[], userLevel: string) {
   return [...topics].sort((a, b) => {
@@ -61,10 +62,11 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
   const englishLevel = normalizeEnglishLevel(user.english_level);
   const recommendedTopics = useMemo(() => sortTopicsForLevel(topics, englishLevel), [topics, englishLevel]);
 
+  const userPlan = String(user.plan || (user.subscription_active ? 'pro' : 'free')).toLowerCase();
+  const aiLimit = Math.max(PLAN_AI_LIMITS[userPlan] || PLAN_AI_LIMITS.free, Number(user.ai_daily_limit || 0));
   const aiRemaining = useMemo(() => {
-    if (user.subscription_active) return Infinity;
-    return Math.max(0, 10 - Number(user.ai_uses_today || 0));
-  }, [user.ai_uses_today, user.subscription_active]);
+    return Math.max(0, aiLimit - Number(user.ai_uses_today || 0));
+  }, [aiLimit, user.ai_uses_today]);
 
   useEffect(() => {
     let isMounted = true;
@@ -161,6 +163,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
       try {
         const errors = await analyzeGrammar(activeTopic.id, messages);
         setGrammarErrors(errors);
+        onProfileRefresh({ ...user, ai_uses_today: Number(user.ai_uses_today || 0) + 1 });
       } catch {
         setGrammarErrors([]);
       }
@@ -179,7 +182,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
             Contextos e respostas ajustados para {englishLevel}. A IA conduz a conversa e pode analisar erros gramaticais ao final.
           </p>
           <div className={aiRemaining <= 3 ? 'ai-counter warning' : 'ai-counter'}>
-            {user.subscription_active ? 'Conversas ilimitadas' : `${aiRemaining}/10 usos de IA hoje`}
+            {`${userPlan.toUpperCase()} · ${aiRemaining}/${aiLimit} usos de IA hoje`}
           </div>
         </header>
 

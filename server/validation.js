@@ -225,7 +225,7 @@ const profileUpdateSchema = objectSchema((data, output, issues) => {
 });
 
 const subscriptionCreateSchema = objectSchema((data, output, issues) => {
-  required(data, 'plan', enumValidator(['monthly']), output, issues, 'Plano obrigatorio');
+  required(data, 'plan', enumValidator(['pro', 'max']), output, issues, 'Plano obrigatorio');
 });
 
 const shopBuySchema = objectSchema((data, output, issues) => {

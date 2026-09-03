@@ -47,6 +47,8 @@ function setupAuthRoutes(app, deps = {}) {
       theme: user.theme || 'default',
       subscription_active: !!user.subscription_active,
       subscription_expires: user.subscription_expires || 0,
+      plan: user.plan || (user.subscription_active ? 'pro' : 'free'),
+      ai_daily_limit: user.ai_daily_limit || 10,
       ai_uses_today: user.ai_uses_today || 0,
       lives: user.lives || 5,
       has_free_hint: user.has_free_hint || 0,

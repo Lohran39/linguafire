@@ -73,6 +73,8 @@ async function supabaseCreateUser(userData) {
       last_quest_reset: userData.last_quest_reset ?? '',
       subscription_active: userData.subscription_active ?? 0,
       subscription_expires: userData.subscription_expires ?? 0,
+      plan: userData.plan || 'free',
+      ai_daily_limit: userData.ai_daily_limit ?? 10,
       stripe_customer_id: userData.stripe_customer_id ?? '',
       stripe_subscription_id: userData.stripe_subscription_id ?? '',
       ai_uses_today: userData.ai_uses_today ?? 0,

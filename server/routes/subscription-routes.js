@@ -1,5 +1,10 @@
 const { subscriptionCreateSchema, validateBody } = require('../validation');
 
+const SUBSCRIPTION_PLANS = {
+  pro: { price: 45, aiDailyLimit: 300 },
+  max: { price: 85, aiDailyLimit: 1000 }
+};
+
 function setupSubscriptionRoutes(app, deps = {}) {
   const {
     authenticateToken = (req, res, next) => next(),
@@ -13,11 +18,13 @@ function setupSubscriptionRoutes(app, deps = {}) {
 
   function buildSubscriptionPayload(user) {
     const isActive = user.subscription_active && user.subscription_expires > Date.now();
+    const plan = user.plan && SUBSCRIPTION_PLANS[user.plan] ? user.plan : 'pro';
     return {
       active: !!isActive,
       expires: user.subscription_expires || 0,
-      plan: isActive ? 'monthly' : null,
-      price: 15
+      plan: isActive ? plan : null,
+      price: SUBSCRIPTION_PLANS[plan].price,
+      aiDailyLimit: SUBSCRIPTION_PLANS[plan].aiDailyLimit
     };
   }
 
@@ -40,12 +47,19 @@ function setupSubscriptionRoutes(app, deps = {}) {
         return res.status(501).json({ error: 'Checkout de pagamento ainda nao configurado.' });
       }
 
+      const plan = req.validatedBody.plan;
+      const planConfig = SUBSCRIPTION_PLANS[plan];
       const expires = Date.now() + (30 * 24 * 60 * 60 * 1000);
-      await supabaseUpdateUser(req.user.id, { subscription_active: 1, subscription_expires: expires });
+      await supabaseUpdateUser(req.user.id, {
+        subscription_active: 1,
+        subscription_expires: expires,
+        plan,
+        ai_daily_limit: planConfig.aiDailyLimit
+      });
       return res.json({
         success: true,
         message: 'Assinatura ativada com sucesso!',
-        subscription: { active: true, expires, plan: 'monthly', price: 15 }
+        subscription: { active: true, expires, plan, price: planConfig.price, aiDailyLimit: planConfig.aiDailyLimit }
       });
     } catch (error) {
       logger.error?.('Erro ao criar assinatura', { error });
@@ -63,7 +77,12 @@ function setupSubscriptionRoutes(app, deps = {}) {
         await stripeService.cancelSubscription(user.stripe_subscription_id);
       }
 
-      await supabaseUpdateUser(req.user.id, { subscription_active: 0, subscription_expires: 0 });
+      await supabaseUpdateUser(req.user.id, {
+        subscription_active: 0,
+        subscription_expires: 0,
+        plan: 'free',
+        ai_daily_limit: 10
+      });
       res.json({ success: true, message: 'Assinatura cancelada.' });
     } catch (error) {
       logger.error?.('Erro ao cancelar assinatura', { error });
@@ -94,10 +113,14 @@ function setupSubscriptionRoutes(app, deps = {}) {
       const userId = object?.metadata?.user_id || object?.client_reference_id;
 
       if (event.type === 'checkout.session.completed' && userId) {
+        const plan = object?.metadata?.plan && SUBSCRIPTION_PLANS[object.metadata.plan] ? object.metadata.plan : 'pro';
+        const planConfig = SUBSCRIPTION_PLANS[plan];
         const expires = Date.now() + (30 * 24 * 60 * 60 * 1000);
         await supabaseUpdateUser(userId, {
           subscription_active: 1,
           subscription_expires: expires,
+          plan,
+          ai_daily_limit: planConfig.aiDailyLimit,
           stripe_customer_id: object.customer || '',
           stripe_subscription_id: object.subscription || ''
         });
@@ -110,6 +133,8 @@ function setupSubscriptionRoutes(app, deps = {}) {
           await supabaseUpdateUser(metadataUserId, {
             subscription_active: 0,
             subscription_expires: 0,
+            plan: 'free',
+            ai_daily_limit: 10,
             stripe_subscription_id: subscriptionId
           });
         }

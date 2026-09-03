@@ -17,6 +17,8 @@ export type UserProfile = {
   theme?: string;
   subscription_active?: boolean;
   subscription_expires?: number;
+  plan?: 'free' | 'pro' | 'max' | string;
+  ai_daily_limit?: number;
   ai_uses_today?: number;
   favorites?: FavoriteSong[];
   achievements?: string[];
@@ -167,28 +169,28 @@ export async function deleteAccount(): Promise<void> {
   clearUserId();
 }
 
-export async function getSubscriptionStatus(): Promise<{ active: boolean; expires: number; plan: string | null; price: number }> {
-  return parseJson<{ active: boolean; expires: number; plan: string | null; price: number }>(
+export async function getSubscriptionStatus(): Promise<{ active: boolean; expires: number; plan: string | null; price: number; aiDailyLimit?: number }> {
+  return parseJson<{ active: boolean; expires: number; plan: string | null; price: number; aiDailyLimit?: number }>(
     await fetch(`${API_BASE}/subscription/status`, { credentials: 'include' })
   );
 }
 
-export async function createSubscription(): Promise<{ active: boolean; expires: number; plan: string; price: number }> {
+export async function createSubscription(plan: 'pro' | 'max' = 'pro'): Promise<{ active: boolean; expires: number; plan: string; price: number; aiDailyLimit?: number }> {
   const data = await parseJson<{
     checkoutUrl?: string;
-    subscription?: { active: boolean; expires: number; plan: string; price: number };
+    subscription?: { active: boolean; expires: number; plan: string; price: number; aiDailyLimit?: number };
   }>(
     await fetch(`${API_BASE}/subscription/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ plan: 'monthly' })
+      body: JSON.stringify({ plan })
     })
   );
 
   if (data.checkoutUrl) {
     window.location.href = data.checkoutUrl;
-    return { active: false, expires: 0, plan: 'monthly', price: 15 };
+    return { active: false, expires: 0, plan, price: plan === 'max' ? 85 : 45 };
   }
 
   if (!data.subscription) {

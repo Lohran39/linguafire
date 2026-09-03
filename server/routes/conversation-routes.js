@@ -195,6 +195,7 @@ function setupConversationRoutes(app, deps = {}) {
 function setupGrammarRoutes(app, deps = {}) {
   const {
     authenticateToken = (req, res, next) => next(),
+    checkAILimit = (req, res, next) => next(),
     supabaseAddGrammarError = async () => ({ error: 'not configured' }),
     callMiniMaxChat = async () => ({ content: '[]' }),
     OPENAI_MODEL_ALIAS = 'gemini-3.6-flash',
@@ -202,7 +203,7 @@ function setupGrammarRoutes(app, deps = {}) {
   } = deps;
 
   // Analyze conversation
-  app.post('/api/grammar/analyze', authenticateToken, validateBody(grammarAnalyzeSchema), async (req, res) => {
+  app.post('/api/grammar/analyze', authenticateToken, checkAILimit, validateBody(grammarAnalyzeSchema), async (req, res) => {
     const { conversationHistory, topicId } = req.validatedBody;
 
     const conversationText = conversationHistory

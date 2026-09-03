@@ -73,8 +73,23 @@ function authenticateToken(req, res, next) {
   next();
 }
 
-// AI usage limit middleware - Free tier: 10 uses/day, Paid: unlimited
-const FREE_DAILY_LIMIT = 10;
+// AI usage limit middleware
+const PLAN_AI_LIMITS = {
+  free: 10,
+  pro: 300,
+  max: 1000
+};
+
+function normalizePlan(plan) {
+  const normalized = String(plan || '').trim().toLowerCase();
+  return Object.prototype.hasOwnProperty.call(PLAN_AI_LIMITS, normalized) ? normalized : 'free';
+}
+
+function getUserAILimit(user) {
+  const plan = normalizePlan(user.plan || (user.subscription_active ? 'pro' : 'free'));
+  const configuredLimit = Number(user.ai_daily_limit || 0);
+  return Math.max(PLAN_AI_LIMITS[plan], configuredLimit);
+}
 
 async function checkAILimit(req, res, next) {
   const today = new Date().toDateString();
@@ -83,30 +98,26 @@ async function checkAILimit(req, res, next) {
     const user = await res.locals?.supabaseGetUserById(req.user.id);
     if (!user) return res.status(500).json({ error: 'Erro interno' });
 
-    if (user.ai_uses_date !== today) {
-      await res.locals?.supabaseUpdateUser(req.user.id, { ai_uses_today: 0, ai_uses_date: today });
-      return next();
-    }
+    const limit = getUserAILimit(user);
+    const usesToday = user.ai_uses_date === today ? Number(user.ai_uses_today || 0) : 0;
 
-    if (user.subscription_active && user.subscription_expires > Date.now()) {
-      return next();
-    }
-
-    if (user.ai_uses_today >= FREE_DAILY_LIMIT) {
+    if (usesToday >= limit) {
       return res.status(403).json({
         error: 'limit_reached',
         message: 'Limite diário de IA atingido',
-        uses: user.ai_uses_today,
-        limit: FREE_DAILY_LIMIT,
+        uses: usesToday,
+        limit,
+        plan: normalizePlan(user.plan || (user.subscription_active ? 'pro' : 'free')),
         upgradeUrl: '/subscription'
       });
     }
 
-    await res.locals?.supabaseUpdateUser(req.user.id, { ai_uses_today: (user.ai_uses_today || 0) + 1 });
+    req.aiUsage = { uses: usesToday + 1, limit };
+    await res.locals?.supabaseUpdateUser(req.user.id, { ai_uses_today: usesToday + 1, ai_uses_date: today });
     next();
   } catch (error) {
     return res.status(500).json({ error: 'Erro interno' });
   }
 }
 
-module.exports = { setupAuthMiddleware, authenticateToken, checkAILimit, FREE_DAILY_LIMIT };
+module.exports = { setupAuthMiddleware, authenticateToken, checkAILimit, PLAN_AI_LIMITS };
