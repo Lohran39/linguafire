@@ -12,12 +12,16 @@ function encodeForm(payload = {}) {
 
 function createStripeService(env = process.env, fetchImpl = fetch) {
   const secretKey = String(env.STRIPE_SECRET_KEY || '').trim();
-  const priceId = String(env.STRIPE_PRICE_ID || '').trim();
+  const legacyPriceId = String(env.STRIPE_PRICE_ID || '').trim();
+  const priceIds = {
+    pro: String(env.STRIPE_PRO_PRICE_ID || legacyPriceId).trim(),
+    max: String(env.STRIPE_MAX_PRICE_ID || '').trim()
+  };
   const webhookSecret = String(env.STRIPE_WEBHOOK_SECRET || '').trim();
   const baseUrl = String(env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 
   function isConfigured() {
-    return Boolean(secretKey && priceId);
+    return Boolean(secretKey && priceIds.pro && priceIds.max);
   }
 
   async function stripeRequest(path, body = {}) {
@@ -47,8 +51,11 @@ function createStripeService(env = process.env, fetchImpl = fetch) {
   }
 
   async function createCheckoutSession(user, plan = 'pro') {
+    const normalizedPlan = priceIds[plan] ? plan : 'pro';
+    const priceId = priceIds[normalizedPlan];
+
     if (!priceId) {
-      const error = new Error('STRIPE_PRICE_ID nao configurado.');
+      const error = new Error(`STRIPE_${String(normalizedPlan).toUpperCase()}_PRICE_ID nao configurado.`);
       error.status = 501;
       throw error;
     }
@@ -62,9 +69,9 @@ function createStripeService(env = process.env, fetchImpl = fetch) {
       'line_items[0][price]': priceId,
       'line_items[0][quantity]': 1,
       'metadata[user_id]': user.id,
-      'metadata[plan]': plan,
+      'metadata[plan]': normalizedPlan,
       'subscription_data[metadata][user_id]': user.id,
-      'subscription_data[metadata][plan]': plan
+      'subscription_data[metadata][plan]': normalizedPlan
     });
 
     return {

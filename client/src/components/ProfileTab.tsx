@@ -43,7 +43,8 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
     expires: Number(user.subscription_expires || 0),
     plan: user.subscription_active ? user.plan || 'pro' : null as string | null,
     price: planPrice(user.plan),
-    aiDailyLimit: Math.max(planDefaultLimit(user.plan), Number(user.ai_daily_limit || 0))
+    aiDailyLimit: Math.max(planDefaultLimit(user.plan), Number(user.ai_daily_limit || 0)),
+    checkoutConfigured: false
   });
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -56,12 +57,14 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
     plan: string | null;
     price: number;
     aiDailyLimit?: number;
+    checkoutConfigured?: boolean;
   }) {
     const plan = nextSubscription.plan || 'pro';
     return {
       ...nextSubscription,
       price: nextSubscription.price || planPrice(plan),
-      aiDailyLimit: Math.max(planDefaultLimit(plan), Number(nextSubscription.aiDailyLimit || 0))
+      aiDailyLimit: Math.max(planDefaultLimit(plan), Number(nextSubscription.aiDailyLimit || 0)),
+      checkoutConfigured: Boolean(nextSubscription.checkoutConfigured)
     };
   }
 
@@ -97,7 +100,8 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
             expires: Number(user.subscription_expires || 0),
             plan: user.subscription_active ? user.plan || 'pro' : null,
             price: planPrice(user.plan),
-            aiDailyLimit: Math.max(planDefaultLimit(user.plan), Number(user.ai_daily_limit || 0))
+            aiDailyLimit: Math.max(planDefaultLimit(user.plan), Number(user.ai_daily_limit || 0)),
+            checkoutConfigured: false
           });
         }
       }
@@ -210,7 +214,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
     try {
       if (subscription.active) {
         await cancelSubscription();
-        setSubscription({ active: false, expires: 0, plan: null, price: 45, aiDailyLimit: 300 });
+        setSubscription({ active: false, expires: 0, plan: null, price: 45, aiDailyLimit: 300, checkoutConfigured: subscription.checkoutConfigured });
         onProfileRefresh({ ...user, subscription_active: false, subscription_expires: 0, plan: 'free', ai_daily_limit: 10 });
         setNotice('Assinatura cancelada.');
       } else {
@@ -355,15 +359,20 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
             </button>
           ) : (
             <>
-              <button className="primary-button" disabled={subscriptionBusy} type="button" onClick={() => toggleSubscription('pro')}>
+              <button className="primary-button" disabled={subscriptionBusy || !subscription.checkoutConfigured} type="button" onClick={() => toggleSubscription('pro')}>
                 {subscriptionBusy ? 'Atualizando...' : 'Ativar Pro'}
               </button>
-              <button className="secondary-button" disabled={subscriptionBusy} type="button" onClick={() => toggleSubscription('max')}>
+              <button className="secondary-button" disabled={subscriptionBusy || !subscription.checkoutConfigured} type="button" onClick={() => toggleSubscription('max')}>
                 Ativar Max
               </button>
             </>
           )}
         </div>
+        {!subscription.active && !subscription.checkoutConfigured && (
+          <div className="form-success">
+            Checkout em configuração. Adicione as variáveis do Stripe no Render antes de vender planos.
+          </div>
+        )}
       </section>
 
       <form className="profile-settings" onSubmit={handlePasswordSubmit}>

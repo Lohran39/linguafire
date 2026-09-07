@@ -140,7 +140,7 @@ Opcionais conforme features:
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - `SMTP_*`
 - `GEMINI_API_KEY`, `GEMINI_MODEL`
-- `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_SECRET_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_MAX_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`
 - `NATIVES_ADMIN_TOKEN`
 - `LYRICS_ADMIN_TOKEN`
 - `AGENT_ADMIN_TOKEN`
@@ -148,7 +148,7 @@ Opcionais conforme features:
 
 ## Assinaturas
 
-Em producao, `/api/subscription/create` cria uma Stripe Checkout Session quando `STRIPE_SECRET_KEY` e `STRIPE_PRICE_ID` estao definidos. Configure o webhook da Stripe para `https://seudominio.com/api/subscription/webhook` e preencha `STRIPE_WEBHOOK_SECRET`.
+Em producao, `/api/subscription/create` cria uma Stripe Checkout Session quando `STRIPE_SECRET_KEY`, `STRIPE_PRO_PRICE_ID` e `STRIPE_MAX_PRICE_ID` estao definidos. Configure o webhook da Stripe para `https://seudominio.com/api/subscription/webhook` e preencha `STRIPE_WEBHOOK_SECRET`.
 
 `ALLOW_FAKE_SUBSCRIPTIONS=true` existe apenas para demo/desenvolvimento. Nao use em producao com usuarios reais.
 

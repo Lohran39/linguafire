@@ -19,12 +19,15 @@ function setupSubscriptionRoutes(app, deps = {}) {
   function buildSubscriptionPayload(user) {
     const isActive = user.subscription_active && user.subscription_expires > Date.now();
     const plan = user.plan && SUBSCRIPTION_PLANS[user.plan] ? user.plan : 'pro';
+    const checkoutConfigured = Boolean(stripeService?.isConfigured?.() || (!isProduction || allowFakeSubscriptions));
     return {
       active: !!isActive,
       expires: user.subscription_expires || 0,
       plan: isActive ? plan : null,
       price: SUBSCRIPTION_PLANS[plan].price,
-      aiDailyLimit: SUBSCRIPTION_PLANS[plan].aiDailyLimit
+      aiDailyLimit: SUBSCRIPTION_PLANS[plan].aiDailyLimit,
+      checkoutConfigured,
+      plans: SUBSCRIPTION_PLANS
     };
   }
 
