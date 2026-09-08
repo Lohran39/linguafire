@@ -2213,6 +2213,12 @@ body[data-theme='light'] .placement-layout.result {
   transition: transform 0.25s ease, opacity 0.25s ease;
 }
 
+.music-embed {
+  width: 100%;
+  min-width: 0;
+  min-height: 200px;
+}
+
 .video-frame iframe {
   position: absolute;
   inset: 0;
@@ -3360,6 +3366,8 @@ body[data-theme='light'] .placement-layout.result {
 .native-library,
 .native-practice-panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 1rem;
 }
 
@@ -3516,9 +3524,30 @@ body[data-theme='light'] .placement-layout.result {
 .native-coach {
   display: grid;
   gap: 0.75rem;
+  min-width: 0;
+}
+
+.native-coach-history {
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.native-coach-turn {
+  padding-block: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.native-coach-turn p,
+.native-score-card p {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .native-coach textarea {
+  width: 100%;
+  min-width: 0;
   min-height: 120px;
   resize: vertical;
   padding: 1rem;
@@ -4411,6 +4440,10 @@ body[data-theme='light'] .placement-layout.result {
 }
 
 @media (max-width: 900px) {
+  .native-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .topbar {
     align-items: stretch;
     flex-direction: column;

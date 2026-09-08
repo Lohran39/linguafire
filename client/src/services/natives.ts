@@ -18,12 +18,15 @@ export type NativesSearchResult = {
   curated?: boolean;
 };
 
+export type NativeCoachTurn = { answer: string; reply: string };
+
 export type NativeCoachPayload = {
   situationId: string;
   englishLevel: string;
   prompt: string;
   answer: string;
   target?: string;
+  history?: NativeCoachTurn[];
 };
 
 export type NativeCoachResult = {
@@ -83,20 +86,36 @@ export async function searchNatives(query: string, lang: NativesLanguage): Promi
   return data;
 }
 
-export async function coachNativeReply(payload: NativeCoachPayload): Promise<NativeCoachResult> {
-  const response = await fetch('/api/natives/coach', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(payload)
-  });
-  const data = (await response.json().catch(() => ({}))) as NativeCoachResult & { error?: string; message?: string };
+export async function coachNativeReply(payload: NativeCoachPayload, signal?: AbortSignal): Promise<NativeCoachResult> {
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  signal?.addEventListener('abort', cancel, { once: true });
+  if (signal?.aborted) cancel();
+  const timeout = window.setTimeout(cancel, 32000);
+  try {
+    const response = await fetch('/api/natives/coach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    const data = (await response.json().catch(() => ({}))) as NativeCoachResult & { error?: string; message?: string; details?: Array<{ message: string }> };
 
-  if (!response.ok) {
-    throw new Error(data.message || data.error || 'Erro ao corrigir resposta');
+    if (!response.ok) {
+      throw new Error(data.message || data.details?.[0]?.message || data.error || 'Erro ao corrigir resposta');
+    }
+
+    return data;
+  } catch (error) {
+    if (controller.signal.aborted && !signal?.aborted) {
+      throw new Error('A resposta demorou demais. Sua mensagem foi mantida; tente novamente.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+    signal?.removeEventListener('abort', cancel);
   }
-
-  return data;
 }
 
 export async function reportBadNativeVideo(payload: {

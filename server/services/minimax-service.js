@@ -1,3 +1,5 @@
+const { setTimeout: delay } = require('node:timers/promises');
+
 function normalizeMessageContent(content = '') {
   if (Array.isArray(content)) {
     return content
@@ -38,6 +40,7 @@ function asGeminiContents(openaiMessages = []) {
 function pickTextFromGemini(responseJson = {}) {
   const parts = responseJson?.candidates?.[0]?.content?.parts || [];
   return parts
+    .filter((part) => !part?.thought)
     .map((part) => part?.text || '')
     .filter(Boolean)
     .join('\n')
@@ -87,33 +90,43 @@ function createGeminiService(config = {}) {
   const configuredAlias = openaiModelAlias || configuredModel;
   const baseUrl = String(geminiBaseUrl || minimaxBaseUrl || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
 
-  async function postToGemini(payload, apiKey) {
-    const modelPath = normalizeGeminiModel(payload.model || configuredModel);
-    const url = `${baseUrl}/v1beta/${modelPath}:generateContent`;
+  async function postToGemini(payload, apiKey, signal, attemptTimeoutMs = proxyTimeoutMs, fallbackModel, lowLatency) {
     let lastError = null;
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
+        signal?.throwIfAborted();
+        const model = attempt > 0 && fallbackModel ? fallbackModel : payload.model || configuredModel;
+        const url = `${baseUrl}/v1beta/${normalizeGeminiModel(model)}:generateContent`;
+        const generationConfig = { ...payload.body.generationConfig };
+        if (lowLatency && /gemini-3[.-].*flash/i.test(model)) {
+          generationConfig.thinkingConfig = { thinkingLevel: 'low' };
+        } else if (lowLatency && /gemini-2\.5-flash/i.test(model)) {
+          generationConfig.thinkingConfig = { thinkingBudget: 0 };
+        }
+        const attemptSignal = AbortSignal.timeout(attemptTimeoutMs);
         const response = await fetchImpl(url, {
           method: 'POST',
           headers: {
             'x-goog-api-key': apiKey,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(payload.body),
-          signal: AbortSignal.timeout(proxyTimeoutMs)
+          body: JSON.stringify({ ...payload.body, generationConfig }),
+          signal: signal ? AbortSignal.any([signal, attemptSignal]) : attemptSignal
         });
+        const rawBody = await response.text();
 
         if (response.status >= 500 && attempt === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          await delay(500, undefined, { signal });
           continue;
         }
 
-        return response;
+        return { response, rawBody, providerModel: model };
       } catch (error) {
+        if (signal?.aborted) throw signal.reason;
         lastError = error;
         if (attempt === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          await delay(500, undefined, { signal });
           continue;
         }
       }
@@ -122,7 +135,8 @@ function createGeminiService(config = {}) {
     throw lastError || new Error('Gemini request failed');
   }
 
-  async function callGeminiChat({ messages, temperature = 0.3, maxTokens, topP, requestedModel = configuredAlias, apiKey }) {
+  async function callGeminiChat({ messages, temperature = 0.3, maxTokens, topP, requestedModel = configuredAlias, apiKey,
+    timeoutMs, attemptTimeoutMs, signal, responseSchema, lowLatency = false, fallbackModel }) {
     if (!apiKey) {
       const err = new Error('GEMINI_API_KEY nao configurada.');
       err.status = 401;
@@ -138,18 +152,26 @@ function createGeminiService(config = {}) {
     if (systemInstruction) body.systemInstruction = systemInstruction;
     if (maxTokens != null) body.generationConfig.maxOutputTokens = maxTokens;
     if (topP != null) body.generationConfig.topP = topP;
+    if (responseSchema) {
+      body.generationConfig.responseMimeType = 'application/json';
+      body.generationConfig.responseJsonSchema = responseSchema;
+    }
+
+    const deadline = timeoutMs == null ? null : AbortSignal.timeout(timeoutMs);
+    const requestSignal = deadline && signal ? AbortSignal.any([deadline, signal]) : deadline || signal;
 
     let upstreamResponse;
+    let rawBody;
+    let providerModel;
     try {
-      upstreamResponse = await postToGemini({ model: configuredModel, body }, apiKey);
+      ({ response: upstreamResponse, rawBody, providerModel } = await postToGemini({ model: configuredModel, body }, apiKey, requestSignal, attemptTimeoutMs, fallbackModel, lowLatency));
     } catch (error) {
       const err = new Error('Gemini request failed');
-      err.status = 502;
+      err.status = deadline?.aborted || error.name === 'TimeoutError' || error.cause?.name === 'TimeoutError' ? 504 : 502;
       err.detail = { proxy_error: 'Gemini request failed', error: error.message };
       throw err;
     }
 
-    const rawBody = await upstreamResponse.text();
     if (upstreamResponse.status >= 400) {
       const err = new Error('Gemini request failed');
       err.status = upstreamResponse.status;
@@ -189,6 +211,7 @@ function createGeminiService(config = {}) {
     const usage = responseJson?.usageMetadata || {};
     return {
       model: requestedModel,
+      providerModel,
       content,
       usage: {
         promptTokens: Number(usage.promptTokenCount || 0),

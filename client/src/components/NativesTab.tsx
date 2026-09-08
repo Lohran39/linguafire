@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { APP_LEVELS, normalizeEnglishLevel, type EnglishLevel } from '../data/levels';
 import { updateProfile, type UserProfile } from '../services/auth';
 import {
@@ -13,6 +13,7 @@ import {
   saveNativeVideo,
   searchNatives,
   type NativeCoachResult,
+  type NativeCoachTurn,
   type NativeSavedVideo,
   type NativesLanguage,
   type NativesSearchResult
@@ -845,6 +846,9 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
   const [coachResult, setCoachResult] = useState<NativeCoachResult | null>(null);
   const [coachError, setCoachError] = useState('');
   const [isCoaching, setIsCoaching] = useState(false);
+  const [coachHistory, setCoachHistory] = useState<NativeCoachTurn[]>([]);
+  const coachRequestRef = useRef<AbortController | null>(null);
+  const coachHistoryRef = useRef<HTMLDivElement>(null);
   const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [progressMessage, setProgressMessage] = useState('');
   const [shadowMessage, setShadowMessage] = useState('');
@@ -944,6 +948,30 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
       setCoachError('');
     }
   }, [recommendedPhrases]);
+
+  function resetCoach() {
+    coachRequestRef.current?.abort();
+    coachRequestRef.current = null;
+    setIsCoaching(false);
+    setCoachHistory([]);
+    setCoachResult(null);
+    setCoachError('');
+    setAnswer('');
+    setProgressMessage('');
+  }
+
+  useEffect(() => {
+    resetCoach();
+    return () => {
+      coachRequestRef.current?.abort();
+      coachRequestRef.current = null;
+    };
+  }, [user.id, selectedSituation, selectedPhraseId, englishLevel]);
+
+  useEffect(() => {
+    const container = coachHistoryRef.current;
+    if (container) container.scrollTop = container.scrollHeight;
+  }, [coachHistory]);
 
   function saveFavorites(nextFavorites: string[]) {
     setFavorites(nextFavorites);
@@ -1103,7 +1131,9 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
   async function handleCoachSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = answer.trim();
-    if (!trimmed || isCoaching) return;
+    if (!trimmed || isCoaching || coachRequestRef.current) return;
+    const controller = new AbortController();
+    coachRequestRef.current = controller;
 
     setIsCoaching(true);
     setCoachError('');
@@ -1115,13 +1145,21 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
         englishLevel,
         prompt: selectedPhrase.prompt,
         target: selectedPhrase.natural,
-        answer: trimmed
-      });
+        answer: trimmed,
+        history: coachHistory
+      }, controller.signal);
+      if (coachRequestRef.current !== controller) return;
       setCoachResult(data);
+      setCoachHistory((previous) => [...previous, { answer: trimmed, reply: data.nextReply }].slice(-10));
+      setAnswer('');
     } catch (coachRequestError) {
+      if (coachRequestRef.current !== controller || controller.signal.aborted) return;
       setCoachError(coachRequestError instanceof Error ? coachRequestError.message : 'Erro ao treinar resposta.');
     } finally {
-      setIsCoaching(false);
+      if (coachRequestRef.current === controller) {
+        coachRequestRef.current = null;
+        setIsCoaching(false);
+      }
     }
   }
 
@@ -1371,16 +1409,33 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
           <form className="native-coach" onSubmit={handleCoachSubmit}>
             <label htmlFor="native-answer">Treino com IA</label>
             <p>{selectedPhrase.prompt}</p>
+            {coachHistory.length > 0 && (
+              <div className="native-coach-history" ref={coachHistoryRef} role="log" aria-label="Conversa do treino">
+                {coachHistory.map((turn, index) => (
+                  <div className="native-coach-turn" key={index}>
+                    <p><strong>Você:</strong> {turn.answer}</p>
+                    <p><strong>Nativo:</strong> {turn.reply}</p>
+                  </div>
+                ))}
+              </div>
+            )}
             <textarea
               id="native-answer"
+              maxLength={1000}
+              disabled={isCoaching}
+              aria-describedby="native-answer-count"
               placeholder="Escreva sua resposta em inglês..."
               value={answer}
               onChange={(event) => setAnswer(event.target.value)}
             />
-            {coachError && <div className="form-error">{coachError}</div>}
+            <small id="native-answer-count">{answer.length}/1000 caracteres</small>
+            {coachError && <div className="form-error" role="alert">{coachError}</div>}
             <button className="primary-button" disabled={isCoaching || !answer.trim()} type="submit">
-              {isCoaching ? 'Corrigindo...' : 'Avaliar naturalidade'}
+              {isCoaching ? 'Respondendo...' : coachError ? 'Tentar novamente' : coachHistory.length ? 'Enviar resposta' : 'Avaliar naturalidade'}
             </button>
+            {(coachHistory.length > 0 || isCoaching) && (
+              <button type="button" className="secondary-button" onClick={resetCoach}>Recomeçar treino</button>
+            )}
           </form>
 
           {coachResult && (
@@ -1395,7 +1450,6 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
               <p><strong>Correção:</strong> {coachResult.correction}</p>
               <p><strong>Mais natural:</strong> {coachResult.natural}</p>
               <p><strong>Feedback:</strong> {coachResult.feedback}</p>
-              <p><strong>Próxima resposta:</strong> {coachResult.nextReply}</p>
               <button className="primary-button" disabled={isSavingProgress} type="button" onClick={saveNativeProgress}>
                 {isSavingProgress ? 'Salvando...' : savedCurrentPhrase ? 'Salvar treino repetido' : 'Salvar progresso'}
               </button>

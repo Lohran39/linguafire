@@ -259,9 +259,20 @@ const grammarAnalyzeSchema = objectSchema((data, output, issues) => {
 const nativeCoachSchema = objectSchema((data, output, issues) => {
   required(data, 'situationId', stringValidator({ min: 1, max: 80, trim: true, message: 'Situacao obrigatoria' }), output, issues, 'Situacao obrigatoria');
   required(data, 'prompt', stringValidator({ min: 1, max: 800, trim: true, message: 'Cenario obrigatorio' }), output, issues, 'Cenario obrigatorio');
-  required(data, 'answer', stringValidator({ min: 1, max: 1000, trim: true, message: 'Resposta obrigatoria' }), output, issues, 'Resposta obrigatoria');
+  required(data, 'answer', stringValidator({ min: 1, max: 1000, trim: true, message: 'Escreva uma resposta com ate 1000 caracteres.' }), output, issues, 'Resposta obrigatoria');
   optional(data, 'target', stringValidator({ max: 800, trim: true }), output, issues);
   optional(data, 'englishLevel', englishLevelValidator, output, issues);
+  optional(data, 'history', arrayValidator((turn, path, parsed, list) => {
+    if (!isPlainObject(turn)) {
+      list.push(issue(path, 'Mensagem invalida'));
+      return;
+    }
+    const value = {};
+    for (const field of ['answer', 'reply']) {
+      stringValidator({ min: 1, max: 1000, trim: true })(turn[field], [...path, field], value, list);
+    }
+    parsed.value = value;
+  }, { max: 10, message: 'Envie no maximo 10 interacoes anteriores.' }), output, issues);
 });
 
 const nativeReportSchema = objectSchema((data, output, issues) => {

@@ -50,6 +50,7 @@ function fixtureUser() {
     correct_answers: 12,
     lessons_completed: 4,
     english_level: 'A1',
+    placement_completed: 1,
     achievements: [],
     favorites: [],
     google_linked: false,
@@ -166,11 +167,15 @@ async function mockAuthenticatedApis(page) {
     })
   }));
 
-  await page.route('**/api/translate**', (route) => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify({ responseData: { translatedText: 'tradução de teste' } })
-  }));
+  await page.route('**/api/translate**', (route) => {
+    const { q = '' } = readRequestJson(route.request());
+    return route.fulfill({ json: {
+      responseStatus: 200,
+      responseData: { translatedText: q.split('\nLF_LINE_BREAK\n').map((_, index) => `tradução de teste ${index + 1}`).join('\nLF_LINE_BREAK\n') }
+    } });
+  });
+
+  await page.route('**/api/natives/saved**', (route) => route.fulfill({ json: { videos: [] } }));
 
   await page.route('**/api/natives/search**', (route) => route.fulfill({
     status: 200,
@@ -192,7 +197,8 @@ async function mockAuthenticatedApis(page) {
       expires: Number(user.subscription_expires || 0),
       plan: user.subscription_active ? 'pro' : null,
       price: 45,
-      aiDailyLimit: 300
+      aiDailyLimit: 300,
+      checkoutConfigured: true
     })
   }));
 
@@ -323,6 +329,87 @@ async function mockAuthenticatedApis(page) {
   }));
 }
 
+test('Playwright E2E: native coach keeps ten turns, recovers errors and cancels stale replies', {
+  skip: !chromium || process.env.RUN_PLAYWRIGHT_E2E !== '1'
+}, async () => {
+  const { server, baseUrl } = await startTestServer();
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+      const page = await browser.newPage({ viewport });
+      try {
+        await mockAuthenticatedApis(page);
+        let mode = 'ok';
+        let pendingRoute;
+        const requests = [];
+        await page.route('**/api/natives/coach', async (route) => {
+          const payload = route.request().postDataJSON();
+          requests.push(payload);
+          if (mode === 'pending') { pendingRoute = route; return; }
+          if (mode === 'error') {
+            return route.fulfill({ status: 503, json: { message: 'A IA esta temporariamente indisponivel.' } });
+          }
+          return route.fulfill({ json: { score: 90, natural: payload.answer,
+            correction: 'Frase correta.', feedback: 'Pedido educado.', nextReply: `Restaurant reply ${requests.length}` } });
+        });
+        await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+        await page.getByRole('button', { name: 'Nativos', exact: true }).click();
+        const answer = page.getByLabel('Treino com IA', { exact: true });
+        for (let index = 0; index < 10; index += 1) {
+          await answer.fill(`I would like some water, please. Turn ${index + 1}.`);
+          await page.getByRole('button', { name: index === 0 ? 'Avaliar naturalidade' : 'Enviar resposta', exact: true }).click();
+          await page.getByRole('log', { name: 'Conversa do treino' }).getByText(`Restaurant reply ${index + 1}`, { exact: false }).waitFor();
+          assert.equal(requests[index].history.length, index);
+          if (index) assert.equal(requests[index].history[0].answer, requests[0].answer);
+        }
+        assert.equal(await page.locator('.native-coach-turn').count(), 10);
+        await page.locator('.native-coach').screenshot({ path: `/tmp/linguafire-native-coach-${viewport.width}.png` });
+        await assertNoHorizontalOverflow(page, `native coach ${viewport.width}`);
+
+        mode = 'error';
+        await answer.fill('Could I have the bill?');
+        await page.getByRole('button', { name: 'Enviar resposta', exact: true }).click();
+        await page.getByRole('alert').waitFor();
+        assert.equal(await answer.inputValue(), 'Could I have the bill?');
+        assert.equal(await page.locator('.native-coach-turn').count(), 10);
+        mode = 'ok';
+        await page.getByRole('button', { name: 'Tentar novamente', exact: true }).click();
+        await page.getByText('Restaurant reply 12', { exact: false }).waitFor();
+        assert.equal(requests[11].history.length, 10);
+        assert.equal(await page.locator('.native-coach-turn').count(), 10);
+
+        mode = 'pending';
+        await answer.fill('Can I pay by card?');
+        const pending = page.waitForRequest('**/api/natives/coach');
+        await page.getByRole('button', { name: 'Enviar resposta', exact: true }).click();
+        await pending;
+        await page.getByRole('button', { name: 'Recomeçar treino', exact: true }).click();
+        if (pendingRoute) await pendingRoute.fulfill({ json: { score: 10, nextReply: 'Stale response' } }).catch(() => {});
+        assert.equal(await answer.inputValue(), '');
+        assert.equal(await page.locator('.native-coach-turn').count(), 0);
+        assert.equal(await page.getByText('Stale response').count(), 0);
+        assert.equal(await answer.isEnabled(), true);
+
+        await answer.fill('Could we see the menu?');
+        const changingSituation = page.waitForRequest('**/api/natives/coach');
+        await page.getByRole('button', { name: 'Avaliar naturalidade', exact: true }).click();
+        await changingSituation;
+        await page.locator('.native-situation-grid button').filter({ hasText: 'Aeroporto' }).click();
+        await page.getByRole('button', { name: 'Avaliar naturalidade', exact: true }).waitFor();
+        if (pendingRoute) await pendingRoute.fulfill({ json: { score: 10, nextReply: 'Old restaurant reply' } }).catch(() => {});
+        assert.equal(await answer.inputValue(), '');
+        assert.equal(await answer.isEnabled(), true);
+        assert.equal(await page.getByText('Old restaurant reply').count(), 0);
+      } finally {
+        await page.close();
+      }
+    }
+  } finally {
+    await browser.close();
+    await stopTestServer(server);
+  }
+});
+
 test('Playwright E2E: React app primary flows work', {
   skip: !chromium || process.env.RUN_PLAYWRIGHT_E2E !== '1'
     ? 'Rode com npm --prefix server run test:e2e para ativar o navegador real'
@@ -349,42 +436,49 @@ test('Playwright E2E: React app primary flows work', {
     });
 
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('heading', { name: /Ola, E2E User/ }).waitFor({ timeout: 5000 });
+    await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor({ timeout: 5000 });
     await page.getByRole('button', { name: 'Semanais' }).click();
     await page.getByText('Acumule 500 XP').waitFor({ timeout: 3000 });
 
-    await page.getByRole('button', { name: 'Musica' }).click();
-    await page.getByRole('heading', { name: 'Blinding Lights' }).waitFor({ timeout: 3000 });
+    await page.getByRole('button', { name: 'Música', exact: true }).click();
+    await page.getByRole('heading', { name: 'Shape of You' }).waitFor({ timeout: 3000 });
     await page.getByPlaceholder('Ex: stay, adele ou link do YouTube').fill('hello');
     await page.getByRole('button', { name: 'Buscar' }).click();
     await page.getByRole('heading', { name: 'Hello' }).waitFor({ timeout: 3000 });
-    await page.getByText('Letra carregada com 4 linhas.').waitFor({ timeout: 5000 });
+    await page.getByText('Letra carregada com 4 linhas.', { exact: false }).waitFor({ timeout: 5000 });
+    assert.equal(await page.locator('.lyric-card').count(), 4);
+    await page.locator('.lyric-card').first().getByText('tradução de teste 1', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Quiz' }).click();
     await page.locator('.quiz-modal').waitFor({ timeout: 3000 });
     await page.locator('.quiz-choices button').first().click();
-    await page.getByRole('button', { name: 'Proxima' }).click();
+    await page.getByRole('button', { name: 'Próxima' }).click();
     await page.getByRole('button', { name: 'Sair do quiz' }).click();
 
-    await page.getByRole('button', { name: 'Licoes' }).click();
-    await page.getByRole('heading', { name: 'Licoes rapidas para ganhar XP' }).waitFor({ timeout: 3000 });
-    await page.getByRole('button', { name: 'I need water', exact: true }).click();
-    await page.getByRole('button', { name: 'Proxima' }).click();
-    await page.getByRole('button', { name: 'is', exact: true }).click();
-    await page.getByRole('button', { name: 'Proxima' }).click();
-    await page.getByRole('button', { name: 'Quanto custa?', exact: true }).click();
-    await page.getByRole('button', { name: 'Proxima' }).click();
-    await page.getByRole('button', { name: 'Do you like coffee?', exact: true }).click();
-    await page.getByRole('button', { name: 'Ver resultado' }).click();
+    await page.getByRole('button', { name: 'Lições', exact: true }).click();
+    await page.getByRole('heading', { name: 'Lições rápidas para ganhar XP' }).waitFor({ timeout: 3000 });
+    // Questions vary daily; exercise both answer formats without assuming their order.
+    for (let index = 0; index < 5; index += 1) {
+      const typedAnswer = page.getByLabel('Digite a resposta', { exact: true });
+      if (await typedAnswer.isVisible()) {
+        await typedAnswer.fill('test answer');
+        await page.getByRole('button', { name: 'Conferir', exact: true }).click();
+      } else {
+        await page.locator('.lesson-choices button').first().click();
+      }
+      await page.locator('.lesson-feedback').waitFor();
+      await page.getByRole('button', { name: index === 4 ? 'Ver resultado' : 'Próxima', exact: true }).click();
+    }
+    await page.locator('.lesson-result').waitFor();
     await page.getByRole('button', { name: 'Salvar progresso' }).click();
     await page.getByText('Progresso salvo.').waitFor({ timeout: 5000 });
 
     await page.getByRole('button', { name: 'Flash' }).click();
-    await page.getByRole('button', { name: 'Comecar revisao' }).click();
+    await page.getByRole('button', { name: 'Começar revisão' }).click();
     await page.getByRole('heading', { name: 'serendipity' }).waitFor({ timeout: 3000 });
     await page.getByRole('button', { name: 'Revelar resposta' }).click();
     await page.getByText('feliz acaso').waitFor({ timeout: 3000 });
     await page.getByRole('button', { name: /Bom/ }).click();
-    await page.getByText('Sessao concluida').waitFor({ timeout: 5000 });
+    await page.getByText('Sessão concluída', { exact: true }).waitFor({ timeout: 5000 });
 
     await page.getByRole('button', { name: 'Loja' }).click();
     await page.getByRole('heading', { name: 'Use XP para acelerar o estudo' }).waitFor({ timeout: 3000 });
@@ -392,7 +486,7 @@ test('Playwright E2E: React app primary flows work', {
     await page.getByText('Dica comprada!').waitFor({ timeout: 5000 });
 
     await page.getByRole('button', { name: 'Conversar' }).click();
-    await page.getByRole('heading', { name: 'Pratique ingles em cenarios reais' }).waitFor({ timeout: 3000 });
+    await page.getByRole('heading', { name: 'Pratique inglês em cenários reais' }).waitFor({ timeout: 3000 });
     await page.getByRole('button', { name: /Restaurant/ }).click();
     await page.getByPlaceholder('Type your answer in English...').fill('I would like a table, please.');
     await page.getByRole('button', { name: 'Enviar' }).click();
@@ -400,8 +494,8 @@ test('Playwright E2E: React app primary flows work', {
     await page.getByRole('button', { name: 'Fechar e analisar' }).click();
 
     await page.getByRole('button', { name: 'Nativos' }).click();
-    await page.getByRole('heading', { name: 'Veja expressoes em contexto real' }).waitFor({ timeout: 3000 });
-    await page.getByPlaceholder('Ex: look forward to').fill('me and you');
+    await page.getByRole('heading', { name: 'Treine inglês real por situação' }).waitFor({ timeout: 3000 });
+    await page.locator('#nativesInput').fill('me and you');
     await page.getByRole('button', { name: 'Buscar' }).click();
     await page.locator('.natives-result iframe').waitFor({ timeout: 5000 });
 
@@ -463,13 +557,16 @@ test('Playwright E2E: React desktop and mobile layouts avoid horizontal overflow
         });
 
         await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-        await page.getByRole('heading', { name: /Ola, E2E User/ }).waitFor({ timeout: 5000 });
+        await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor({ timeout: 5000 });
         await assertNoHorizontalOverflow(page, `${viewport.label}: home`);
 
-        for (const tab of ['Licoes', 'Musica', 'Flash', 'Conversar', 'Nativos', 'Loja', 'Nível', 'Perfil']) {
-          await page.getByRole('button', { name: tab }).click();
+        for (const tab of ['Lições', 'Música', 'Flash', 'Conversar', 'Nativos', 'Loja', 'Nível', 'Perfil']) {
+          await page.getByRole('button', { name: tab, exact: true }).click();
           await page.waitForTimeout(120);
           await assertNoHorizontalOverflow(page, `${viewport.label}: ${tab}`);
+          if (tab === 'Música') {
+            await page.locator('.music-embed').screenshot({ path: `/tmp/linguafire-music-player-${viewport.label}.png` });
+          }
         }
 
         await assertNoCriticalConsoleErrors(consoleErrors);
@@ -607,7 +704,9 @@ test('Playwright E2E: reset password route returns to login after success', {
     await page.getByPlaceholder('Nova senha', { exact: true }).fill('nova1234');
     await page.getByPlaceholder('Confirmar nova senha', { exact: true }).fill('nova1234');
     await page.getByRole('button', { name: 'Alterar senha' }).click();
-    await page.getByText('Entrar na sua conta').waitFor({ timeout: 5000 });
+    await page.getByRole('form', { name: 'Entrar na conta' }).waitFor({ timeout: 5000 });
+    await page.getByRole('button', { name: 'Entrar', exact: true }).waitFor();
+    assert.equal(new URL(page.url()).pathname, '/');
 
     await assertNoCriticalConsoleErrors(consoleErrors);
   } finally {
@@ -632,7 +731,15 @@ async function assertNoHorizontalOverflow(page, label) {
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,
     bodyScrollWidth: document.body.scrollWidth,
-    bodyClientWidth: document.body.clientWidth
+    bodyClientWidth: document.body.clientWidth,
+    overflowing: [...document.querySelectorAll('body *')].filter((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.right > document.documentElement.clientWidth + 1;
+    }).slice(0, 15).map((element) => ({
+      tag: element.tagName,
+      className: element.className,
+      width: Math.round(element.getBoundingClientRect().width)
+    }))
   }));
 
   assert.ok(

@@ -140,11 +140,23 @@ Opcionais conforme features:
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - `SMTP_*`
 - `GEMINI_API_KEY`, `GEMINI_MODEL`
+- `NATIVE_COACH_FALLBACK_MODEL` (opcional; padrao `gemini-3.1-flash-lite`)
 - `STRIPE_SECRET_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_MAX_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`
 - `NATIVES_ADMIN_TOKEN`
 - `LYRICS_ADMIN_TOKEN`
 - `AGENT_ADMIN_TOKEN`
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_ADMIN_TOKEN`
+
+### Treino de Nativos
+
+O treino envia ate 10 interacoes anteriores do exercicio atual e aceita ate 1000 caracteres por resposta. Trocar de exercicio, reiniciar ou sair da aba limpa esse historico e cancela a chamada pendente.
+
+A chamada usa JSON estruturado, ate 2048 tokens de saida e um prazo total de 25 segundos. Cada tentativa tem 10 segundos; em falha temporaria ou timeout, a segunda usa `NATIVE_COACH_FALLBACK_MODEL` com a mesma chave Gemini. Uma variavel vazia desativa a troca de modelo. Erros de quota (429) nao sao repetidos automaticamente. Cada envio passa uma vez pelo limite de uso da plataforma, mesmo quando a chamada interna exige uma segunda tentativa.
+
+Falhas preservam o texto digitado e permitem tentar novamente. Respostas invalidas nao geram nota ou progresso. A disponibilidade e as quotas dos modelos continuam dependentes do provedor. Referencias: [JSON estruturado](https://ai.google.dev/gemini-api/docs/generate-content/structured-output) e [Flash-Lite](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite).
+
+Teste local sem consumir IA: `node --test server/test/native-coach.test.js server/test/gemini-service.test.js`.
+Teste real opcional (consome a quota da chave local): `NATIVE_COACH_LIVE=1 node --test server/test/native-coach.test.js`.
 
 ## Assinaturas
 
