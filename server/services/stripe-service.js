@@ -21,7 +21,23 @@ function createStripeService(env = process.env, fetchImpl = fetch) {
   const baseUrl = String(env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 
   function isConfigured() {
-    return Boolean(secretKey && priceIds.pro && priceIds.max);
+    return getConfigurationIssues().length === 0;
+  }
+
+  function getConfigurationIssues() {
+    const issues = [];
+    if (!secretKey) issues.push('STRIPE_SECRET_KEY ausente.');
+    else if (!/^(sk|rk)_(test|live)_[A-Za-z0-9]+$/.test(secretKey)) {
+      issues.push('STRIPE_SECRET_KEY com formato invalido. Use a chave secreta da Stripe.');
+    }
+    for (const [plan, value] of Object.entries(priceIds)) {
+      const name = `STRIPE_${plan.toUpperCase()}_PRICE_ID`;
+      if (!value) issues.push(`${name} ausente.`);
+      else if (!/^price_[A-Za-z0-9]+$/.test(value)) {
+        issues.push(`${name} deve ser um ID de preco iniciado por price_.`);
+      }
+    }
+    return issues;
   }
 
   async function stripeRequest(path, body = {}) {
@@ -134,6 +150,7 @@ function createStripeService(env = process.env, fetchImpl = fetch) {
 
   return {
     isConfigured,
+    getConfigurationIssues,
     createCheckoutSession,
     cancelSubscription,
     verifyWebhook

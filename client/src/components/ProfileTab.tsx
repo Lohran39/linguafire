@@ -47,6 +47,8 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
     checkoutConfigured: false
   });
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [checkoutIssues, setCheckoutIssues] = useState<string[]>([]);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
@@ -90,11 +92,18 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
     }
 
     async function loadSubscription() {
+      setSubscriptionStatus('loading');
+      setCheckoutIssues([]);
       try {
         const status = await getSubscriptionStatus();
-        if (isMounted) setSubscription(normalizeSubscription(status));
+        if (isMounted) {
+          setSubscription(normalizeSubscription(status));
+          setCheckoutIssues(status.checkoutIssues || []);
+          setSubscriptionStatus('ready');
+        }
       } catch {
         if (isMounted) {
+          setSubscriptionStatus('error');
           setSubscription({
             active: Boolean(user.subscription_active),
             expires: Number(user.subscription_expires || 0),
@@ -359,18 +368,25 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
             </button>
           ) : (
             <>
-              <button className="primary-button" disabled={subscriptionBusy || !subscription.checkoutConfigured} type="button" onClick={() => toggleSubscription('pro')}>
+              <button className="primary-button" disabled={subscriptionBusy || subscriptionStatus !== 'ready' || !subscription.checkoutConfigured} type="button" onClick={() => toggleSubscription('pro')}>
                 {subscriptionBusy ? 'Atualizando...' : 'Ativar Pro'}
               </button>
-              <button className="secondary-button" disabled={subscriptionBusy || !subscription.checkoutConfigured} type="button" onClick={() => toggleSubscription('max')}>
+              <button className="secondary-button" disabled={subscriptionBusy || subscriptionStatus !== 'ready' || !subscription.checkoutConfigured} type="button" onClick={() => toggleSubscription('max')}>
                 Ativar Max
               </button>
             </>
           )}
         </div>
-        {!subscription.active && !subscription.checkoutConfigured && (
-          <div className="form-success">
-            Checkout em configuração. Adicione as variáveis do Stripe no Render antes de vender planos.
+        {subscriptionStatus === 'loading' && <p role="status">Consultando assinatura...</p>}
+        {subscriptionStatus === 'error' && (
+          <div className="form-error" role="alert">Não foi possível consultar sua assinatura. Atualize a página para tentar novamente.</div>
+        )}
+        {subscriptionStatus === 'ready' && !subscription.active && !subscription.checkoutConfigured && (
+          <div className="form-error" role="status">
+            Assinaturas temporariamente indisponíveis.
+            {user.role === 'admin' && checkoutIssues.length > 0 && (
+              <p>{checkoutIssues.join(' ')} Confira essas variáveis no Render e publique novamente o serviço.</p>
+            )}
           </div>
         )}
       </section>

@@ -169,8 +169,8 @@ export async function deleteAccount(): Promise<void> {
   clearUserId();
 }
 
-export async function getSubscriptionStatus(): Promise<{ active: boolean; expires: number; plan: string | null; price: number; aiDailyLimit?: number; checkoutConfigured?: boolean }> {
-  return parseJson<{ active: boolean; expires: number; plan: string | null; price: number; aiDailyLimit?: number; checkoutConfigured?: boolean }>(
+export async function getSubscriptionStatus(): Promise<{ active: boolean; expires: number; plan: string | null; price: number; aiDailyLimit?: number; checkoutConfigured?: boolean; checkoutIssues?: string[] }> {
+  return parseJson<{ active: boolean; expires: number; plan: string | null; price: number; aiDailyLimit?: number; checkoutConfigured?: boolean; checkoutIssues?: string[] }>(
     await fetch(`${API_BASE}/subscription/status`, { credentials: 'include' })
   );
 }

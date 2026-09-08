@@ -27,6 +27,9 @@ function setupSubscriptionRoutes(app, deps = {}) {
       price: SUBSCRIPTION_PLANS[plan].price,
       aiDailyLimit: SUBSCRIPTION_PLANS[plan].aiDailyLimit,
       checkoutConfigured,
+      ...(user.role === 'admin' && !checkoutConfigured ? {
+        checkoutIssues: stripeService?.getConfigurationIssues?.() || ['Servico de pagamento indisponivel.']
+      } : {}),
       plans: SUBSCRIPTION_PLANS
     };
   }

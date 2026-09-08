@@ -30,6 +30,35 @@ function signedStripeHeader(payload, secret = 'whsec_test', timestamp = 17000000
   return `t=${timestamp},v1=${signature}`;
 }
 
+test('checkout diagnostics are only included for admins loaded from the database', async () => {
+  let role = 'user';
+  const app = express();
+  setupSubscriptionRoutes(app, {
+    authenticateToken: (req, _res, next) => {
+      req.user = { id: 'user-1', role: 'admin' };
+      next();
+    },
+    supabaseGetUserById: async () => ({ id: 'user-1', role }),
+    isProduction: true,
+    allowFakeSubscriptions: false,
+    stripeService: {
+      isConfigured: () => false,
+      getConfigurationIssues: () => ['STRIPE_MAX_PRICE_ID ausente.']
+    }
+  });
+  const { server, baseUrl } = await startTestServer(app);
+  try {
+    const regular = await (await fetch(`${baseUrl}/api/subscription/status`)).json();
+    assert.equal(regular.checkoutConfigured, false);
+    assert.equal(regular.checkoutIssues, undefined);
+    role = 'admin';
+    const admin = await (await fetch(`${baseUrl}/api/subscription/status`)).json();
+    assert.deepEqual(admin.checkoutIssues, ['STRIPE_MAX_PRICE_ID ausente.']);
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
 test('subscription create returns Stripe checkout URL when configured', async () => {
   const app = express();
   app.use(express.json());
