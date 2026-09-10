@@ -19,8 +19,12 @@ test('activities resume across isolated devices; mobile navigation and keyboard 
     await context.addInitScript(() => {
       window.YT = { Player: class {
         constructor(_target, options) {
+          window.__playerOptions = options;
+          window.__playerHost = options.host;
           window.__playerStart = options.playerVars.start;
-          setTimeout(() => options.events.onReady({ target: { getCurrentTime: () => options.playerVars.start || 12 } }), 0);
+          setTimeout(() => window.__failPlayer
+            ? options.events.onError({ data: 153 })
+            : options.events.onReady({ target: { getCurrentTime: () => options.playerVars.start || 12 } }), 0);
         }
         destroy() {}
       } };
@@ -112,7 +116,18 @@ test('activities resume across isolated devices; mobile navigation and keyboard 
     await phone.waitForFunction(() => window.__playerStart === 12);
     await phone.keyboard.press('Shift+Tab');
     assert.equal(await phone.evaluate(() => document.activeElement?.textContent), 'Sair do quiz');
-    // Return to the existing desktop session without modifying the cloud quiz.
+    await phone.keyboard.press('Escape');
+    await phone.evaluate(() => { window.__failPlayer = true; window.__playerOptions.events.onError({ data: 153 }); });
+    const retry = phone.getByRole('button', { name: 'Tentar carregar aqui' });
+    await retry.waitFor();
+    assert.ok(await phone.locator('.video-fallback').evaluate(element => element.scrollHeight <= element.clientHeight));
+    await phone.evaluate(() => { window.__failPlayer = false; });
+    await retry.click();
+    await phone.waitForFunction(() => window.__playerHost === 'https://www.youtube-nocookie.com');
+    await phone.locator('.video-fallback').waitFor({ state: 'detached' });
+    await synced(phone);
+    await desktop.reload();
+    await desktop.getByRole('button', { name: 'Conversar', exact: true }).waitFor();
     await desktop.keyboard.press('Escape');
     await desktop.getByRole('button', { name: 'Conversar', exact: true }).click();
     await desktop.getByRole('button', { name: /Restaurante/ }).click();

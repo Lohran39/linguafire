@@ -45,6 +45,7 @@ declare global {
           events?: {
             onReady?: (event: { target: { getCurrentTime: () => number } }) => void;
             onError?: (event: { data?: number | string }) => void;
+            onStateChange?: (event: { data: number }) => void;
           };
         }
       ) => { destroy?: () => void };
@@ -160,7 +161,8 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
   }, [currentVideoId, song.artist, song.title, song.trackKey]);
 
   const failCurrentVideo = useCallback((reason = 'embed_failed') => {
-    reportCurrentVideo('bad', reason);
+    // Network/API failures do not mean the video itself is unavailable.
+    if (['youtube_100', 'youtube_101', 'youtube_150'].includes(reason)) reportCurrentVideo('bad', reason);
     setEmbedLoaded(false);
 
     if (candidateIndex + 1 < candidateIds.length) {
@@ -183,7 +185,7 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       if (!embedLoaded) failCurrentVideo('timeout');
-    }, 8000);
+    }, 20000);
 
     return () => window.clearTimeout(timeoutId);
   }, [embedLoaded, playerKey, failCurrentVideo]);
@@ -211,16 +213,20 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
         },
         events: {
           onReady: (event) => {
+            if (cancelled) return;
             setEmbedLoaded(true);
             setEmbedFailed(false);
-            reportCurrentVideo('working');
             intervalId = window.setInterval(() => {
               const currentTime = Number(event.target.getCurrentTime?.() || 0);
               if (Number.isFinite(currentTime)) onTimeChange(currentTime);
             }, 600);
           },
           onError: (event) => {
+            if (cancelled) return;
             failCurrentVideo(`youtube_${event.data || 'error'}`);
+          },
+          onStateChange: (event) => {
+            if (!cancelled && event.data === 1) reportCurrentVideo('working');
           }
         }
       });
@@ -240,7 +246,8 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
         script.src = 'https://www.youtube.com/iframe_api';
         script.async = true;
         script.onerror = () => {
-          failCurrentVideo('iframe_api_blocked');
+          script.remove();
+          if (!cancelled) failCurrentVideo('iframe_api_blocked');
         };
         document.body.appendChild(script);
       }
@@ -253,10 +260,10 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
       playerInstanceRef.current = null;
       playerRef.current?.replaceChildren();
     };
-  }, [currentVideoId, failCurrentVideo, onTimeChange, reportCurrentVideo]);
+  }, [currentVideoId, embedBaseUrl, failCurrentVideo, onTimeChange, reportCurrentVideo]);
 
   return (
-    <section className="video-frame music-embed" aria-label={`Vídeo de ${song.title}`}>
+    <section className={`video-frame music-embed${embedFailed ? ' has-video-error' : ''}`} aria-label={`Vídeo de ${song.title}`}>
       <div key={playerKey} ref={playerRef} className="youtube-player" title={`${song.title} - ${song.artist}`} />
       {!embedLoaded && !embedFailed && (
         <div className="video-loading">
@@ -270,7 +277,7 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
           <img src={thumbUrl} alt="" loading="lazy" />
           <div>
             <strong>Não consegui carregar o player agora.</strong>
-            <span>A letra já carregou. Tente recarregar o vídeo dentro do site ou abra no YouTube se o dono bloquear embed.</span>
+            <span>Tente novamente. Se abriu pelo WhatsApp, tente abrir esta página no Safari ou Chrome.</span>
             <button
               type="button"
               onClick={() => {

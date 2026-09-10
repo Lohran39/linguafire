@@ -2294,6 +2294,7 @@ body[data-theme='light'] .placement-layout.result {
 }
 
 .video-loading {
+  pointer-events: none;
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -2339,6 +2340,9 @@ body[data-theme='light'] .placement-layout.result {
   opacity: 0.28;
   filter: blur(2px) saturate(0.9);
 }
+
+.music-embed.has-video-error { aspect-ratio: auto; }
+.music-embed.has-video-error .video-fallback { position: relative; min-height: 200px; }
 
 .video-fallback div {
   position: relative;
