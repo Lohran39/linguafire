@@ -59,7 +59,8 @@ test('activities resume across isolated devices; mobile navigation and keyboard 
   }
   try {
     const phone = await device({ width: 390, height: 844 });
-    assert.equal(await phone.locator('.app-nav button:visible').count(), 5);
+    assert.ok(await phone.locator('.app-nav button:visible').count() >= 9);
+    assert.equal(await phone.getByRole('button', { name: 'Mais', exact: true }).count(), 0);
     await phone.getByRole('button', { name: 'Revisão', exact: true }).click();
     await phone.getByRole('button', { name: 'Começar revisão', exact: true }).click();
     await phone.getByRole('button', { name: 'Revelar resposta', exact: true }).click();
@@ -121,16 +122,14 @@ test('activities resume across isolated devices; mobile navigation and keyboard 
     await phone.reload();
     await phone.locator('.conversation-room').waitFor();
     assert.equal(await phone.locator('.conversation-room input, .conversation-room textarea').first().inputValue(), 'Can I have some water');
-    await phone.getByRole('button', { name: 'Mais', exact: true }).click();
-    assert.ok(await phone.getByRole('navigation', { name: 'Mais opções' }).isVisible());
     await phone.getByRole('button', { name: 'Nível', exact: true }).focus();
-    await phone.keyboard.press('Escape');
-    assert.equal(await phone.getByRole('button', { name: 'Mais', exact: true }).getAttribute('aria-expanded'), 'false');
-    assert.equal(await phone.evaluate(() => document.activeElement?.textContent), 'Mais');
+    assert.equal(await phone.evaluate(() => document.activeElement?.textContent), 'Nível');
+    assert.ok(await phone.locator('.app-nav').evaluate(nav => nav.scrollLeft > 0));
     await phone.keyboard.press('Tab');
     assert.notEqual(await phone.evaluate(() => getComputedStyle(document.activeElement).outlineStyle), 'none');
     for (const width of [320, 390, 768]) {
       await phone.setViewportSize({ width, height: 844 });
+      assert.ok(await phone.locator('.app-nav').evaluate(nav => nav.scrollWidth > nav.clientWidth), `scrollable menu at ${width}`);
       assert.ok(await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `overflow at ${width}`);
     }
     await phone.setViewportSize({ width: 390, height: 844 });

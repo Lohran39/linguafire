@@ -323,7 +323,9 @@ function AppHome({
   onLoadProfile: () => Promise<UserProfile>;
 }) {
   const [activeTab, setActiveTab] = useActivityState<AppTab>('navigation', 'activeTab', initialTab);
-  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => {
+    document.querySelector('.app-nav [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeTab]);
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get('billing') !== 'return') return;
@@ -335,10 +337,8 @@ function AppHome({
 
   const saveBeforeLeave = useSaveBeforeLeave();
   const visibleTabs = appTabs.filter(tab => tab.id !== 'admin' || user.role === 'admin');
-  const primaryTabs = ['home', 'lessons', 'flashcard', 'conversation'];
   function navigate(tab: AppTab) {
     setActiveTab(tab);
-    setMoreOpen(false);
     requestAnimationFrame(() => document.getElementById('activity-content')?.focus());
   }
 
@@ -350,7 +350,7 @@ function AppHome({
         <div className="app-nav" aria-label="Navegacao principal">
           {visibleTabs.map((tab) => (
             <button
-              className={`${activeTab === tab.id ? 'active' : ''} ${primaryTabs.includes(tab.id) ? '' : 'secondary-nav-item'}`}
+              className={activeTab === tab.id ? 'active' : ''}
               aria-current={activeTab === tab.id ? 'page' : undefined}
               key={tab.id}
               type="button"
@@ -359,19 +359,12 @@ function AppHome({
               {tab.label}
             </button>
           ))}
-          <button className={`mobile-more ${!primaryTabs.includes(activeTab) ? 'active' : ''}`} type="button"
-            aria-expanded={moreOpen} aria-controls="more-navigation" onClick={() => setMoreOpen(!moreOpen)}>Mais</button>
         </div>
         <button className="compact-button" type="button" onClick={async () => { if (await saveBeforeLeave()) onLogout(); }}>
           Sair
         </button>
       </nav>
 
-      {moreOpen && <nav className="more-navigation" id="more-navigation" aria-label="Mais opções"
-        onKeyDown={event => { if (event.key === 'Escape') { setMoreOpen(false); document.querySelector<HTMLButtonElement>('.mobile-more')?.focus(); } }}>
-        {visibleTabs.filter(tab => !primaryTabs.includes(tab.id)).map(tab => <button key={tab.id} type="button"
-          aria-current={activeTab === tab.id ? 'page' : undefined} onClick={() => navigate(tab.id)}>{tab.label}</button>)}
-      </nav>}
       <div id="activity-content" tabIndex={-1}>
       <TabContent key={activeTab} label={appTabs.find(tab => tab.id === activeTab)?.label || activeTab}>
       {activeTab === 'home' && (
