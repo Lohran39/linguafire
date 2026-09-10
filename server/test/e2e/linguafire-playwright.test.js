@@ -75,6 +75,18 @@ function readRequestJson(request) {
 
 async function mockAuthenticatedApis(page) {
   const user = fixtureUser();
+  const activities = {};
+  await page.route('**/api/learning/summary', route => route.fulfill({ json: { consolidatedWords: 0, reviewedWords: 0, words: [], recurringErrors: [], skills: [] } }));
+  await page.route('**/api/learning/events', route => route.fulfill({ json: { success: true } }));
+  await page.route('**/api/curation?*', route => route.fulfill({ json: { items: [] } }));
+  await page.route('**/api/flashcards/mistakes', route => route.fulfill({ json: { cards: [] } }));
+  await page.route('**/api/activities', route => route.fulfill({ json: { activities: Object.values(activities) } }));
+  await page.route('**/api/activities/*', route => {
+    const activity = new URL(route.request().url()).pathname.split('/').at(-1);
+    const body = readRequestJson(route.request());
+    activities[activity] = { activity, state: body.state, revision: body.revision + 1 };
+    return route.fulfill({ json: { revision: body.revision + 1 } });
+  });
 
   await page.route('**/api/auth/session', (route) => route.fulfill({
     status: 200,
@@ -198,7 +210,10 @@ async function mockAuthenticatedApis(page) {
       plan: user.subscription_active ? 'pro' : null,
       price: 45,
       aiDailyLimit: 300,
-      checkoutConfigured: true
+      checkoutConfigured: true,
+      canSubscribe: !user.subscription_active,
+      hasBillingAccount: false, portalAvailable: false, billingStatus: user.subscription_active ? 'active' : 'none',
+      aiUsage: { used: 0, limit: user.subscription_active ? 300 : 10, remaining: user.subscription_active ? 300 : 10, resetsAt: new Date(Date.now() + 86400000).toISOString() }
     })
   }));
 
@@ -329,6 +344,164 @@ async function mockAuthenticatedApis(page) {
   }));
 }
 
+async function openSecondaryTab(page, name) {
+  await page.locator('.topbar').waitFor();
+  const more = page.getByRole('button', { name: 'Mais', exact: true });
+  if (await more.isVisible() && await more.getAttribute('aria-expanded') !== 'true') await more.click();
+  await page.getByRole('button', { name, exact: true }).click();
+}
+
+test('Playwright E2E: tabs load on demand and failed chunks leave navigation usable', {
+  skip: !chromium || process.env.RUN_PLAYWRIGHT_E2E !== '1'
+}, async () => {
+  const { server, baseUrl } = await startTestServer();
+  const browser = await chromium.launch({ headless: true });
+  let releaseChunk;
+  const chunkGate = new Promise(resolve => { releaseChunk = resolve; });
+  try {
+    const page = await browser.newPage();
+    await mockAuthenticatedApis(page);
+    const scripts = [];
+    page.on('request', request => {
+      if (request.resourceType() === 'script') scripts.push(request.url());
+    });
+    await page.route('**/assets/MusicTab-*.js', async route => {
+      await chunkGate;
+      await route.continue().catch(() => {});
+    });
+    await page.route('**/assets/NativesTab-*.js', route => route.abort('failed'));
+    await page.goto(baseUrl);
+    await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor();
+    assert.ok(!scripts.some(url => /\/(MusicTab|LessonTab|NativesTab|AdminTab)-/.test(url)), 'unused tabs must not load with the dashboard');
+    await openSecondaryTab(page, 'Música');
+    await page.getByText('Carregando Música...', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Início', exact: true }).click();
+    await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor();
+    releaseChunk();
+    await openSecondaryTab(page, 'Música');
+    await page.getByRole('heading', { name: 'Shape of You', exact: true }).waitFor();
+    await openSecondaryTab(page, 'Nativos');
+    await page.getByRole('heading', { name: 'Não foi possível abrir Nativos', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Início', exact: true }).click();
+    await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor();
+  } finally {
+    releaseChunk();
+    await browser.close();
+    await stopTestServer(server);
+  }
+});
+
+test('Playwright E2E: music shows original lyrics early and ignores outdated requests', {
+  skip: !chromium || process.env.RUN_PLAYWRIGHT_E2E !== '1'
+}, async () => {
+  const { server, baseUrl } = await startTestServer();
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+      const page = await browser.newPage({ viewport });
+      let releaseLyrics;
+      let releaseTranslation;
+      let releaseSearch;
+      const lyricsGate = new Promise(resolve => { releaseLyrics = resolve; });
+      const translationGate = new Promise(resolve => { releaseTranslation = resolve; });
+      const searchGate = new Promise(resolve => { releaseSearch = resolve; });
+      let betaRetry = false;
+      let betaLookups = 0;
+      let alphaTranslations = 0;
+      try {
+        await mockAuthenticatedApis(page);
+        await page.route('**/api/music/video-status', route => route.fulfill({ json: { success: true } }));
+        await page.route('**/api/music/search?*', async route => {
+          const query = new URL(route.request().url()).searchParams.get('q');
+          if (query === 'fixture delayed') await searchGate;
+          const beta = query === 'fixture beta';
+          await route.fulfill({ json: {
+            success: true, title: beta ? 'Fixture Beta' : 'Fixture Alpha', artist: 'Fixture Artist',
+            videoId: beta ? 'BBBBBBBBBBB' : 'AAAAAAAAAAA', videoTitle: 'Fixture video', channelName: 'Fixture Artist'
+          } }).catch(() => {});
+        });
+        await page.route('**/api/lyrics/find?*', async route => {
+          const beta = new URL(route.request().url()).searchParams.get('track_name') === 'Fixture Beta';
+          if (beta) betaLookups += 1;
+          else await lyricsGate;
+          await route.fulfill({ json: {
+            success: true, source: 'fixture', plainLyrics: beta ? 'A fictional beta verse' : 'A fictional alpha verse\nAnother imaginary phrase'
+          } }).catch(() => {});
+        });
+        await page.route('**/api/translate', async route => {
+          const { q } = readRequestJson(route.request());
+          if (q.includes('alpha')) {
+            alphaTranslations += 1;
+            await translationGate;
+          }
+          if (q.includes('beta') && !betaRetry) {
+            return route.fulfill({ status: 503, json: { error: 'Translation temporarily unavailable' } });
+          }
+          await route.fulfill({ json: {
+            responseStatus: 200,
+            responseData: { translatedText: q.split('\nLF_LINE_BREAK\n').map(() => q.includes('beta') ? 'Um verso beta fictício' : 'Um verso alfa fictício').join('\nLF_LINE_BREAK\n') }
+          } }).catch(() => {});
+        });
+        await page.goto(baseUrl);
+        await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor();
+        await openSecondaryTab(page, 'Música');
+        const search = page.getByPlaceholder('Ex: stay, adele ou link do YouTube');
+        await search.fill('fixture alpha');
+        await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+        await page.getByRole('heading', { name: 'Fixture Alpha', exact: true }).waitFor();
+        await page.getByText('Buscando letra...', { exact: true }).waitFor();
+        assert.equal(await page.locator('.music-embed').count(), 1);
+        releaseLyrics();
+        await page.getByText('Letra disponível com 2 linhas. Traduzindo...', { exact: true }).waitFor();
+        assert.equal(await page.locator('.lyric-card').count(), 2);
+        assert.equal(await page.getByRole('button', { name: 'Quiz', exact: true }).isEnabled(), false);
+        assert.equal(alphaTranslations, 1, 'only one translation request per selected song');
+        await assertNoHorizontalOverflow(page, `progressive music ${viewport.width}`);
+        await page.locator('.lyrics-list').screenshot({ path: `/tmp/linguafire-progressive-lyrics-${viewport.width}.png` });
+
+        await search.fill('fixture beta');
+        await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+        await page.getByRole('heading', { name: 'Fixture Beta', exact: true }).waitFor();
+        await page.getByText('Letra disponível. Parte da tradução não está disponível agora.', { exact: true }).waitFor();
+        await assertNoHorizontalOverflow(page, `translation retry ${viewport.width}`);
+        if (viewport.width < 600) {
+          const header = await page.locator('.music-header').boundingBox();
+          assert.ok(header.height < 420, 'mobile header must not keep desktop flex bases as heights');
+          for (const button of await page.locator('.music-actions button').all()) {
+            const bounds = await button.boundingBox();
+            assert.ok(bounds.height >= 44 && bounds.height < 100, 'mobile actions should remain compact touch targets');
+          }
+        }
+        await page.locator('.music-player-panel').screenshot({ path: `/tmp/linguafire-translation-retry-${viewport.width}.png` });
+        releaseTranslation();
+        betaRetry = true;
+        await page.getByRole('button', { name: 'Tentar tradução novamente', exact: true }).click();
+        await page.locator('.lyric-card').getByText('Um verso beta fictício', { exact: true }).waitFor();
+        assert.equal(betaLookups, 1, 'retrying translation must not fetch the lyrics again');
+        assert.equal(await page.getByRole('heading', { name: 'Fixture Beta', exact: true }).count(), 1);
+        assert.equal(await page.getByText('A fictional alpha verse', { exact: true }).count(), 0);
+
+        await search.fill('fixture delayed');
+        await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+        await page.getByRole('button', { name: 'Buscando...', exact: true }).waitFor();
+        await page.locator('.song-list').getByRole('button', { name: /Shape of You/ }).click();
+        releaseSearch();
+        await page.getByRole('heading', { name: 'Shape of You', exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Início', exact: true }).click();
+        await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor();
+      } finally {
+        releaseLyrics();
+        releaseTranslation();
+        releaseSearch();
+        await page.close();
+      }
+    }
+  } finally {
+    await browser.close();
+    await stopTestServer(server);
+  }
+});
+
 test('Playwright E2E: native coach keeps ten turns, recovers errors and cancels stale replies', {
   skip: !chromium || process.env.RUN_PLAYWRIGHT_E2E !== '1'
 }, async () => {
@@ -353,7 +526,7 @@ test('Playwright E2E: native coach keeps ten turns, recovers errors and cancels 
             correction: 'Frase correta.', feedback: 'Pedido educado.', nextReply: `Restaurant reply ${requests.length}` } });
         });
         await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-        await page.getByRole('button', { name: 'Nativos', exact: true }).click();
+        await openSecondaryTab(page, 'Nativos');
         const answer = page.getByLabel('Treino com IA', { exact: true });
         for (let index = 0; index < 10; index += 1) {
           await answer.fill(`I would like some water, please. Turn ${index + 1}.`);
@@ -440,12 +613,12 @@ test('Playwright E2E: React app primary flows work', {
     await page.getByRole('button', { name: 'Semanais' }).click();
     await page.getByText('Acumule 500 XP').waitFor({ timeout: 3000 });
 
-    await page.getByRole('button', { name: 'Música', exact: true }).click();
+    await openSecondaryTab(page, 'Música');
     await page.getByRole('heading', { name: 'Shape of You' }).waitFor({ timeout: 3000 });
     await page.getByPlaceholder('Ex: stay, adele ou link do YouTube').fill('hello');
     await page.getByRole('button', { name: 'Buscar' }).click();
     await page.getByRole('heading', { name: 'Hello' }).waitFor({ timeout: 3000 });
-    await page.getByText('Letra carregada com 4 linhas.', { exact: false }).waitFor({ timeout: 5000 });
+    await page.getByText('Letra disponível, sem sincronismo.', { exact: true }).waitFor({ timeout: 5000 });
     assert.equal(await page.locator('.lyric-card').count(), 4);
     await page.locator('.lyric-card').first().getByText('tradução de teste 1', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Quiz' }).click();
@@ -472,7 +645,7 @@ test('Playwright E2E: React app primary flows work', {
     await page.getByRole('button', { name: 'Salvar progresso' }).click();
     await page.getByText('Progresso salvo.').waitFor({ timeout: 5000 });
 
-    await page.getByRole('button', { name: 'Flash' }).click();
+    await page.getByRole('button', { name: 'Revisão' }).click();
     await page.getByRole('button', { name: 'Começar revisão' }).click();
     await page.getByRole('heading', { name: 'serendipity' }).waitFor({ timeout: 3000 });
     await page.getByRole('button', { name: 'Revelar resposta' }).click();
@@ -503,6 +676,7 @@ test('Playwright E2E: React app primary flows work', {
     await page.getByRole('button', { name: 'Começar teste' }).click();
     for (let questionIndex = 0; questionIndex < 15; questionIndex += 1) {
       await page.locator('.placement-choices button').first().click();
+      await page.getByRole('button', { name: questionIndex === 14 ? 'Concluir teste' : 'Próxima pergunta', exact: true }).click();
       if (questionIndex < 14) {
         await page.locator('.placement-count', { hasText: `${questionIndex + 2}/15` }).waitFor({ timeout: 3000 });
       }
@@ -560,7 +734,10 @@ test('Playwright E2E: React desktop and mobile layouts avoid horizontal overflow
         await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor({ timeout: 5000 });
         await assertNoHorizontalOverflow(page, `${viewport.label}: home`);
 
-        for (const tab of ['Lições', 'Música', 'Flash', 'Conversar', 'Nativos', 'Loja', 'Nível', 'Perfil']) {
+        for (const tab of ['Lições', 'Música', 'Revisão', 'Conversar', 'Nativos', 'Loja', 'Nível', 'Perfil']) {
+          if (viewport.label === 'mobile' && !['Lições', 'Revisão', 'Conversar'].includes(tab)) {
+            await page.getByRole('button', { name: 'Mais', exact: true }).click();
+          }
           await page.getByRole('button', { name: tab, exact: true }).click();
           await page.waitForTimeout(120);
           await assertNoHorizontalOverflow(page, `${viewport.label}: ${tab}`);

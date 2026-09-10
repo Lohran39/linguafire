@@ -39,7 +39,7 @@ function parseAgentResponse(text = '') {
 
 function setupAgentRoutes(app, deps = {}) {
   const {
-    callMiniMaxChat,
+    callGeminiChat,
     getBearerToken,
     agentTools,
     aiApiKey = '',
@@ -90,7 +90,7 @@ function setupAgentRoutes(app, deps = {}) {
     for (let step = 1; step <= maxSteps; step += 1) {
       let modelResult;
       try {
-        modelResult = await callMiniMaxChat({ messages, temperature, requestedModel, apiKey });
+        modelResult = await callGeminiChat({ messages, temperature, requestedModel, apiKey });
       } catch (error) {
         return res.status(error.status || 502).json(error.detail || { error: error.message });
       }

@@ -13,7 +13,7 @@
     "preview:client": "npm --prefix client run preview",
     "start": "npm --prefix server start",
     "check": "npm --prefix server run check",
-    "test": "npm --prefix server test",
+    "test": "npm --prefix client test && npm --prefix server test",
     "test:e2e": "npm --prefix server run test:e2e",
     "verify": "npm run build && npm run check && npm test",
     "release:check": "npm run verify && npm run test:e2e"

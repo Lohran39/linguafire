@@ -1,3 +1,5 @@
+import { createJsonParser } from './http';
+
 export type ConversationTopic = {
   id: 'restaurant' | 'airport' | 'job_interview' | 'small_talk' | 'shopping';
   name: string;
@@ -18,13 +20,7 @@ export type GrammarError = {
 const CONVERSATION_TIMEOUT_MS = 25000;
 const GRAMMAR_ANALYZE_TIMEOUT_MS = 20000;
 
-async function parseJson<T>(response: Response): Promise<T> {
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string; message?: string };
-  if (!response.ok) {
-    throw new Error(data.message || data.error || 'Erro na conversa');
-  }
-  return data;
-}
+const parseJson = createJsonParser('Erro na conversa');
 
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError';

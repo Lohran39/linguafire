@@ -62,6 +62,8 @@ O projeto ja foi preparado para rodar em producao no Render usando React + Vite 
 
 ## Desenvolvimento
 
+Use Node.js 22 atualizado ou 24. Os testes do cliente usam o suporte nativo a TypeScript (`--experimental-strip-types`).
+
 Instale dependencias na raiz, no client e no servidor:
 
 ```sh
@@ -111,8 +113,12 @@ O endpoint `/health` informa o frontend ativo:
 ```sh
 npm run check
 npm test
-npm --prefix server run test:e2e
+npm run test:e2e
 ```
+
+- `check` verifica individualmente a sintaxe de todos os arquivos JavaScript do servidor, incluindo subpastas e testes, sem executar o codigo.
+- `test` executa os testes do cliente e do servidor. Os testes de traducao simulam os provedores e verificam cache, fallback e divisao em lotes, sem consumir quota externa.
+- `test:e2e` exige o build React e o Chromium do Playwright instalado (`npm --prefix server exec -- playwright install chromium`). A execucao precisa de permissao para abrir um servidor local e o navegador.
 
 Para uma verificacao completa antes de publicar:
 
@@ -123,6 +129,31 @@ npm run release:check
 O e2e cobre as abas React principais em desktop/mobile e mantem um teste separado do legado em `/legacy/index.html`.
 
 O workflow `.github/workflows/ci.yml` roda o mesmo `release:check` em push e pull request.
+
+## Organizacao do codigo
+
+- `client/src/`: interface React, dados e servicos usados pelo app principal.
+- `client/src/services/http.ts`: tratamento comum de respostas JSON e erros HTTP; respostas invalidas nao sao tratadas como sucesso.
+- `server/routes/`: endpoints da plataforma.
+- `server/services/gemini-service.js`: adaptador da IA de conversa e treino, com timeouts e tentativas limitadas.
+- `server/routes/lyrics-routes.js`: busca de letras e traducao; DeepL, quando configurado, seguido de MyMemory. Gemini nao participa da traducao de letras.
+- `public/dist/`: app legado ainda servido em `/legacy/index.html`; nao confundir com arquivos descartaveis de build.
+
+Prototipos sem referencias em `src/` e `public/extracted_project/`, o pacote duplicado em `server/server/` e o middleware de autenticacao sem uso foram removidos. A autenticacao ativa continua em `server/index.js`.
+
+### Carregamento e desempenho
+
+As abas React sao carregadas sob demanda, com estados de espera e erro que preservam a navegacao. Na musica, video, letra original e traducao nao bloqueiam a exibicao uns dos outros. A traducao continua usando os provedores existentes, sem Gemini.
+
+Trocar de musica ou sair da aba cancela as requisicoes do navegador e ignora respostas antigas. Buscas e letras tem timeout de 20 segundos por requisicao; traducao, 30 segundos por lote. Uma falha na traducao preserva a letra e permite tentar novamente sem repetir a busca da letra. Isso nao garante disponibilidade ou velocidade dos provedores externos, nem cancela trabalho ja iniciado no servidor.
+
+Os tempos HTTP ficam apenas no navegador, em medidas `linguafire:music:video-search`, `video-metadata`, `lyrics` e `translation`. Cada etapa guarda ate 30 medidas com duracao e resultado (`success`, `error`, `timeout`, `cancelled`), sem incluir letras, buscas ou identificadores nas medidas e sem envia-las a terceiros. Para inspecionar no console:
+
+```js
+performance.getEntriesByType('measure').filter(entry => entry.name.startsWith('linguafire:music:'))
+```
+
+Os E2E cobrem letras disponiveis antes da traducao, cancelamento de buscas antigas, nova tentativa de traducao e falha no carregamento de uma aba em desktop e celular.
 
 ## Variaveis de ambiente
 
@@ -181,3 +212,81 @@ Configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT`. O endpoint 
 - Arquivos estaticos antigos ainda sao servidos como fallback para assets do legado.
 
 Antes de remover o legado, confirme que todo o conteudo de `public/dist/lesson-module.js` foi migrado para `client/src/data/lessons.ts`.
+
+
+### Retomada de atividades e navegação móvel
+
+Antes de publicar esta versão em um banco existente, execute
+`server/migrations/20260908-activity-progress.sql` no SQL Editor do Supabase.
+Instalações novas já incluem a tabela em `server/supabase-migration.sql`.
+A tabela tem RLS e só é acessada pelo servidor autenticado, usando o ID da sessão.
+
+Lições, flashcards, conversa, música (quiz e posição do vídeo), Nativos e nivelamento
+salvam a atividade em andamento na conta. A navegação também é restaurada.
+O aviso “Salvo na conta” confirma que outro dispositivo já pode continuar.
+Rascunhos pendentes ficam no armazenamento local separado por usuário e são reenviados
+quando a conexão volta. O botão Sair aguarda a sincronização antes de encerrar a conta.
+Um conflito de revisão não sobrescreve o outro dispositivo: a interface oferece uma
+cópia JSON local antes de carregar a versão da conta. Apenas o estado atual é mantido,
+sem histórico de versões; encerrar a conversa limpa suas mensagens do rascunho.
+Não é possível retomar uma requisição de IA já interrompida: o texto fica disponível
+para reenvio explícito. Os testes usam provedores e persistência simulados, sem cobrar IA.
+
+No celular, Início, Lições, Revisão e Conversar ficam visíveis; “Mais” reúne as outras
+opções. Há foco visível, link para pular a navegação, botões de pelo menos 44 px,
+contraste ajustado e suporte a redução de movimento.
+
+Validação específica: `RUN_PLAYWRIGHT_E2E=1 node --test server/test/e2e/activity-resume.test.js`.
+
+
+### Aprendizado além do XP e curadoria de conteúdo
+
+Para um banco existente, execute `server/migrations/20260909-learning-curation.sql`
+no SQL Editor do Supabase e publique o cliente e o servidor atualizados. O script
+completo `server/supabase-migration.sql` também inclui estas tabelas para instalações novas.
+
+A página inicial distingue **nível de jogo (XP)** de **nível de inglês (nivelamento)**.
+Palavras consolidadas exigem pelo menos 3 revisões bem avaliadas e intervalo de 7 dias;
+correções de frases são excluídas dessa contagem de vocabulário. Erros recorrentes
+agrupam os registros das análises de conversa. As habilidades usam apenas resultados
+registrados a partir desta versão: lições, autoavaliação dos flashcards, quiz de letras,
+avaliação escrita do coach e ditado. A comparação usa 14 dias contra os 14 anteriores,
+com mínimo de 5 respostas em cada período para mostrar variação. Sem evidências, a
+interface mostra “Sem dados”, sem inferir proficiência a partir do XP.
+
+`learning_events` guarda somente ID da tentativa, atividade, nota e data, vinculados
+à conta. O ID impede duplicação no reenvio. O cliente mantém resultados pendentes
+por usuário e tenta enviá-los no próximo exercício ou ao abrir o início.
+
+Músicas e vídeos de Nativos exibem estado de revisão e disponibilidade da tradução.
+Os alunos podem informar vídeo errado, texto incorreto, tradução, indisponibilidade
+ou outro problema; falhas no envio permanecem visíveis e permitem tentar novamente.
+Na aba **Admin** (em **Mais** no celular), a ficha de curadoria exige confirmação de
+vídeo e texto e classificação da tradução. A aprovação atualiza as sugestões;
+a reprovação remove o vídeo das sugestões daquele conteúdo. Denúncias posteriores
+à revisão retiram a prioridade de verificado até nova avaliação. A fila mostra até
+100 denúncias antigas, sem expor e-mail ou ID do denunciante. Acesso de aprovação
+é validado pelo papel do usuário consultado no banco.
+
+Não há aprovação automática baseada apenas na reprodução de um vídeo. Os selos
+novos dependem de revisão humana; a curadoria anterior de Nativos continua utilizável.
+Testes: `node --test server/test/learning-curation.test.js` e
+`RUN_PLAYWRIGHT_E2E=1 node --test server/test/e2e/learning-curation.test.js`.
+
+### Gestão de assinatura e consumo de IA
+
+Antes de publicar esta versão, execute `server/migrations/20260909-subscription-management.sql` no SQL Editor do Supabase. Instalações novas podem usar `server/supabase-migration.sql`, que já inclui a migração. A função `consume_ai_use` conta solicitações atomicamente; sem ela as chamadas de IA retornam indisponibilidade. O limite diário renova às 00:00 UTC, mostrado na tela no fuso do aluno. Free: 10, Pro: 300, Max: 1000 usos/dia. Solicitações admitidas consomem um uso, inclusive se o provedor falhar.
+
+Configure no servidor `STRIPE_SECRET_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_MAX_PRICE_ID`, `STRIPE_WEBHOOK_SECRET` e `BASE_URL` (endereço público do aplicativo). Os preços devem ser recorrentes mensais em BRL, Pro R$45 e Max R$85. Use IDs diferentes para os dois planos. `STRIPE_PRICE_ID` continua aceito como alternativa para o Pro. As chaves e os preços precisam pertencer ao mesmo ambiente Stripe (teste ou produção).
+
+No [portal do cliente Stripe](https://dashboard.stripe.com/settings/billing/portal), habilite histórico de faturas, atualização de métodos de pagamento, troca de assinatura e cancelamento no fim do período. Inclua os produtos e preços Pro/Max no catálogo de troca de plano; configure a cobrança proporcional conforme sua política comercial. Salve a configuração padrão ou informe seu ID em `STRIPE_PORTAL_CONFIGURATION_ID`. Consulte a [documentação do portal](https://docs.stripe.com/customer-management/integrate-customer-portal) para as opções disponíveis. A aplicação cria sessões autenticadas para o cliente vinculado à conta, sem aceitar identificadores de cliente enviados pelo navegador.
+
+Registre o endpoint público `POST /api/subscription/webhook` para os eventos:
+
+- `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`;
+- `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`;
+- `invoice.paid`, `invoice.payment_failed`.
+
+O servidor verifica a assinatura do webhook e consulta o estado atual na Stripe. O preço efetivo determina o plano; metadados antigos não concedem acesso. Alterações pelo portal e renovações atualizam o período real contratado. Cancelar a renovação mantém acesso até o fim desse período; assinaturas vencidas, não pagas ou pausadas usam a cota Free. Falhas de sincronização retornam erro para a Stripe reenviar o evento. O perfil também reconcilia a assinatura ao abrir a tela, voltar do portal e atualizar os dados.
+
+Validação antes de liberar pagamentos: em modo de teste Stripe, contratar Pro, trocar para Max, consultar uma fatura, atualizar cartão, cancelar a renovação e voltar ao perfil. Confirme recebimento dos webhooks e manutenção do acesso até o fim do período. Os testes automatizados usam respostas simuladas; não efetuam cobranças reais. Ativações simuladas locais exigem `ALLOW_FAKE_SUBSCRIPTIONS=true` e são bloqueadas em produção.

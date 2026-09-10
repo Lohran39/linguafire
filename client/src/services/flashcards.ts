@@ -1,4 +1,8 @@
+import { createJsonParser } from './http';
+
 export type Flashcard = {
+  source?: 'conversation';
+  incorrect?: string;
   word: string;
   translation: string;
   level: string;
@@ -35,13 +39,7 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}
   }
 }
 
-async function parseJson<T>(response: Response): Promise<T> {
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) {
-    throw new Error(data.error || 'Erro ao carregar flashcards');
-  }
-  return data;
-}
+const parseJson = createJsonParser('Erro ao carregar flashcards');
 
 export async function getFlashcardStats(): Promise<FlashcardStats> {
   return parseJson<FlashcardStats>(await fetchWithTimeout('/api/flashcards/stats', { credentials: 'include' }));
@@ -67,4 +65,11 @@ export async function reviewFlashcard(card: Flashcard, quality: number): Promise
       })
     })
   );
+}
+
+export async function getMistakeFlashcards(): Promise<Flashcard[]> {
+  const data = await parseJson<{ cards: Flashcard[] }>(
+    await fetchWithTimeout('/api/flashcards/mistakes', { credentials: 'include' })
+  );
+  return data.cards || [];
 }

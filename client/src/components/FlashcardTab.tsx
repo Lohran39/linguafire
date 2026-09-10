@@ -1,3 +1,5 @@
+import { recordLearning } from '../services/learning';
+import { useActivityState } from '../hooks/activity-progress';
 import { useEffect, useMemo, useState } from 'react';
 import { getAvailableFlashcards, getFlashcardStats, reviewFlashcard, type Flashcard, type FlashcardStats } from '../services/flashcards';
 import { updateProfile, type UserProfile } from '../services/auth';
@@ -91,6 +93,7 @@ function getReviewFeedback(quality: number, interval: number, gainedXp: number) 
 }
 
 function buildPrompt(card: Flashcard, mode: FlashMode) {
+  if (card.source === 'conversation') return `Corrija: ${card.incorrect}`;
   if (mode === 'pt-en') return card.translation || 'Sem tradução';
   if (mode === 'complete' && card.example) {
     const escaped = card.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -101,31 +104,34 @@ function buildPrompt(card: Flashcard, mode: FlashMode) {
 }
 
 function buildAnswer(card: Flashcard, mode: FlashMode) {
+  if (card.source === 'conversation') return card.translation;
   if (mode === 'pt-en') return card.word;
   if (mode === 'complete') return card.example || card.word;
   return card.translation || 'Sem tradução';
 }
 
 function getSpeakText(card: Flashcard, mode: FlashMode) {
+  if (card.source === 'conversation') return card.translation;
   if (mode === 'complete') return card.example || card.word;
   return card.word;
 }
 
 export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
   const [stats, setStats] = useState<FlashcardStats>({ due: 0, total: 0 });
-  const [cards, setCards] = useState<Flashcard[]>([]);
-  const [sessionSize, setSessionSize] = useState<10 | 20>(10);
-  const [mode, setMode] = useState<FlashMode>('en-pt');
-  const [category, setCategory] = useState('Todas');
-  const [index, setIndex] = useState(0);
-  const [revealed, setRevealed] = useState(false);
+  const [cards, setCards] = useActivityState<Flashcard[]>('flashcard', 'cards', []);
+  const [learningRun, setLearningRun] = useActivityState('flashcard', 'learningRun', () => crypto.randomUUID());
+  const [sessionSize, setSessionSize] = useActivityState<10 | 20>('flashcard', 'sessionSize', 10);
+  const [mode, setMode] = useActivityState<FlashMode>('flashcard', 'mode', 'en-pt');
+  const [category, setCategory] = useActivityState('flashcard', 'category', 'Todas');
+  const [index, setIndex] = useActivityState('flashcard', 'index', 0);
+  const [revealed, setRevealed] = useActivityState('flashcard', 'revealed', false);
   const [isLoading, setIsLoading] = useState(true);
   const [isReviewing, setIsReviewing] = useState(false);
   const [notice, setNotice] = useState('');
-  const [sessionCorrect, setSessionCorrect] = useState(0);
-  const [sessionXp, setSessionXp] = useState(0);
+  const [sessionCorrect, setSessionCorrect] = useActivityState('flashcard', 'sessionCorrect', 0);
+  const [sessionXp, setSessionXp] = useActivityState('flashcard', 'sessionXp', 0);
   const [dailyReviewed, setDailyReviewed] = useState(0);
-  const [missedCards, setMissedCards] = useState<Flashcard[]>([]);
+  const [missedCards, setMissedCards] = useActivityState<Flashcard[]>('flashcard', 'missedCards', []);
   const englishLevel = normalizeEnglishLevel(user.english_level);
 
   const currentCard = cards[index] || null;
@@ -169,10 +175,11 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
   useEffect(() => {
     const saved = window.localStorage.getItem(getDailyFlashKey(user.id));
     setDailyReviewed(saved ? Number(saved) || 0 : 0);
-    setMissedCards(readStoredMissedCards(user.id));
+    if (!missedCards.length) setMissedCards(readStoredMissedCards(user.id));
   }, [user.id]);
 
   async function startSession() {
+    setLearningRun(crypto.randomUUID());
     setNotice('');
     setIsLoading(true);
 
@@ -213,6 +220,7 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
 
     try {
       const result = await reviewFlashcard(currentCard, quality);
+      recordLearning(user.id, 'flashcard', quality >= 3 ? 100 : 0, `${learningRun}:${index}`);
       const gainedXp = quality >= 3 ? 5 : 2;
       const gainedCorrect = quality >= 3 ? 1 : 0;
       const nextUser = {

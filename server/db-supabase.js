@@ -480,6 +480,23 @@ async function supabaseSaveBadMusicVideo(trackKey, videoId, reason = 'embed_fail
   return { data };
 }
 
+async function supabaseFindUserByStripe(subscriptionId, customerId) {
+  for (const [column, value] of [['stripe_subscription_id', subscriptionId], ['stripe_customer_id', customerId]]) {
+    if (!value) continue;
+    const { data, error } = await supabase.from('users').select('*').eq(column, value).maybeSingle();
+    if (error) throw error;
+    if (data) return data;
+  }
+  return null;
+}
+
+async function supabaseSyncSubscription(userId, updates) {
+  const { data, error } = await supabase.from('users').update(updates).eq('id', userId)
+    .lte('stripe_synced_at', updates.stripe_synced_at).select('*').maybeSingle();
+  if (error) return { error: error.message };
+  return { data: data || await supabaseGetUserById(userId) };
+}
+
 // Delete user (cascade should handle related tables)
 async function supabaseDeleteUser(id) {
   const { error } = await supabase
@@ -530,5 +547,7 @@ module.exports = {
   supabaseGetBadMusicVideos,
   supabaseSaveWorkingMusicVideo,
   supabaseSaveBadMusicVideo,
-  supabaseDeleteUser
+  supabaseDeleteUser,
+  supabaseFindUserByStripe,
+  supabaseSyncSubscription
 };

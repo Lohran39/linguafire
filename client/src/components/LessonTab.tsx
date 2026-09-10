@@ -1,3 +1,6 @@
+import { recordLearning } from '../services/learning';
+import { useActivityState } from '../hooks/activity-progress';
+import { getMistakeFlashcards, reviewFlashcard, type Flashcard } from '../services/flashcards';
 import { useEffect, useMemo, useState } from 'react';
 import {
   APP_LEVELS,
@@ -33,16 +36,27 @@ function dailyQuestionSortKey(questionId: string, seed: string) {
 
 export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const recommendedLessons = useMemo(() => sortByEnglishLevel(lessonSets, user.english_level), [user.english_level]);
-  const [activeLesson, setActiveLesson] = useState<LessonSet>(recommendedLessons[0]);
-  const [practiceMode, setPracticeMode] = useState<'quick' | 'complete'>('quick');
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
-  const [typedAnswer, setTypedAnswer] = useState('');
-  const [submittedTextAnswer, setSubmittedTextAnswer] = useState('');
-  const [answers, setAnswers] = useState<boolean[]>([]);
-  const [missedQuestions, setMissedQuestions] = useState<typeof activeLesson.questions>([]);
+  const [activeLesson, setActiveLesson] = useActivityState<LessonSet>('lessons', 'activeLesson', recommendedLessons[0]);
+  const [learningRun, setLearningRun] = useActivityState('lessons', 'learningRun', () => crypto.randomUUID());
+  const [practiceMode, setPracticeMode] = useActivityState<'quick' | 'complete'>('lessons', 'practiceMode', 'quick');
+  const [questionIndex, setQuestionIndex] = useActivityState('lessons', 'questionIndex', 0);
+  const [selectedChoice, setSelectedChoice] = useActivityState<number | null>('lessons', 'selectedChoice', null);
+  const [typedAnswer, setTypedAnswer] = useActivityState('lessons', 'typedAnswer', '');
+  const [submittedTextAnswer, setSubmittedTextAnswer] = useActivityState('lessons', 'submittedTextAnswer', '');
+  const [answers, setAnswers] = useActivityState<boolean[]>('lessons', 'answers', []);
+  const [missedQuestions, setMissedQuestions] = useActivityState<typeof activeLesson.questions>('lessons', 'missedQuestions', []);
   const [isSaving, setIsSaving] = useState(false);
-  const [savedResult, setSavedResult] = useState('');
+  const [savedResult, setSavedResult] = useActivityState('lessons', 'savedResult', '');
+
+  const [mistakeCards, setMistakeCards] = useActivityState<Flashcard[]>('lessons', 'mistakeCards', []);
+  const [mistakeNotice, setMistakeNotice] = useState('');
+  const [savingAnswer, setSavingAnswer] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    getMistakeFlashcards().then(cards => { if (!cancelled) setMistakeCards(cards); })
+      .catch(() => { if (!cancelled) setMistakeNotice('Não foi possível carregar os erros da conversa. Reabra Lições para tentar novamente.'); });
+    return () => { cancelled = true; };
+  }, [user.id]);
 
   const isReviewLesson = activeLesson.id.endsWith('-review');
   const sameLevelQuestions = useMemo(() => {
@@ -57,14 +71,15 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
 
     return Array.from(questionsById.values());
   }, [activeLesson]);
+  const [practiceDate, setPracticeDate] = useActivityState('lessons', 'practiceDate', () => new Date().toISOString().slice(0, 10));
   const dailyQuestionPool = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = practiceDate;
     const seed = `${today}-${user.id}-${activeLesson.id}-${practiceMode}`;
 
     return [...sameLevelQuestions].sort(
       (first, second) => dailyQuestionSortKey(first.id, seed) - dailyQuestionSortKey(second.id, seed)
     );
-  }, [activeLesson.id, practiceMode, sameLevelQuestions, user.id]);
+  }, [activeLesson.id, practiceMode, sameLevelQuestions, user.id, practiceDate]);
   const currentQuestions = useMemo(
     () => {
       if (isReviewLesson) return activeLesson.questions;
@@ -107,11 +122,11 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     return practiceLessons.find((lesson) => !completedLessons.has(`lesson-${lesson.id}`)) || primaryLessons[0];
   }, [completedLessons, practiceLessons, primaryLessons]);
 
-  useEffect(() => {
-    startLesson(recommendedLessons[0]);
-  }, [recommendedLessons[0]?.id]);
 
   function startLesson(lesson: LessonSet) {
+    if (savingAnswer) return;
+    setPracticeDate(new Date().toISOString().slice(0, 10));
+    setLearningRun(crypto.randomUUID());
     setActiveLesson(lesson);
     setQuestionIndex(0);
     setSelectedChoice(null);
@@ -123,6 +138,8 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   }
 
   function changePracticeMode(mode: 'quick' | 'complete') {
+    if (savingAnswer) return;
+    setLearningRun(crypto.randomUUID());
     setPracticeMode(mode);
     setQuestionIndex(0);
     setSelectedChoice(null);
@@ -143,10 +160,19 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     setSubmittedTextAnswer(typedAnswer);
   }
 
-  function goNext() {
-    if (!isAnswered || isComplete) return;
+  async function goNext() {
+    if (!isAnswered || isComplete || savingAnswer) return;
 
     const isCorrect = isTypeQuestion ? isTypedCorrect : selectedChoice === activeQuestion.answer;
+    const mistakeCard = mistakeCards.find(card => card.word === activeQuestion.id);
+    if (mistakeCard) {
+      setSavingAnswer(true);
+      setMistakeNotice('');
+      try { await reviewFlashcard(mistakeCard, isCorrect ? 4 : 1); }
+      catch { setMistakeNotice('Não foi possível salvar a revisão. Tente avançar novamente.'); return; }
+      finally { setSavingAnswer(false); }
+    }
+    recordLearning(user.id, 'lesson', isCorrect ? 100 : 0, `${learningRun}:${questionIndex}`);
     const nextAnswers = [...answers, isCorrect];
     setAnswers(nextAnswers);
     if (!isCorrect) {
@@ -176,7 +202,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   }
 
   async function saveProgress() {
-    if (!isComplete || isSaving) return;
+    if (!isComplete || isSaving || savedResult.includes('salvo')) return;
 
     const nextAchievements = new Set(user.achievements || []);
     const completedAchievement = `lesson-${activeLesson.id}`;
@@ -222,6 +248,24 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
         <span className="section-kicker">Trilha de prática</span>
         <h1>Lições rápidas para ganhar XP</h1>
         <p className="lead">Seu nível atual é {englishLevel}: {levelProfile.practice}</p>
+
+        {mistakeNotice && <p role="alert">{mistakeNotice}</p>}
+        {mistakeCards.length > 0 && (
+          <button className="lesson-next-card" type="button" disabled={savingAnswer} onClick={() => startLesson({
+            id: 'conversation-review', title: 'Erros da conversa', level: englishLevel,
+            focus: 'Escolha a forma correta da frase que apareceu na sua conversa.', xp: 20,
+            questions: mistakeCards.map((card, index) => ({
+              id: card.word, prompt: `Como corrigir: “${card.incorrect}”?`,
+              helper: 'Compare as frases e escolha a correção.',
+              choices: index % 2 ? [card.incorrect!, card.translation] : [card.translation, card.incorrect!],
+              answer: index % 2 ? 1 : 0, explain: `${card.note || 'Correção'}: ${card.translation}`
+            }))
+          })}>
+            <span>Revisão personalizada · {mistakeCards.length}</span>
+            <strong>Erros da conversa</strong>
+            <small>Pratique suas correções e atualize a revisão dos flashcards.</small>
+          </button>
+        )}
 
         {nextLesson && (
           <button className="lesson-next-card" type="button" onClick={() => startLesson(nextLesson)}>
@@ -351,7 +395,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
             )}
 
             {isAnswered && (
-              <div className={(isTypeQuestion ? isTypedCorrect : selectedChoice === activeQuestion.answer) ? 'lesson-feedback correct' : 'lesson-feedback wrong'}>
+              <div role="status" className={(isTypeQuestion ? isTypedCorrect : selectedChoice === activeQuestion.answer) ? 'lesson-feedback correct' : 'lesson-feedback wrong'}>
                 <strong>{(isTypeQuestion ? isTypedCorrect : selectedChoice === activeQuestion.answer) ? 'Resposta certa' : 'Quase'}</strong>
                 {(isTypeQuestion ? !isTypedCorrect : selectedChoice !== activeQuestion.answer) && (
                   <span>
@@ -365,7 +409,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
             <button
               className="primary-button"
               type="button"
-              disabled={isTypeQuestion ? !typedAnswer.trim() && !isAnswered : !isAnswered}
+              disabled={savingAnswer || (isTypeQuestion ? !typedAnswer.trim() && !isAnswered : !isAnswered)}
               onClick={isTypeQuestion && !isAnswered ? submitTypedAnswer : goNext}
             >
               {isTypeQuestion && !isAnswered ? 'Conferir' : isLastQuestion ? 'Ver resultado' : 'Próxima'}
@@ -380,7 +424,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
               <div className={savedResult.includes('salvo') ? 'form-success' : 'form-error'}>{savedResult}</div>
             )}
             <div className="lesson-actions">
-              <button className="primary-button" type="button" disabled={isSaving} onClick={saveProgress}>
+              <button className="primary-button" type="button" disabled={isSaving || savedResult.includes('salvo')} onClick={saveProgress}>
                 {isSaving ? 'Salvando...' : 'Salvar progresso'}
               </button>
               <button className="secondary-button" type="button" onClick={() => startLesson(activeLesson)}>

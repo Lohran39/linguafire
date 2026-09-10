@@ -1,3 +1,4 @@
+import { useActivityState } from '../hooks/activity-progress';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   analyzeGrammar,
@@ -44,20 +45,20 @@ function sortTopicsForLevel(topics: ConversationTopic[], userLevel: string) {
 }
 
 function topicLabel(topic: ConversationTopic) {
-  return topic.name.replace(/^\S+\s*/, '');
+  return topic.name.replace(/^[^\p{L}\p{N}]+/u, '').trim();
 }
 
 export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps) {
   const [topics, setTopics] = useState<ConversationTopic[]>([]);
-  const [activeTopic, setActiveTopic] = useState<ConversationTopic | null>(null);
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [input, setInput] = useState('');
+  const [activeTopic, setActiveTopic] = useActivityState<ConversationTopic | null>('conversation', 'activeTopic', null);
+  const [messages, setMessages] = useActivityState<ConversationMessage[]>('conversation', 'messages', []);
+  const [input, setInput] = useActivityState('conversation', 'input', '');
   const [isSending, setIsSending] = useState(false);
   const [isFormulating, setIsFormulating] = useState(false);
   const [notice, setNotice] = useState('');
-  const [lastFailedMessage, setLastFailedMessage] = useState('');
-  const [isContextLocked, setIsContextLocked] = useState(false);
-  const [grammarErrors, setGrammarErrors] = useState<GrammarError[]>([]);
+  const [lastFailedMessage, setLastFailedMessage] = useActivityState('conversation', 'lastFailedMessage', '');
+  const [isContextLocked, setIsContextLocked] = useActivityState('conversation', 'isContextLocked', false);
+  const [grammarErrors, setGrammarErrors] = useActivityState<GrammarError[]>('conversation', 'grammarErrors', []);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const englishLevel = normalizeEnglishLevel(user.english_level);
   const recommendedTopics = useMemo(() => sortTopicsForLevel(topics, englishLevel), [topics, englishLevel]);
@@ -113,12 +114,13 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
     setMessages(nextMessages);
     setInput('');
     setNotice('');
-    setLastFailedMessage('');
+    setLastFailedMessage(trimmed);
     setIsSending(true);
 
     try {
       const reply = await sendConversationMessage(activeTopic.id, trimmed, messages, englishLevel);
       setMessages([...nextMessages, { role: 'assistant', content: reply }]);
+      setLastFailedMessage('');
       if (reply.includes(contextLockMessage)) {
         setIsContextLocked(true);
         setNotice('Essa prática foi bloqueada por sair do contexto. Escolha outro cenário para continuar.');
@@ -165,11 +167,14 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
         setGrammarErrors(errors);
         onProfileRefresh({ ...user, ai_uses_today: Number(user.ai_uses_today || 0) + 1 });
       } catch {
-        setGrammarErrors([]);
+        setNotice('Não foi possível analisar e salvar os erros. Tente encerrar novamente.');
+        return;
       }
     }
 
     setActiveTopic(null);
+    setMessages([]);
+    setInput('');
   }
 
   if (!activeTopic) {
@@ -191,6 +196,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
         {grammarErrors.length > 0 && (
           <section className="grammar-panel">
             <h2>Última análise</h2>
+            <p>Seus erros estão nos flashcards e na lição “Erros da conversa”.</p>
             {grammarErrors.map((error, index) => (
               <article key={`${error.incorrect}-${index}`}>
                 <strong>{error.type || 'grammar'}</strong>
@@ -228,9 +234,9 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
 
       <div className="hint-strip">{hints[activeTopic.id]?.[messages.length % hints[activeTopic.id].length]}</div>
 
-      {notice && (
-        <div className="conversation-notice">
-          <span>{notice}</span>
+      {(notice || (lastFailedMessage && !isSending)) && (
+        <div className="conversation-notice" role="status">
+          <span>{notice || 'Sua última mensagem ficou sem resposta. Recarregue o texto para tentar novamente.'}</span>
           {lastFailedMessage && (
             <button type="button" onClick={retryLastMessage}>
               Recarregar texto
@@ -239,7 +245,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
         </div>
       )}
 
-      <div className="message-list" ref={messagesRef}>
+      <div className="message-list" role="log" aria-label="Mensagens da conversa" aria-live="polite" ref={messagesRef}>
         {messages.map((message, index) => (
           <article className={`message ${message.role}`} key={`${message.role}-${index}`}>
             {message.content}
@@ -252,6 +258,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
         <input
           className="field"
           disabled={isContextLocked}
+          aria-label="Sua resposta em inglês"
           maxLength={2000}
           placeholder={isContextLocked ? 'Escolha outro cenário para continuar.' : 'Type your answer in English...'}
           value={input}

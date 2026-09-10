@@ -1,3 +1,7 @@
+import { ContentReview } from './ContentReview';
+import { contentKey, getCurations, isVerified, type CurationItem } from '../services/curation';
+import { recordLearning } from '../services/learning';
+import { useActivityState } from '../hooks/activity-progress';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { APP_LEVELS, normalizeEnglishLevel, type EnglishLevel } from '../data/levels';
 import { updateProfile, type UserProfile } from '../services/auth';
@@ -833,27 +837,35 @@ function buildNativeEmbedUrl(videoId: string) {
 
 export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
   const englishLevel = normalizeEnglishLevel(user.english_level);
-  const [query, setQuery] = useState('look forward to');
-  const [lang, setLang] = useState<NativesLanguage>('english');
-  const [result, setResult] = useState<NativesSearchResult | null>(null);
-  const [activeVideo, setActiveVideo] = useState('');
-  const [lastQuery, setLastQuery] = useState('');
+  const [curations, setCurations] = useState<CurationItem[]>([]);
+  const [curationUnavailable, setCurationUnavailable] = useState(false);
+  useEffect(() => {
+    let active = true;
+    getCurations('native').then(items => { if (active) setCurations(items); }).catch(() => { if (active) setCurationUnavailable(true); });
+    return () => { active = false; };
+  }, []);
+  const [query, setQuery] = useActivityState('natives', 'query', 'look forward to');
+  const [lang, setLang] = useActivityState<NativesLanguage>('natives', 'lang', 'english');
+  const [result, setResult] = useActivityState<NativesSearchResult | null>('natives', 'result', null);
+  const [activeVideo, setActiveVideo] = useActivityState('natives', 'activeVideo', '');
+  const [lastQuery, setLastQuery] = useActivityState('natives', 'lastQuery', '');
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState('');
-  const [selectedSituation, setSelectedSituation] = useState<NativeSituationId>('restaurant');
-  const [selectedPhraseId, setSelectedPhraseId] = useState(nativePhrases[0].id);
-  const [answer, setAnswer] = useState('');
-  const [coachResult, setCoachResult] = useState<NativeCoachResult | null>(null);
+  const [selectedSituation, setSelectedSituation] = useActivityState<NativeSituationId>('natives', 'selectedSituation', 'restaurant');
+  const [selectedPhraseId, setSelectedPhraseId] = useActivityState('natives', 'selectedPhraseId', nativePhrases[0].id);
+  const [answer, setAnswer] = useActivityState('natives', 'answer', '');
+  const [coachResult, setCoachResult] = useActivityState<NativeCoachResult | null>('natives', 'coachResult', null);
   const [coachError, setCoachError] = useState('');
   const [isCoaching, setIsCoaching] = useState(false);
-  const [coachHistory, setCoachHistory] = useState<NativeCoachTurn[]>([]);
+  const [coachHistory, setCoachHistory] = useActivityState<NativeCoachTurn[]>('natives', 'coachHistory', []);
   const coachRequestRef = useRef<AbortController | null>(null);
   const coachHistoryRef = useRef<HTMLDivElement>(null);
   const [isSavingProgress, setIsSavingProgress] = useState(false);
-  const [progressMessage, setProgressMessage] = useState('');
+  const [progressMessage, setProgressMessage] = useActivityState('natives', 'progressMessage', '');
   const [shadowMessage, setShadowMessage] = useState('');
-  const [dictationAnswer, setDictationAnswer] = useState('');
-  const [dictationMessage, setDictationMessage] = useState('');
+  const [dictationAttempt, setDictationAttempt] = useActivityState('natives', 'dictationAttempt', () => crypto.randomUUID());
+  const [dictationAnswer, setDictationAnswer] = useActivityState('natives', 'dictationAnswer', '');
+  const [dictationMessage, setDictationMessage] = useActivityState('natives', 'dictationMessage', '');
   const [savedVideoMessage, setSavedVideoMessage] = useState('');
   const [favorites, setFavorites] = useState<string[]>([]);
   const [practiceHistory, setPracticeHistory] = useState<NativePracticeHistoryItem[]>([]);
@@ -939,16 +951,6 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
     setSearchHistory(readNativeSearchHistory(searchHistoryKey));
   }, [searchHistoryKey]);
 
-  useEffect(() => {
-    const next = recommendedPhrases[0];
-    if (next) {
-      setSelectedPhraseId(next.id);
-      setAnswer('');
-      setCoachResult(null);
-      setCoachError('');
-    }
-  }, [recommendedPhrases]);
-
   function resetCoach() {
     coachRequestRef.current?.abort();
     coachRequestRef.current = null;
@@ -960,8 +962,11 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
     setProgressMessage('');
   }
 
+  const coachContext = `${user.id}-${selectedSituation}-${selectedPhraseId}-${englishLevel}`;
+  const previousCoachContext = useRef(coachContext);
   useEffect(() => {
-    resetCoach();
+    if (previousCoachContext.current !== coachContext) resetCoach();
+    previousCoachContext.current = coachContext;
     return () => {
       coachRequestRef.current?.abort();
       coachRequestRef.current = null;
@@ -1069,6 +1074,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
     }
 
     const comparison = comparePracticeText(selectedPhrase.natural, dictationAnswer);
+    recordLearning(user.id, 'dictation', comparison.score, `${dictationAttempt}:${selectedPhrase.id}`);
 
     if (received === expected || comparison.score >= 92) {
       setDictationMessage(`Perfeito: ${comparison.score}%. Você escreveu a frase natural corretamente.`);
@@ -1149,6 +1155,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
         history: coachHistory
       }, controller.signal);
       if (coachRequestRef.current !== controller) return;
+      recordLearning(user.id, 'native_coach', data.score);
       setCoachResult(data);
       setCoachHistory((previous) => [...previous, { answer: trimmed, reply: data.nextReply }].slice(-10));
       setAnswer('');
@@ -1219,8 +1226,14 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
     }
   }
 
-  function markActiveVideoAsBad() {
+  async function markActiveVideoAsBad() {
     if (!activeVideo) return;
+    try {
+      await reportBadNativeVideo({ query: activeSearchQuery, lang, videoId: activeVideo });
+    } catch (error) {
+      setSavedVideoMessage(error instanceof Error ? error.message : 'A denúncia não foi enviada.');
+      return;
+    }
 
     const nextBadIds = [...new Set([...badVideoIds, activeVideo])];
     setBadVideoIds(nextBadIds);
@@ -1228,12 +1241,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
 
     const nextVideo = (result?.videoIds || []).find((id) => id !== activeVideo && !nextBadIds.includes(id)) || '';
     setActiveVideo(nextVideo);
-    reportBadNativeVideo({
-      query: activeSearchQuery,
-      lang,
-      videoId: activeVideo,
-      reason: 'bad_result'
-    });
+    setSavedVideoMessage('Denúncia enviada para revisão.');
   }
 
   function restoreBadVideosForSearch() {
@@ -1244,6 +1252,10 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
     setActiveVideo(result.videoIds?.[0] || '');
   }
 
+  const contentIdentity = { kind: 'native' as const, title: activeSearchQuery, lang, videoId: activeVideo };
+  const activeCuration = curations.find(item => item.content_key === contentKey(contentIdentity) && item.video_id === activeVideo);
+  const translationLabels = { available: 'Tradução conferida na revisão', partial: 'Tradução parcial', missing: 'Tradução ausente' };
+  const verifiedSuggestions = [...new Set([...curations.filter(item => item.lang === lang && isVerified(item)).map(item => item.title), ...nativeSuggestions])];
   const fallbackUrl = result?.searchUrl || buildNativesFallbackUrl(lastQuery || query, lang);
   const retryVariants = buildRetryVariants(lastQuery || query);
 
@@ -1396,7 +1408,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
                 className="field"
                 placeholder="Digite a frase ouvida..."
                 value={dictationAnswer}
-                onChange={(event) => setDictationAnswer(event.target.value)}
+                onChange={(event) => { setDictationAnswer(event.target.value); setDictationAttempt(crypto.randomUUID()); }}
               />
               <div>
                 <button type="button" onClick={() => speakText(selectedPhrase.natural)}>Tocar áudio</button>
@@ -1578,7 +1590,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
         </form>
 
         <div className="suggestion-tags">
-          {nativeSuggestions.map((suggestion) => (
+          {verifiedSuggestions.map((suggestion) => (
             <button key={suggestion} type="button" onClick={() => performSearch(suggestion)}>
               {suggestion}
             </button>
@@ -1619,7 +1631,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
         <section className="natives-result">
           <div className="panel-heading">
             <h2>{lastQuery}</h2>
-            <span>{result?.curated ? 'curado' : result?.cached ? 'cache' : 'novo'}</span>
+            <span>{isVerified(activeCuration) ? 'Verificado' : 'Exemplo em vídeo'}</span>
           </div>
           <div className="video-frame native-video-frame">
             <iframe
@@ -1636,6 +1648,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
               width="100%"
             />
           </div>
+          <ContentReview key={`${activeSearchQuery}:${lang}:${activeVideo}`} content={contentIdentity} item={activeCuration} translation={activeCuration ? translationLabels[activeCuration.translation] : 'Tradução ainda não verificada'} unavailable={curationUnavailable} />
           <div className="native-video-actions">
             <button type="button" onClick={toggleSavedVideo}>
               {activeVideoSaved ? 'Remover salvo' : 'Salvar vídeo'}

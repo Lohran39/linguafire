@@ -3,6 +3,7 @@ export type LyricLine = {
   pt: string;
   explain: string;
   time?: number;
+  translationStatus?: 'pending' | 'ready' | 'unavailable';
 };
 
 export type Song = {

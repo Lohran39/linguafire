@@ -1,3 +1,5 @@
+import { createJsonParser } from './http';
+
 const SERVICE_WORKER_PATH = '/sw-push.js';
 
 export function supportsPushNotifications() {
@@ -17,13 +19,7 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
-async function parseJson<T>(response: Response): Promise<T> {
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) {
-    throw new Error(data.error || 'Erro ao processar notificações');
-  }
-  return data;
-}
+const parseJson = createJsonParser('Erro ao processar notificações');
 
 async function registerServiceWorker() {
   return navigator.serviceWorker.register(SERVICE_WORKER_PATH, { scope: '/' });

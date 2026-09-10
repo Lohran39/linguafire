@@ -308,3 +308,103 @@ CREATE INDEX IF NOT EXISTS idx_translation_cache_updated ON public.translation_c
 -- ============================================
 -- For Supabase auth integration, you'll need to set up Auth helpers
 -- This is a placeholder for the auth integration
+
+-- Rascunhos para retomada entre dispositivos
+-- Execute no SQL Editor do Supabase antes de publicar esta versão.
+CREATE TABLE IF NOT EXISTS public.activity_progress (
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  activity TEXT NOT NULL CHECK (activity IN ('navigation','lessons','flashcard','conversation','music','natives','placement')),
+  state JSONB NOT NULL DEFAULT '{}'::jsonb,
+  revision INTEGER NOT NULL DEFAULT 1,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, activity)
+);
+ALTER TABLE public.activity_progress ENABLE ROW LEVEL SECURITY;
+-- Acesso somente pelas rotas autenticadas do servidor com service_role.
+REVOKE ALL ON public.activity_progress FROM anon, authenticated;
+
+-- Aprendizado e revisão de conteúdo
+-- Execute no SQL Editor do Supabase antes de publicar esta versão.
+CREATE TABLE IF NOT EXISTS public.learning_events (
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  event_id TEXT NOT NULL,
+  activity TEXT NOT NULL CHECK (activity IN ('lesson','flashcard','music_quiz','native_coach','dictation')),
+  score INTEGER NOT NULL CHECK (score BETWEEN 0 AND 100),
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, event_id)
+);
+CREATE INDEX IF NOT EXISTS learning_events_period ON public.learning_events(user_id, occurred_at);
+CREATE TABLE IF NOT EXISTS public.content_curations (
+  kind TEXT NOT NULL CHECK (kind IN ('music','native')),
+  content_key TEXT NOT NULL,
+  video_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL DEFAULT '',
+  lang TEXT NOT NULL DEFAULT 'english',
+  status TEXT NOT NULL CHECK (status IN ('verified','rejected')),
+  video_matches BOOLEAN NOT NULL DEFAULT false,
+  text_matches BOOLEAN NOT NULL DEFAULT false,
+  translation TEXT NOT NULL CHECK (translation IN ('available','partial','missing')),
+  notes TEXT NOT NULL DEFAULT '',
+  reviewed_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (kind, content_key, video_id)
+);
+CREATE TABLE IF NOT EXISTS public.content_reports (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('music','native')),
+  content_key TEXT NOT NULL,
+  video_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL DEFAULT '',
+  lang TEXT NOT NULL DEFAULT 'english',
+  reason TEXT NOT NULL CHECK (reason IN ('wrong_video','wrong_text','translation','unavailable','other')),
+  detail TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, kind, content_key, video_id, reason)
+);
+ALTER TABLE public.learning_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.content_curations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.content_reports ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.learning_events, public.content_curations, public.content_reports FROM anon, authenticated;
+-- Gestão de assinatura e consumo diário de IA (UTC).
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAULT '';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT DEFAULT '';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS stripe_subscription_status TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS stripe_cancel_at_period_end BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS stripe_cancel_at BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS stripe_synced_at BIGINT NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS users_stripe_subscription ON public.users(stripe_subscription_id) WHERE stripe_subscription_id <> '';
+CREATE INDEX IF NOT EXISTS users_stripe_customer ON public.users(stripe_customer_id) WHERE stripe_customer_id <> '';
+
+CREATE OR REPLACE FUNCTION public.consume_ai_use(p_user_id UUID)
+RETURNS TABLE (allowed BOOLEAN, uses INTEGER, daily_limit INTEGER, plan TEXT, resets_at TIMESTAMPTZ)
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
+DECLARE
+  student public.users%ROWTYPE;
+  day_key TEXT := to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD');
+  legacy_day TEXT := to_char(now() AT TIME ZONE 'UTC', 'Dy Mon DD YYYY');
+  used INTEGER;
+  quota INTEGER;
+  current_plan TEXT;
+BEGIN
+  SELECT * INTO student FROM public.users WHERE id = p_user_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'User not found'; END IF;
+  current_plan := CASE WHEN student.subscription_active = 1
+    AND student.subscription_expires > (extract(epoch FROM now()) * 1000)::BIGINT
+    AND student.plan IN ('pro', 'max') THEN student.plan ELSE 'free' END;
+  quota := CASE current_plan WHEN 'max' THEN 1000 WHEN 'pro' THEN 300 ELSE 10 END;
+  used := CASE WHEN student.ai_uses_date IN (day_key, legacy_day) THEN greatest(coalesce(student.ai_uses_today, 0), 0) ELSE 0 END;
+  IF used < quota THEN
+    used := used + 1;
+    UPDATE public.users SET ai_uses_today = used, ai_uses_date = day_key WHERE id = p_user_id;
+    RETURN QUERY SELECT true, used, quota, current_plan, (date_trunc('day', now() AT TIME ZONE 'UTC') + interval '1 day') AT TIME ZONE 'UTC';
+  ELSE
+    RETURN QUERY SELECT false, used, quota, current_plan, (date_trunc('day', now() AT TIME ZONE 'UTC') + interval '1 day') AT TIME ZONE 'UTC';
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.consume_ai_use(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.consume_ai_use(UUID) TO service_role;

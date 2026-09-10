@@ -1,10 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import {
-  cancelSubscription,
   changePassword,
-  createSubscription,
   deleteAccount,
-  getSubscriptionStatus,
   loginWithGoogle,
   updateProfile,
   type UserProfile
@@ -12,20 +9,12 @@ import {
 import { getPushStatus, subscribeToPush, supportsPushNotifications, unsubscribeFromPush } from '../services/notifications';
 import { applyTheme, normalizeTheme, themeOptions, type Theme } from '../theme';
 
-const PROFILE_PLAN_AI_LIMITS: Record<string, number> = { pro: 300, max: 1000 };
+import { SubscriptionPanel } from './SubscriptionPanel';
 
 type ProfileTabProps = {
   user: UserProfile;
   onProfileRefresh: (user: UserProfile) => void;
 };
-
-function planDefaultLimit(plan: string | null | undefined) {
-  return PROFILE_PLAN_AI_LIMITS[String(plan || 'pro').toLowerCase()] || 300;
-}
-
-function planPrice(plan: string | null | undefined) {
-  return String(plan || 'pro').toLowerCase() === 'max' ? 85 : 45;
-}
 
 export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
   const [name, setName] = useState(user.name || '');
@@ -38,37 +27,9 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [subscription, setSubscription] = useState({
-    active: Boolean(user.subscription_active),
-    expires: Number(user.subscription_expires || 0),
-    plan: user.subscription_active ? user.plan || 'pro' : null as string | null,
-    price: planPrice(user.plan),
-    aiDailyLimit: Math.max(planDefaultLimit(user.plan), Number(user.ai_daily_limit || 0)),
-    checkoutConfigured: false
-  });
-  const [subscriptionBusy, setSubscriptionBusy] = useState(false);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [checkoutIssues, setCheckoutIssues] = useState<string[]>([]);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
-
-  function normalizeSubscription(nextSubscription: {
-    active: boolean;
-    expires: number;
-    plan: string | null;
-    price: number;
-    aiDailyLimit?: number;
-    checkoutConfigured?: boolean;
-  }) {
-    const plan = nextSubscription.plan || 'pro';
-    return {
-      ...nextSubscription,
-      price: nextSubscription.price || planPrice(plan),
-      aiDailyLimit: Math.max(planDefaultLimit(plan), Number(nextSubscription.aiDailyLimit || 0)),
-      checkoutConfigured: Boolean(nextSubscription.checkoutConfigured)
-    };
-  }
 
   useEffect(() => {
     setName(user.name || '');
@@ -91,33 +52,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
       }
     }
 
-    async function loadSubscription() {
-      setSubscriptionStatus('loading');
-      setCheckoutIssues([]);
-      try {
-        const status = await getSubscriptionStatus();
-        if (isMounted) {
-          setSubscription(normalizeSubscription(status));
-          setCheckoutIssues(status.checkoutIssues || []);
-          setSubscriptionStatus('ready');
-        }
-      } catch {
-        if (isMounted) {
-          setSubscriptionStatus('error');
-          setSubscription({
-            active: Boolean(user.subscription_active),
-            expires: Number(user.subscription_expires || 0),
-            plan: user.subscription_active ? user.plan || 'pro' : null,
-            price: planPrice(user.plan),
-            aiDailyLimit: Math.max(planDefaultLimit(user.plan), Number(user.ai_daily_limit || 0)),
-            checkoutConfigured: false
-          });
-        }
-      }
-    }
-
     loadAccountStatus();
-    loadSubscription();
     return () => {
       isMounted = false;
     };
@@ -216,36 +151,6 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
     }
   }
 
-  async function toggleSubscription(plan: 'pro' | 'max' = 'pro') {
-    setNotice('');
-    setSubscriptionBusy(true);
-
-    try {
-      if (subscription.active) {
-        await cancelSubscription();
-        setSubscription({ active: false, expires: 0, plan: null, price: 45, aiDailyLimit: 300, checkoutConfigured: subscription.checkoutConfigured });
-        onProfileRefresh({ ...user, subscription_active: false, subscription_expires: 0, plan: 'free', ai_daily_limit: 10 });
-        setNotice('Assinatura cancelada.');
-      } else {
-        const nextSubscription = await createSubscription(plan);
-        const normalizedSubscription = normalizeSubscription(nextSubscription);
-        setSubscription(normalizedSubscription);
-        onProfileRefresh({
-          ...user,
-          subscription_active: true,
-          subscription_expires: normalizedSubscription.expires,
-          plan: normalizedSubscription.plan || 'pro',
-          ai_daily_limit: normalizedSubscription.aiDailyLimit
-        });
-        setNotice('Assinatura ativada.');
-      }
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Erro ao atualizar assinatura.');
-    } finally {
-      setSubscriptionBusy(false);
-    }
-  }
-
   async function handleDeleteAccount() {
     setNotice('');
     if (deleteConfirm !== user.email) {
@@ -262,10 +167,6 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
       setDeleteBusy(false);
     }
   }
-
-  const subscriptionExpires = subscription.expires
-    ? new Intl.DateTimeFormat('pt-BR').format(new Date(subscription.expires))
-    : 'Sem assinatura ativa';
 
   return (
     <section className="profile-layout" aria-label="Perfil">
@@ -348,48 +249,7 @@ export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
         {notice && <div className="form-success">{notice}</div>}
       </form>
 
-      <section className="profile-settings">
-        <div className="panel-heading">
-          <h2>Assinatura</h2>
-          <span>{subscription.active ? String(subscription.plan || 'pro') : 'free'}</span>
-        </div>
-        <div className="profile-subscription">
-          <strong>{subscription.active ? 'Plano ativo' : 'Plano gratuito'}</strong>
-          <span>
-            {subscription.active
-              ? `Renova até ${subscriptionExpires} · ${subscription.aiDailyLimit || 300} usos de IA/dia`
-              : 'Pro: R$45/mês · 300 usos de IA/dia | Max: R$85/mês · 1000 usos de IA/dia'}
-          </span>
-        </div>
-        <div className="profile-actions">
-          {subscription.active ? (
-            <button className="primary-button" disabled={subscriptionBusy} type="button" onClick={() => toggleSubscription()}>
-              {subscriptionBusy ? 'Atualizando...' : 'Cancelar assinatura'}
-            </button>
-          ) : (
-            <>
-              <button className="primary-button" disabled={subscriptionBusy || subscriptionStatus !== 'ready' || !subscription.checkoutConfigured} type="button" onClick={() => toggleSubscription('pro')}>
-                {subscriptionBusy ? 'Atualizando...' : 'Ativar Pro'}
-              </button>
-              <button className="secondary-button" disabled={subscriptionBusy || subscriptionStatus !== 'ready' || !subscription.checkoutConfigured} type="button" onClick={() => toggleSubscription('max')}>
-                Ativar Max
-              </button>
-            </>
-          )}
-        </div>
-        {subscriptionStatus === 'loading' && <p role="status">Consultando assinatura...</p>}
-        {subscriptionStatus === 'error' && (
-          <div className="form-error" role="alert">Não foi possível consultar sua assinatura. Atualize a página para tentar novamente.</div>
-        )}
-        {subscriptionStatus === 'ready' && !subscription.active && !subscription.checkoutConfigured && (
-          <div className="form-error" role="status">
-            Assinaturas temporariamente indisponíveis.
-            {user.role === 'admin' && checkoutIssues.length > 0 && (
-              <p>{checkoutIssues.join(' ')} Confira essas variáveis no Render e publique novamente o serviço.</p>
-            )}
-          </div>
-        )}
-      </section>
+      <SubscriptionPanel user={user} onProfileRefresh={onProfileRefresh} />
 
       <form className="profile-settings" onSubmit={handlePasswordSubmit}>
         <div className="panel-heading">

@@ -1,3 +1,5 @@
+import { createJsonParser } from './http';
+
 export type DailyWord = {
   word: string;
   translation: string;
@@ -33,13 +35,7 @@ export type Quest = {
   reward: number;
 };
 
-async function parseJson<T>(response: Response): Promise<T> {
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) {
-    throw new Error(data.error || 'Erro ao carregar dados');
-  }
-  return data;
-}
+const parseJson = createJsonParser('Erro ao carregar dados');
 
 export async function getDailyWord(): Promise<DailyWord> {
   return parseJson<DailyWord>(await fetch('/api/daily/word'));

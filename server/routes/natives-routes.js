@@ -1,3 +1,4 @@
+const { contentKey, isVerified, prioritizeVideos } = require('../services/content-curation');
 const NATIVES_CACHE_VERSION = 'strict-v5';
 const NATIVES_CACHE_SOURCE = 'youtube-strict-v1';
 const NATIVES_FALLBACK_CACHE_SOURCE = 'verified-short-v4';
@@ -74,11 +75,6 @@ function parseNativeCoachJson(content = '') {
 
 function isValidYouTubeId(value = '') {
   return /^[a-zA-Z0-9_-]{11}$/.test(String(value));
-}
-
-function extractVideoIdsFromHtml(html = '') {
-  const matches = [...String(html).matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)];
-  return [...new Set(matches.map((match) => match[1]).filter(isValidYouTubeId))];
 }
 
 function normalizeNativesText(value = '') {
@@ -427,38 +423,6 @@ async function searchYouTubeDataApiVideos(searchQuery, apiKey, lang = 'english')
     .filter((item) => isValidYouTubeId(item.videoId) && item.embeddable && item.privacyStatus === 'public');
 }
 
-async function searchYouTubeVideos(searchQuery) {
-  const query = encodeURIComponent(searchQuery);
-  const attempts = [
-    `https://www.youtube.com/results?search_query=${query}&hl=en`,
-    `https://www.youtube.com/results?search_query=${query}&persist_hl=1&hl=en`,
-    `https://www.youtube.com/results?search_query=${query}&app=desktop&hl=en`
-  ];
-
-  for (const url of attempts) {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-      },
-      signal: AbortSignal.timeout(10000)
-    });
-
-    if (!response.ok) {
-      continue;
-    }
-
-    const html = await response.text();
-    const ids = extractVideoIdsFromHtml(html);
-    if (ids.length > 0) {
-      return ids;
-    }
-  }
-
-  return [];
-}
-
 async function searchInvidiousVideos(searchQuery) {
   const instances = [
     'https://invidious.fdn.fr',
@@ -502,6 +466,7 @@ async function searchInvidiousVideos(searchQuery) {
 
 function registerNativesRoutes(app, deps = {}) {
   const {
+    contentCuration = { list: async () => [] },
     supabaseGetNativesCache = async () => null,
     supabaseUpsertNativesCache = async () => {},
     supabaseGetNativeSavedVideos = async () => [],
@@ -510,7 +475,7 @@ function registerNativesRoutes(app, deps = {}) {
     supabaseGetUserById = async () => null,
     authenticateToken = (_req, _res, next) => next(),
     checkAILimit = (_req, _res, next) => next(),
-    callMiniMaxChat = async () => ({ content: '' }),
+    callGeminiChat = async () => ({ content: '' }),
     OPENAI_MODEL_ALIAS = 'gpt-4o-mini',
     AI_API_KEY = '',
     nativeCoachFallbackModel = process.env.NATIVE_COACH_FALLBACK_MODEL ?? 'gemini-3.1-flash-lite',
@@ -544,12 +509,25 @@ function registerNativesRoutes(app, deps = {}) {
         return res.status(400).json({ error: 'Digite uma palavra ou frase valida para buscar.' });
       }
 
+      const records = await contentCuration.list('native', contentKey({ kind: 'native', title: q, lang: selectedLang })).catch(() => []);
+      const reportCacheKey = buildNativesReportCacheKey(q, selectedLang);
+      const reported = await supabaseGetNativesCache(reportCacheKey);
+      const reportedIds = new Set(parseCachedVideoIds(reported?.video_ids));
+      const verifiedIds = records.filter(isVerified).map(item => item.video_id);
+      function sendSearch(payload) {
+        if (Array.isArray(payload.videoIds)) {
+          payload.videoIds = prioritizeVideos(payload.videoIds.filter(id => !reportedIds.has(id)), records).slice(0, NATIVES_RESULT_LIMIT);
+          payload.verifiedVideoIds = verifiedIds.filter(id => payload.videoIds.includes(id));
+        }
+        return res.json(payload);
+      }
+      if (verifiedIds.length) return sendSearch({ videoIds: verifiedIds, curated: true, cached: true });
       const curatedCacheKey = buildNativesCuratedCacheKey(q, selectedLang);
       const curated = await supabaseGetNativesCache(curatedCacheKey);
-      const curatedIds = parseCachedVideoIds(curated?.video_ids);
+      const curatedIds = prioritizeVideos(parseCachedVideoIds(curated?.video_ids).filter(id => !reportedIds.has(id)), records);
 
       if (curatedIds.length > 0 && isUsableCuratedNativesCache(curated, q, selectedLang)) {
-        return res.json({
+        return sendSearch({
           videoIds: curatedIds.slice(0, NATIVES_RESULT_LIMIT),
           cached: true,
           curated: true,
@@ -560,10 +538,10 @@ function registerNativesRoutes(app, deps = {}) {
 
       const cacheKey = buildNativesCacheKey(q, selectedLang);
       const cached = await supabaseGetNativesCache(cacheKey);
-      const cachedIds = parseCachedVideoIds(cached?.video_ids);
+      const cachedIds = prioritizeVideos(parseCachedVideoIds(cached?.video_ids).filter(id => !reportedIds.has(id)), records);
 
       if (cachedIds.length > 0 && isUsableNativesCache(cached, q, selectedLang)) {
-        return res.json({
+        return sendSearch({
           videoIds: cachedIds.slice(0, NATIVES_RESULT_LIMIT),
           cached: true,
           strict: true,
@@ -572,12 +550,9 @@ function registerNativesRoutes(app, deps = {}) {
       }
 
       const emptyCacheKey = buildNativesEmptyCacheKey(q, selectedLang);
-      const reportCacheKey = buildNativesReportCacheKey(q, selectedLang);
-      const reported = await supabaseGetNativesCache(reportCacheKey);
-      const reportedIds = new Set(parseCachedVideoIds(reported?.video_ids));
       const emptyCached = await supabaseGetNativesCache(emptyCacheKey);
       if (isUsableEmptyNativesCache(emptyCached, q, selectedLang)) {
-        return res.json({
+        return sendSearch({
           ...buildNativesEmptyResponse(
             q,
             selectedLang,
@@ -686,7 +661,7 @@ function registerNativesRoutes(app, deps = {}) {
         source: resultSource
       });
 
-      return res.json({
+      return sendSearch({
         videoIds: finalIds,
         cached: false,
         strict: true,
@@ -717,7 +692,7 @@ function registerNativesRoutes(app, deps = {}) {
     res.once?.('close', disconnect);
 
     try {
-      const result = await callMiniMaxChat({
+      const result = await callGeminiChat({
         apiKey: AI_API_KEY,
         requestedModel: OPENAI_MODEL_ALIAS,
         temperature: 0.35,

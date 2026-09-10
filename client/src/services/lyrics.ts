@@ -52,6 +52,45 @@ const translationCache = new Map<string, string>();
 const YOUTUBE_TITLE_SUFFIX_PATTERN = /\b(official|music|video|lyrics?|lyric|audio|visualizer|remaster(?:ed)?|hd|4k|vevo|topic)\b/gi;
 const TRANSLATION_SEPARATOR = '\nLF_LINE_BREAK\n';
 
+type LyricsLoadOptions = {
+  signal?: AbortSignal;
+  onProgress?: (lines: LyricLine[]) => void;
+};
+
+type MusicStage = 'video-search' | 'video-metadata' | 'lyrics' | 'translation';
+
+// Timings stay in the browser; queries, lyrics and user identifiers are not recorded.
+async function requestMusicJson<T>(url: string, stage: MusicStage, signal?: AbortSignal, init: RequestInit = {}): Promise<T> {
+  signal?.throwIfAborted();
+  const controller = new AbortController();
+  const abort = () => controller.abort(signal?.reason);
+  signal?.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(() => controller.abort(new DOMException('Tempo de espera esgotado.', 'TimeoutError')), stage === 'translation' ? 30000 : 20000);
+  const start = performance.now();
+  let outcome = 'error';
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    const data = await response.json();
+    controller.signal.throwIfAborted();
+    if (!response.ok) throw new Error(data?.reason || data?.error || 'Não foi possível concluir a busca.');
+    outcome = 'success';
+    return data as T;
+  } catch (error) {
+    if (controller.signal.aborted) {
+      outcome = signal?.aborted ? 'cancelled' : 'timeout';
+      if (signal?.aborted) throw signal.reason;
+      throw new Error('A resposta demorou demais. Tente novamente.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
+    const name = `linguafire:music:${stage}`;
+    if (performance.getEntriesByName(name).length >= 30) performance.clearMeasures(name);
+    performance.measure(name, { start, end: performance.now(), detail: { outcome } });
+  }
+}
+
 function parseSyncedLyrics(value: string): LyricsApiLine[] {
   return value
     .split('\n')
@@ -132,30 +171,23 @@ function isTemporaryTranslationFallback(text: string) {
     || text.includes('Tradução automática indisponível');
 }
 
-async function translateText(text: string) {
+async function translateText(text: string, signal?: AbortSignal) {
+  signal?.throwIfAborted();
   const cacheKey = text.toLowerCase().trim();
   if (translationCache.has(cacheKey)) return translationCache.get(cacheKey) || text;
 
   let translated = '';
   try {
-    const response = await fetch('/api/translate', {
+    const data = await requestMusicJson<{ responseStatus?: number; responseData?: { translatedText?: string } }>('/api/translate', 'translation', signal, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ q: text, from: 'en', to: 'pt-BR' })
     });
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      console.error('Falha na tradução:', {
-        status: response.status,
-        error: data?.error,
-        detail: data?.detail,
-        textLength: text.length
-      });
-    }
     translated = data?.responseStatus === 200 && data?.responseData?.translatedText
       ? decodeHtmlEntities(String(data.responseData.translatedText))
       : '';
   } catch (error) {
+    signal?.throwIfAborted();
     console.error('Falha na tradução:', error instanceof Error ? error.message : error);
     translated = '';
   }
@@ -190,11 +222,12 @@ function chunkLinesForTranslation(lines: string[], maxChars = 9000) {
   return chunks;
 }
 
-async function translateLines(lines: string[]) {
+async function translateLines(lines: string[], signal?: AbortSignal) {
   const chunks = chunkLinesForTranslation(lines);
   const translatedChunks: string[][] = [];
 
   for (const chunk of chunks) {
+    signal?.throwIfAborted();
     const missingIndexes: number[] = [];
     const missingLines: string[] = [];
     const cachedChunk = chunk.map((line, index) => {
@@ -208,11 +241,12 @@ async function translateLines(lines: string[]) {
 
     if (missingLines.length) {
       const joinedOriginal = missingLines.join(TRANSLATION_SEPARATOR);
-      const joinedTranslated = await translateText(joinedOriginal);
+      const joinedTranslated = await translateText(joinedOriginal, signal);
       const splitTranslated = joinedTranslated.split(/(?:\n)?LF_LINE_BREAK(?:\n)?/);
+      if (splitTranslated.length !== missingLines.length) translationCache.delete(joinedOriginal.toLowerCase().trim());
 
       missingLines.forEach((line, index) => {
-        const candidate = splitTranslated[index] || '';
+        const candidate = splitTranslated.length === missingLines.length ? splitTranslated[index] : '';
         const translated = isUsefulTranslation(line, candidate) ? decodeHtmlEntities(candidate).trim() : fallbackTranslateText(line);
         if (!isTemporaryTranslationFallback(translated)) {
           translationCache.set(line.toLowerCase().trim(), translated);
@@ -245,20 +279,17 @@ export function extractYouTubeId(value: string) {
   return '';
 }
 
-export async function fetchYouTubeMetadata(youtubeId: string) {
+export async function fetchYouTubeMetadata(youtubeId: string, signal?: AbortSignal) {
   const url = `https://www.youtube.com/watch?v=${youtubeId}`;
   const params = new URLSearchParams({ url });
-  const response = await fetch(`/api/youtube/oembed?${params.toString()}`);
-  if (!response.ok) throw new Error('Não consegui ler os dados do vídeo.');
-  return (await response.json()) as YouTubeOEmbedResponse;
+  return requestMusicJson<YouTubeOEmbedResponse>(`/api/youtube/oembed?${params.toString()}`, 'video-metadata', signal);
 }
 
-export async function searchMusicByName(query: string) {
+export async function searchMusicByName(query: string, signal?: AbortSignal) {
   const params = new URLSearchParams({ q: query });
-  const response = await fetch(`/api/music/search?${params.toString()}`);
-  const data = (await response.json().catch(() => null)) as MusicSearchResponse | null;
+  const data = await requestMusicJson<MusicSearchResponse>(`/api/music/search?${params.toString()}`, 'video-search', signal);
 
-  if (!response.ok || !data?.success) {
+  if (!data?.success) {
     throw new Error(data?.reason || 'Não encontrei essa música. Tente música + artista.');
   }
 
@@ -281,7 +312,7 @@ export function reportMusicVideoStatus(payload: {
   }).catch(() => {});
 }
 
-export async function lyricsResponseToLines(data: LyricsFindResponse, maxLines = 80): Promise<LyricLine[]> {
+export async function lyricsResponseToLines(data: LyricsFindResponse, maxLines = 80, options: LyricsLoadOptions = {}): Promise<LyricLine[]> {
   const rawLines = data.synced && data.syncedLyrics
     ? parseSyncedLyrics(data.syncedLyrics)
     : parsePlainLyrics(data.plainLyrics || '');
@@ -294,21 +325,31 @@ export async function lyricsResponseToLines(data: LyricsFindResponse, maxLines =
     .filter((line) => line.text.length > 1)
     .slice(0, maxLines);
 
-  const translatedLines = await translateLines(usableLines.map((line) => line.text));
-
-  return usableLines.map((line, index) => ({
+  const originalLines: LyricLine[] = usableLines.map((line) => ({
       en: line.text,
-      pt: translatedLines[index] || fallbackTranslateText(line.text),
+      pt: '',
+      translationStatus: 'pending',
       explain: line.time === undefined
         ? `Fonte: ${data.fallbackSource === 'genius-metadata' ? 'Genius + LRCLIB' : data.source || 'letras'}`
         : `Legenda sincronizada em ${Math.floor(line.time / 60)}:${String(Math.floor(line.time % 60)).padStart(2, '0')}.`,
       time: line.time
     }));
+  if (!originalLines.length) throw new Error('A letra encontrada está vazia.');
+  return translateLyricLines(originalLines, options);
 }
 
-export async function musicSearchToLyrics(data: MusicSearchResponse, maxLines = 80) {
-  if (!data.syncedLyrics && !data.plainLyrics) return [];
-  return lyricsResponseToLines(data, maxLines);
+export async function translateLyricLines(lines: LyricLine[], options: LyricsLoadOptions = {}): Promise<LyricLine[]> {
+  options.signal?.throwIfAborted();
+  const pending = lines.map(line => line.translationStatus === 'unavailable'
+    ? { ...line, pt: '', translationStatus: 'pending' as const }
+    : line);
+  options.onProgress?.(pending);
+  const translated = await translateLines(pending.map(line => line.en), options.signal);
+  options.signal?.throwIfAborted();
+  return pending.map((line, index) => {
+    const pt = translated[index] || fallbackTranslateText(line.en);
+    return { ...line, pt, translationStatus: isTemporaryTranslationFallback(pt) ? 'unavailable' : 'ready' };
+  });
 }
 
 export function parseYouTubeMusicMetadata(metadata: YouTubeOEmbedResponse) {
@@ -341,7 +382,8 @@ export async function fetchSongLyrics(
   track: string,
   artist: string,
   maxLines = 80,
-  source?: { videoTitle?: string; channelName?: string }
+  source?: { videoTitle?: string; channelName?: string },
+  options: LyricsLoadOptions = {}
 ): Promise<LyricLine[]> {
   const params = new URLSearchParams({
     track_name: track,
@@ -349,12 +391,11 @@ export async function fetchSongLyrics(
   });
   if (source?.videoTitle) params.set('video_title', source.videoTitle);
   if (source?.channelName) params.set('channel_name', source.channelName);
-  const response = await fetch(`/api/lyrics/find?${params.toString()}`);
-  const data = (await response.json().catch(() => null)) as LyricsFindResponse | null;
+  const data = await requestMusicJson<LyricsFindResponse>(`/api/lyrics/find?${params.toString()}`, 'lyrics', options.signal);
 
-  if (!response.ok || !data?.success) {
+  if (!data?.success) {
     throw new Error(data?.reason || 'Letra não encontrada automaticamente.');
   }
 
-  return lyricsResponseToLines(data, maxLines);
+  return lyricsResponseToLines(data, maxLines, options);
 }

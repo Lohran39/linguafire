@@ -1,10 +1,10 @@
-const { buildOpenAIChatResponse } = require('../services/minimax-service');
+const { buildOpenAIChatResponse } = require('../services/gemini-service');
 
 function setupAIRoutes(app, deps = {}) {
   const {
     authenticateToken,
     checkAILimit,
-    callMiniMaxChat,
+    callGeminiChat,
     getBearerToken,
     aiApiKey = '',
     openaiModelAlias = 'gemini-3.6-flash'
@@ -29,7 +29,7 @@ function setupAIRoutes(app, deps = {}) {
     const requestedModel = body.model || openaiModelAlias;
 
     try {
-      const result = await callMiniMaxChat({
+      const result = await callGeminiChat({
         messages: openaiMessages,
         temperature: body.temperature ?? 0.3,
         maxTokens: body.max_tokens,

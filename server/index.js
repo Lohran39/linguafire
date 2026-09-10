@@ -8,7 +8,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 require('dotenv').config();
 
-const { createGeminiService } = require('./services/minimax-service');
+const { createGeminiService } = require('./services/gemini-service');
 const { createAgentTools } = require('./services/agent-tools');
 const { createMailService } = require('./services/mail-service');
 const { createMonitoringService } = require('./services/monitoring-service');
@@ -118,6 +118,8 @@ const {
 // ============ SUPABASE ============
 const {
   supabase,
+  supabaseFindUserByStripe,
+  supabaseSyncSubscription,
   supabaseGetUserByEmail, supabaseGetUserById, supabaseFindUserByGoogleOrEmail, supabaseCreateUser, supabaseUpdateUser,
   supabaseUpdateGoogleLink, supabaseSetPasswordResetToken, supabaseGetUserByResetToken, supabaseResetPassword,
   supabaseGetUserByEmailVerificationToken, supabaseSetEmailVerificationToken, supabaseVerifyUserEmail,
@@ -242,50 +244,18 @@ async function authenticateToken(req, res, next) {
 }
 
 // ============ AI USAGE LIMIT ============
-const PLAN_AI_LIMITS = {
-  free: 10,
-  pro: 300,
-  max: 1000
-};
-
-function normalizePlan(plan) {
-  const normalized = String(plan || '').trim().toLowerCase();
-  return Object.prototype.hasOwnProperty.call(PLAN_AI_LIMITS, normalized) ? normalized : 'free';
-}
-
-function getUserAILimit(user) {
-  const plan = normalizePlan(user.plan || (user.subscription_active ? 'pro' : 'free'));
-  const configuredLimit = Number(user.ai_daily_limit || 0);
-  return Math.max(PLAN_AI_LIMITS[plan], configuredLimit);
-}
-
 async function checkAILimit(req, res, next) {
-  const today = new Date().toDateString();
-
   try {
-    const user = await supabaseGetUserById(req.user.id);
-    if (!user) return res.status(500).json({ error: 'Erro interno' });
-
-    const limit = getUserAILimit(user);
-    const usesToday = user.ai_uses_date === today ? Number(user.ai_uses_today || 0) : 0;
-
-    if (usesToday >= limit) {
-      return res.status(403).json({
-        error: 'limit_reached',
-        message: 'Limite diário de IA atingido',
-        uses: usesToday,
-        limit,
-        plan: normalizePlan(user.plan || (user.subscription_active ? 'pro' : 'free')),
-        upgradeUrl: '/subscription'
-      });
-    }
-
-    req.aiUsage = { uses: usesToday + 1, limit };
-    await supabaseUpdateUser(req.user.id, { ai_uses_today: usesToday + 1, ai_uses_date: today });
+    const { data, error } = await supabase.rpc('consume_ai_use', { p_user_id: req.user.id });
+    if (error || !data?.[0]) return res.status(503).json({ error: 'Não foi possível conferir seu limite de IA. Tente novamente.' });
+    const usage = data[0];
+    if (!usage.allowed) return res.status(403).json({
+      error: 'limit_reached', message: 'Limite diário de IA atingido', uses: usage.uses,
+      limit: usage.daily_limit, plan: usage.plan, resetsAt: usage.resets_at, upgradeUrl: '/?billing=return'
+    });
+    req.aiUsage = { uses: usage.uses, limit: usage.daily_limit, resetsAt: usage.resets_at };
     next();
-  } catch (error) {
-    return res.status(500).json({ error: 'Erro interno' });
-  }
+  } catch { return res.status(503).json({ error: 'Não foi possível conferir seu limite de IA.' }); }
 }
 
 // ============ HELPER FUNCTIONS ============
@@ -302,7 +272,7 @@ function getBearerToken(req) {
 }
 
 // ============ AI SERVICES ============
-const { callMiniMaxChat } = createGeminiService({
+const { callGeminiChat } = createGeminiService({
   geminiBaseUrl: GEMINI_BASE_URL,
   geminiModel: GEMINI_MODEL,
   openaiModelAlias: OPENAI_MODEL_ALIAS,
@@ -349,6 +319,8 @@ setupProfileRoutes(app, {
 
 // Subscription routes
 setupSubscriptionRoutes(app, {
+  supabaseFindUserByStripe,
+  supabaseSyncSubscription,
   authenticateToken,
   supabaseGetUserById,
   supabaseUpdateUser,
@@ -368,19 +340,25 @@ setupShopRoutes(app, {
   authenticateToken, supabaseGetUserById, supabaseUpdateUser, parseJsonField
 });
 
+const contentCuration = require('./services/content-curation').createContentCuration(supabase);
+require('./routes/learning-routes').setupLearningRoutes(app, { authenticateToken, supabase });
+require('./routes/curation-routes').setupCurationRoutes(app, { authenticateToken, supabaseGetUserById, supabase, curation: contentCuration });
+
+require('./routes/activity-routes').setupActivityRoutes(app, { authenticateToken, supabase });
+
 // Flashcard routes
 setupFlashcardRoutes(app, {
-  authenticateToken, supabaseGetFlashcards, supabaseUpsertFlashcard, supabaseGetUserById
+  authenticateToken, supabaseGetFlashcards, supabaseUpsertFlashcard, supabaseGetUserById, supabaseGetGrammarErrors
 });
 
 // Conversation routes
 setupConversationRoutes(app, {
-  authenticateToken, checkAILimit, callMiniMaxChat, OPENAI_MODEL_ALIAS, AI_API_KEY: GEMINI_API_KEY
+  authenticateToken, checkAILimit, callGeminiChat, OPENAI_MODEL_ALIAS, AI_API_KEY: GEMINI_API_KEY
 });
 
 // Grammar routes
 setupGrammarRoutes(app, {
-  authenticateToken, checkAILimit, supabaseAddGrammarError, supabaseGetGrammarErrors, callMiniMaxChat, OPENAI_MODEL_ALIAS, AI_API_KEY: GEMINI_API_KEY, supabase
+  authenticateToken, checkAILimit, supabaseAddGrammarError, supabaseGetGrammarErrors, callGeminiChat, OPENAI_MODEL_ALIAS, AI_API_KEY: GEMINI_API_KEY, supabase
 });
 
 // Push routes
@@ -396,6 +374,7 @@ setupPushRoutes(app, {
 
 // Lyrics routes
 registerLyricsRoutes(app, {
+  contentCuration,
   logger,
   supabaseGetLyricsCache,
   supabaseUpsertLyricsCache,
@@ -410,6 +389,7 @@ registerLyricsRoutes(app, {
 
 // Natives routes
 registerNativesRoutes(app, {
+  contentCuration,
   supabaseGetNativesCache,
   supabaseUpsertNativesCache,
   supabaseGetNativeSavedVideos,
@@ -418,7 +398,7 @@ registerNativesRoutes(app, {
   supabaseGetUserById,
   authenticateToken,
   checkAILimit,
-  callMiniMaxChat,
+  callGeminiChat,
   OPENAI_MODEL_ALIAS,
   AI_API_KEY: GEMINI_API_KEY,
   YOUTUBE_API_KEY,
@@ -464,14 +444,14 @@ setupMiscRoutes(app, {
 setupAIRoutes(app, {
   authenticateToken,
   checkAILimit,
-  callMiniMaxChat,
+  callGeminiChat,
   getBearerToken,
   aiApiKey: GEMINI_API_KEY,
   openaiModelAlias: OPENAI_MODEL_ALIAS
 });
 
 setupAgentRoutes(app, {
-  callMiniMaxChat,
+  callGeminiChat,
   getBearerToken,
   agentTools,
   aiApiKey: GEMINI_API_KEY,

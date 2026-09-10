@@ -1,3 +1,4 @@
+const { contentKey, isVerified } = require('../services/content-curation');
 const crypto = require('crypto');
 
 async function fetchJsonWithTimeout(url, timeoutMs = 12000, extraHeaders = {}) {
@@ -150,32 +151,12 @@ function buildTranslationCacheKey(text = '', from = 'en', to = 'pt-BR') {
   return `${TRANSLATION_CACHE_VERSION}:${hash}`;
 }
 
-function shouldCacheTranslation(translated = '', provider = '') {
+function shouldCacheTranslation(translated = '') {
   const clean = cleanTranslationText(translated);
   if (!clean) return false;
   if (clean.includes('Tradução em revisão.')) return false;
   if (clean.includes('Tradução automática indisponível')) return false;
   return true;
-}
-
-function parseJsonArrayFromText(text = '') {
-  const clean = String(text || '')
-    .replace(/^```(?:json)?/i, '')
-    .replace(/```$/i, '')
-    .trim();
-  try {
-    const parsed = JSON.parse(clean);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (_error) {
-    const match = clean.match(/\[[\s\S]*\]/);
-    if (!match) return null;
-    try {
-      const parsed = JSON.parse(match[0]);
-      return Array.isArray(parsed) ? parsed : null;
-    } catch (_nestedError) {
-      return null;
-    }
-  }
 }
 
 function compactProviderBody(data) {
@@ -223,150 +204,6 @@ async function translateWithDeepL(text, from, to, env = process.env, logger = co
   return translated;
 }
 
-async function translateWithGemini(text, from, to, env = process.env, logger = console) {
-  const apiKey = String(env.GEMINI_API_KEY || '').trim();
-  if (!apiKey) return null;
-
-  const configuredModel = String(env.GEMINI_MODEL || 'gemini-3.6-flash').trim();
-  const modelCandidates = [...new Set([configuredModel].filter(Boolean))];
-  const baseUrl = String(env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
-  const blockLines = splitTranslationBlock(text).map((line) => cleanTranslationText(line));
-  const isBlock = blockLines.length > 1;
-  const prompt = isBlock
-    ? [
-        `Traduza este array do ${from || 'en'} para ${to || 'pt-BR'} em portugues brasileiro natural.`,
-        'Contexto: letras de musica, girias e frases curtas para estudo de ingles.',
-        'Responda somente com um JSON array valido, na mesma ordem e com a mesma quantidade de itens.',
-        'Nao explique. Nao use markdown.',
-        JSON.stringify(blockLines)
-      ].join('\n')
-    : [
-        `Traduza do ${from || 'en'} para ${to || 'pt-BR'} em portugues brasileiro natural.`,
-        'Contexto: letras de musica, girias e frases curtas para estudo de ingles.',
-        'Nao explique. Nao adicione aspas. Responda somente com a traducao.',
-        '',
-        text
-      ].join('\n');
-
-  for (const model of modelCandidates) {
-    const modelPath = model.startsWith('models/') ? model : `models/${model}`;
-    const url = `${baseUrl}/v1beta/${modelPath}:generateContent`;
-    const { response, data } = await fetchTextWithTimeout(url, {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': apiKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.15,
-          maxOutputTokens: 1800
-        }
-      })
-    }, 16000);
-
-    const translated = cleanTranslationText((data?.candidates?.[0]?.content?.parts || [])
-      .map((part) => part?.text || '')
-      .filter(Boolean)
-      .join('\n'));
-    if (!response.ok) {
-      logger.warn?.('Gemini translation failed', {
-        statusCode: response.status,
-        model,
-        textLength: text.length,
-        isBlock,
-        body: compactProviderBody(data)
-      });
-      continue;
-    }
-    if (response.ok && isBlock) {
-      const translatedArray = parseJsonArrayFromText(translated);
-      if (translatedArray?.length === blockLines.length) {
-        const translatedLines = translatedArray.map((item, index) => {
-          const candidate = cleanTranslationText(String(item || ''));
-          return isUsefulTranslation(blockLines[index], candidate) ? candidate : translateNoLiteralLine(blockLines[index]);
-        });
-        return translatedLines.join(`\n${TRANSLATION_SEPARATOR}\n`);
-      }
-      logger.warn?.('Gemini translation JSON shape mismatch', {
-        model,
-        expectedLines: blockLines.length,
-        receivedLines: translatedArray?.length || 0,
-        responsePreview: translated.slice(0, 260)
-      });
-    }
-    if (isUsefulTranslation(text, translated)) return translated;
-    logger.warn?.('Gemini translation returned unusable text', {
-      model,
-      textLength: text.length,
-      isBlock,
-      responsePreview: translated.slice(0, 260)
-    });
-  }
-
-  return null;
-}
-
-async function diagnoseGeminiModel(model, sample, env = process.env) {
-  const apiKey = String(env.GEMINI_API_KEY || '').trim();
-  const baseUrl = String(env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
-  const modelPath = String(model || '').startsWith('models/') ? model : `models/${model}`;
-  const url = `${baseUrl}/v1beta/${modelPath}:generateContent`;
-
-  if (!apiKey || !model) {
-    return {
-      model,
-      ok: false,
-      statusCode: 0,
-      translated: '',
-      error: !apiKey ? 'GEMINI_API_KEY ausente' : 'modelo ausente',
-      body: ''
-    };
-  }
-
-  try {
-    const { response, data } = await fetchTextWithTimeout(url, {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': apiKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [{
-          role: 'user',
-          parts: [{ text: `Traduza para portugues brasileiro, responda só a tradução: ${sample}` }]
-        }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 80
-        }
-      })
-    }, 12000);
-    const translated = cleanTranslationText((data?.candidates?.[0]?.content?.parts || [])
-      .map((part) => part?.text || '')
-      .filter(Boolean)
-      .join('\n'));
-    return {
-      model,
-      ok: response.ok && isUsefulTranslation(sample, translated),
-      statusCode: response.status,
-      translated,
-      error: response.ok ? '' : (data?.error?.message || data?.message || 'Gemini recusou a chamada'),
-      body: response.ok ? '' : compactProviderBody(data)
-    };
-  } catch (error) {
-    return {
-      model,
-      ok: false,
-      statusCode: 0,
-      translated: '',
-      error: error.message,
-      body: ''
-    };
-  }
-}
-
 function translateNoLiteralLine(text = '') {
   const normalized = normalizeTranslationCompare(text).replace(/-/g, ' ');
   if (!normalized) return '';
@@ -389,7 +226,7 @@ async function translateBlockByLines(text, from, to, env = process.env, logger =
       continue;
     }
 
-    const result = await translateTextWithoutGemini(cleanLine, from, to, env, logger);
+    const result = await translateTextSmart(cleanLine, from, to, env, logger);
     if (!result) fallbackCount += 1;
     translatedLines.push(result?.translated || translateNoLiteralLine(cleanLine));
   }
@@ -404,42 +241,20 @@ async function translateBlockByLines(text, from, to, env = process.env, logger =
   return translatedLines.join(`\n${TRANSLATION_SEPARATOR}\n`);
 }
 
-async function translateTextWithoutGemini(text, from = 'en', to = 'pt-BR', env = process.env, logger = console) {
-  const providers = [
-    ['deepl', () => translateWithDeepL(text, from, to, env, logger)],
-    ['mymemory', () => translateWithMyMemoryLogged(text, from, to, logger)]
-  ];
-
-  for (const [provider, translate] of providers) {
-    try {
-      const translated = await translate();
-      if (translated) return { provider, translated };
-    } catch (error) {
-      logger.warn?.('Translation fallback provider threw', {
-        provider,
-        message: error.message,
-        textLength: text.length
-      });
-    }
-  }
-
-  return null;
-}
-
 function chunkTranslationLines(lines = [], maxChars = 900) {
   const chunks = [];
   let current = [];
   let currentSize = 0;
 
   for (const line of lines) {
-    const nextSize = currentSize + String(line || '').length + TRANSLATION_SEPARATOR.length + 2;
-    if (current.length && nextSize > maxChars) {
+    const lineSize = String(line || '').length + TRANSLATION_SEPARATOR.length + 2;
+    if (current.length && currentSize + lineSize > maxChars) {
       chunks.push(current);
       current = [];
       currentSize = 0;
     }
     current.push(line);
-    currentSize = nextSize;
+    currentSize += lineSize;
   }
 
   if (current.length) chunks.push(current);
@@ -765,11 +580,6 @@ function scoreMusicVideoCandidate(candidate = {}, query = '') {
   return score;
 }
 
-async function searchYouTubeMusicByName(searchQuery, apiKey) {
-  const candidates = await searchYouTubeMusicCandidates(searchQuery, apiKey);
-  return candidates[0] || null;
-}
-
 async function searchYouTubeMusicCandidates(searchQuery, apiKey, ignoredVideoIds = []) {
   const query = String(searchQuery || '').trim();
   const ignored = new Set((ignoredVideoIds || []).map(String));
@@ -1059,6 +869,7 @@ async function fetchYouTubeOEmbed(url) {
 
 function registerLyricsRoutes(app, deps = {}) {
   const {
+    contentCuration = { list: async () => [] },
     logger = console,
     supabaseGetLyricsCache = async () => null,
     supabaseUpsertLyricsCache = async () => {},
@@ -1138,10 +949,17 @@ function registerLyricsRoutes(app, deps = {}) {
             score: firstCandidate.score + 1000
           }
         : null;
-      const candidates = [
+      let candidates = [
         ...(cachedCandidate ? [cachedCandidate] : []),
         ...candidatesWithoutKnownBad.filter((candidate) => candidate.videoId !== cachedCandidate?.videoId)
       ];
+      const curated = await contentCuration.list('music', contentKey({ kind: 'music', title: firstParsed.trackOriginal || firstCandidate.title, artist: firstParsed.artistOriginal || firstCandidate.author })).catch(() => []);
+      const rejectedIds = new Set(curated.filter(item => item.status === 'rejected').map(item => item.video_id));
+      const verified = curated.filter(isVerified).filter(item => !knownBadIds.includes(item.video_id));
+      candidates = [
+        ...verified.map(item => ({ ...firstCandidate, videoId: item.video_id, title: `${item.artist} - ${item.title}`, author: item.artist, cached: true, verified: true })),
+        ...candidates.filter(item => !verified.some(record => record.video_id === item.videoId))
+      ].filter(item => !rejectedIds.has(item.videoId));
       const video = candidates[0];
 
       if (!video) {
@@ -1172,7 +990,8 @@ function registerLyricsRoutes(app, deps = {}) {
           thumbnail: candidate.thumbnail,
           durationSeconds: candidate.durationSeconds,
           score: candidate.score,
-          cached: Boolean(candidate.cached)
+          cached: Boolean(candidate.cached),
+          verified: Boolean(candidate.verified)
         })),
         lyricsFound: false
       });
@@ -1437,7 +1256,7 @@ function registerLyricsRoutes(app, deps = {}) {
         });
       }
 
-      if (shouldCacheTranslation(result.translated, result.provider)) {
+      if (shouldCacheTranslation(result.translated)) {
         await supabaseUpsertTranslationCache(cacheKey, {
           fromLang: from,
           toLang: to,
@@ -1519,7 +1338,6 @@ module.exports = {
   parseYouTubeMusicTitle,
   buildMusicTrackKey,
   scoreMusicVideoCandidate,
-  searchYouTubeMusicByName,
   searchYouTubeMusicCandidates,
   getLyricsMatchDetails,
   MIN_LYRICS_CONFIDENCE,

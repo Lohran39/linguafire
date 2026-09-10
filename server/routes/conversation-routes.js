@@ -1,3 +1,4 @@
+const { normalize } = require('../services/mistake-review');
 const { conversationFormulateSchema, conversationSchema, grammarAnalyzeSchema, validateBody } = require('../validation');
 
 const CONVERSATION_TOPICS = [
@@ -108,7 +109,7 @@ function setupConversationRoutes(app, deps = {}) {
   const {
     authenticateToken = (req, res, next) => next(),
     checkAILimit = (req, res, next) => next(),
-    callMiniMaxChat = async () => ({ content: '' }),
+    callGeminiChat = async () => ({ content: '' }),
     OPENAI_MODEL_ALIAS = 'gemini-3.6-flash',
     AI_API_KEY = ''
   } = deps;
@@ -131,7 +132,7 @@ function setupConversationRoutes(app, deps = {}) {
     ];
 
     try {
-      const result = await callMiniMaxChat({
+      const result = await callGeminiChat({
         messages,
         temperature: 0.55,
         maxTokens: 180,
@@ -176,7 +177,7 @@ function setupConversationRoutes(app, deps = {}) {
     ];
 
     try {
-      const result = await callMiniMaxChat({
+      const result = await callGeminiChat({
         messages,
         temperature: 0.45,
         maxTokens: 90,
@@ -197,7 +198,7 @@ function setupGrammarRoutes(app, deps = {}) {
     authenticateToken = (req, res, next) => next(),
     checkAILimit = (req, res, next) => next(),
     supabaseAddGrammarError = async () => ({ error: 'not configured' }),
-    callMiniMaxChat = async () => ({ content: '[]' }),
+    callGeminiChat = async () => ({ content: '[]' }),
     OPENAI_MODEL_ALIAS = 'gemini-3.6-flash',
     AI_API_KEY = ''
   } = deps;
@@ -235,7 +236,7 @@ Respond ONLY with a JSON array of errors in this format (no other text):
 
 If there are no obvious errors, respond with an empty array [].`;
 
-      const result = await callMiniMaxChat({
+      const result = await callGeminiChat({
         messages: [{ role: 'user', content: analysisPrompt }],
         temperature: 0.3,
         maxTokens: 500,
@@ -254,14 +255,22 @@ If there are no obvious errors, respond with an empty array [].`;
         // Silently ignore parse errors
       }
 
+      errors = (Array.isArray(errors) ? errors : []).filter(err =>
+        err && typeof err.incorrect === 'string' && typeof err.correct === 'string' &&
+        err.incorrect.trim() && err.correct.trim() && err.incorrect.length <= 500 && err.correct.length <= 500 &&
+        normalize(err.incorrect) !== normalize(err.correct) &&
+        conversationHistory.some(item => item.role === 'user' && normalize(item.content).includes(normalize(err.incorrect)))
+      );
+      errors = errors.filter((err, index) => errors.findIndex(other => normalize(other.incorrect) === normalize(err.incorrect) && normalize(other.correct) === normalize(err.correct)) === index);
       if (errors.length > 0) {
         for (const err of errors) {
-          await supabaseAddGrammarError(req.user.id, {
+          const saved = await supabaseAddGrammarError(req.user.id, {
             topic: topicId || 'general',
-            error_type: err.type || 'grammar',
+            error_type: typeof err.type === 'string' ? err.type.slice(0, 100) : 'grammar',
             user_sentence: err.incorrect || '',
             correct_form: err.correct || ''
           });
+          if (saved?.error) throw new Error(saved.error);
         }
       }
 

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { registerNativesRoutes } = require('../routes/natives-routes');
-const { createGeminiService } = require('../services/minimax-service');
+const { createGeminiService } = require('../services/gemini-service');
 
 const answers = [
   'Hello, I would like a table for two.',
@@ -16,7 +16,7 @@ const answers = [
   'Can I pay by card? Thank you.'
 ];
 
-function coachRequest(callMiniMaxChat) {
+function coachRequest(callGeminiChat) {
   let handlers;
   registerNativesRoutes({
     get() {},
@@ -25,7 +25,7 @@ function coachRequest(callMiniMaxChat) {
       if (path === '/api/natives/coach') handlers = callbacks;
     }
   }, {
-    callMiniMaxChat,
+    callGeminiChat,
     AI_API_KEY: process.env.GEMINI_API_KEY || '',
     logger: { error() {} }
   });

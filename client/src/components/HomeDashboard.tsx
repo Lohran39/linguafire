@@ -1,3 +1,4 @@
+import { LearningPanel } from './LearningPanel';
 import { useEffect, useMemo, useState } from 'react';
 import { APP_LEVELS, LEVEL_PROFILES, getLevelProgress, normalizeEnglishLevel } from '../data/levels';
 import {
@@ -120,7 +121,7 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
           <div className="learning-path-panel">
             <span>{englishLevel}</span>
             <div>
-              <strong>{levelProfile.title}</strong>
+              <strong>Inglês {englishLevel} · {levelProfile.title}</strong>
               <p>{levelProfile.focus}</p>
               <small>Próximo foco: {levelProfile.next}</small>
             </div>
@@ -129,7 +130,7 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
           <div className="level-panel">
             <div>
               <strong>
-                Nível {user.level || 1} - {progress.current.name}
+                Nível de jogo {user.level || 1} - {progress.current.name}
               </strong>
               <span>
                 {user.xp || 0}/{progress.nextXp} XP
@@ -159,6 +160,8 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
             <strong>Ranking</strong>
           </article>
         </div>
+
+        <LearningPanel userId={user.id} />
 
         <section className="streak-panel">
           <div className="streak-number">

@@ -6,7 +6,7 @@ const {
   asGeminiContents,
   createGeminiService,
   pickTextFromGemini
-} = require('../services/minimax-service');
+} = require('../services/gemini-service');
 
 test('asGeminiContents maps OpenAI-style messages to Gemini contents', () => {
   const result = asGeminiContents([

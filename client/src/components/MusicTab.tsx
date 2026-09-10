@@ -1,8 +1,12 @@
+import { ContentReview } from './ContentReview';
+import { contentKey, getCurations, isVerified, type CurationItem } from '../services/curation';
+import { recordLearning } from '../services/learning';
+import { useActivityState } from '../hooks/activity-progress';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { findSong, getSongByKey, SONGS, SUGGESTIONS, type LyricLine, type Song } from '../data/music';
 import { englishLevelDistance, normalizeEnglishLevel } from '../data/levels';
 import { updateProfile, type FavoriteSong, type UserProfile } from '../services/auth';
-import { extractYouTubeId, fetchSongLyrics, fetchYouTubeMetadata, parseYouTubeMusicMetadata, reportMusicVideoStatus, searchMusicByName } from '../services/lyrics';
+import { extractYouTubeId, fetchSongLyrics, fetchYouTubeMetadata, parseYouTubeMusicMetadata, reportMusicVideoStatus, searchMusicByName, translateLyricLines } from '../services/lyrics';
 
 type MusicTabProps = {
   user: UserProfile;
@@ -15,6 +19,12 @@ type QuizQuestion = {
   correct: string;
   prompt: string;
 };
+
+function lyricTranslation(line: LyricLine) {
+  if (line.translationStatus === 'pending') return 'Traduzindo...';
+  if (line.translationStatus === 'unavailable') return 'Tradução indisponível.';
+  return line.pt;
+}
 
 declare global {
   interface Window {
@@ -30,6 +40,7 @@ declare global {
             playsinline?: 1;
             rel?: 0;
             modestbranding?: 1;
+            start?: number;
           };
           events?: {
             onReady?: (event: { target: { getCurrentTime: () => number } }) => void;
@@ -75,7 +86,7 @@ function shuffleItems<T>(items: T[]) {
 }
 
 function createQuiz(song: Song): QuizQuestion[] {
-  const usableLines = shuffleItems(song.lyrics.filter((line) => line.en && line.pt));
+  const usableLines = shuffleItems(song.lyrics.filter((line) => line.en && line.pt && (!line.translationStatus || line.translationStatus === 'ready')));
 
   return usableLines
     .filter((line) => line.en && line.pt)
@@ -117,7 +128,8 @@ function formatMusicTime(value?: number) {
   return `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}`;
 }
 
-function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (seconds: number) => void }) {
+function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { song: Song; onTimeChange: (seconds: number) => void; startSeconds: number; onVideoChange: (id: string) => void }) {
+  const resumeAt = useRef(startSeconds);
   const playerRef = useRef<HTMLDivElement | null>(null);
   const playerInstanceRef = useRef<{ destroy?: () => void } | null>(null);
   const [embedFailed, setEmbedFailed] = useState(false);
@@ -130,6 +142,7 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
   const candidatesKey = candidateIds.join(',');
   const [candidateIndex, setCandidateIndex] = useState(0);
   const currentVideoId = candidateIds[candidateIndex] || song.ytId;
+  useEffect(() => { onVideoChange(currentVideoId); }, [currentVideoId, onVideoChange]);
   const watchUrl = `https://www.youtube.com/watch?v=${currentVideoId}`;
   const thumbUrl = `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`;
   const embedBaseUrl = embedHost === 'youtube' ? 'https://www.youtube.com' : 'https://www.youtube-nocookie.com';
@@ -164,7 +177,7 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
     setEmbedLoaded(false);
     setEmbedHost('youtube');
     setCandidateIndex(0);
-    onTimeChange(0);
+    onTimeChange(resumeAt.current);
   }, [candidatesKey, onTimeChange, song.ytId]);
 
   useEffect(() => {
@@ -192,6 +205,7 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
           origin: window.location.origin,
           enablejsapi: 1,
           playsinline: 1,
+          start: Math.max(0, Math.floor(resumeAt.current)),
           rel: 0,
           modestbranding: 1
         },
@@ -278,28 +292,77 @@ function YouTubeFrame({ song, onTimeChange }: { song: Song; onTimeChange: (secon
 
 export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   const englishLevel = normalizeEnglishLevel(user.english_level);
-  const [query, setQuery] = useState('');
-  const [musicFilter, setMusicFilter] = useState<MusicFilter>('recommended');
+  const [query, setQuery] = useActivityState('music', 'query', '');
+  const [musicFilter, setMusicFilter] = useActivityState<MusicFilter>('music', 'musicFilter', 'recommended');
+  const [curations, setCurations] = useState<CurationItem[]>([]);
+  const [curationUnavailable, setCurationUnavailable] = useState(false);
+  useEffect(() => {
+    let active = true;
+    getCurations('music').then(items => { if (active) setCurations(items); }).catch(() => { if (active) setCurationUnavailable(true); });
+    return () => { active = false; };
+  }, []);
   const suggestedSongs = useMemo(() => {
-    const sorted = sortSongsForLevel(SUGGESTIONS as Song[], englishLevel);
+    const candidates = (SUGGESTIONS as Song[]).flatMap(song => {
+      const records = curations.filter(item => item.content_key === contentKey({ kind: 'music', title: song.title, artist: song.artist }));
+      const verified = records.find(isVerified);
+      if (!verified && records.some(item => item.video_id === song.ytId && item.status === 'rejected')) return [];
+      return [{ ...song, ytId: verified?.video_id || song.ytId }];
+    });
+    const verifiedSong = (song: Song) => curations.some(item => item.content_key === contentKey({ kind: 'music', title: song.title, artist: song.artist }) && item.video_id === song.ytId && isVerified(item));
+    const sorted = sortSongsForLevel(candidates, englishLevel).sort((a, b) => Number(verifiedSong(b)) - Number(verifiedSong(a)));
     if (musicFilter === 'recommended') return sorted;
     return sorted.filter((song) => song.tags.includes(musicFilter));
-  }, [englishLevel, musicFilter]);
-  const visibleSongs = suggestedSongs.length ? suggestedSongs : sortSongsForLevel(SUGGESTIONS as Song[], englishLevel);
+  }, [englishLevel, musicFilter, curations]);
+  const visibleSongs = suggestedSongs;
   const displayedSongs = visibleSongs.slice(0, MAX_VISIBLE_SUGGESTIONS);
-  const [activeSong, setActiveSong] = useState<Song>(visibleSongs[0] || SONGS[0]);
-  const [lyricMode, setLyricMode] = useState<'both' | 'en' | 'pt'>('both');
-  const [expandedLine, setExpandedLine] = useState<number | null>(0);
+  const [activeSong, setActiveSong] = useActivityState<Song>('music', 'activeSong', visibleSongs[0] || SONGS[0]);
+  const [playbackVideoId, setPlaybackVideoId] = useState(activeSong.ytId);
+  const contentIdentity = { kind: 'music' as const, title: activeSong.title, artist: activeSong.artist, videoId: playbackVideoId };
+  const activeCuration = curations.find(item => item.content_key === contentKey(contentIdentity) && item.video_id === playbackVideoId);
+  const readyTranslations = activeSong.lyrics.filter(line => line.pt && (!line.translationStatus || line.translationStatus === 'ready')).length;
+  const translationLabel = !activeSong.lyrics.length ? 'Tradução ainda não carregada' : readyTranslations === activeSong.lyrics.length ? 'Tradução disponível' : readyTranslations ? 'Tradução parcial' : 'Tradução indisponível';
+  const [lyricMode, setLyricMode] = useActivityState<'both' | 'en' | 'pt'>('music', 'lyricMode', 'both');
+  const [expandedLine, setExpandedLine] = useActivityState<number | null>('music', 'expandedLine', 0);
   const [notice, setNotice] = useState('');
+  const [searchFailed, setSearchFailed] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [isLoadingLyrics, setIsLoadingLyrics] = useState(false);
-  const [lyricsTriedKeys, setLyricsTriedKeys] = useState<Set<string>>(() => new Set());
-  const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
-  const [quizIndex, setQuizIndex] = useState(0);
-  const [quizAnswer, setQuizAnswer] = useState('');
-  const [quizCorrect, setQuizCorrect] = useState(0);
-  const [quizRewarded, setQuizRewarded] = useState(false);
-  const [playerSeconds, setPlayerSeconds] = useState(0);
+  const [lyricsStatus, setLyricsStatus] = useState<'idle' | 'loading' | 'translating' | 'ready' | 'partial' | 'error'>('idle');
+  const [lyricsError, setLyricsError] = useState('');
+  const [lyricsRetry, setLyricsRetry] = useState(0);
+  const searchRequest = useRef<AbortController | null>(null);
+  const lyricsRequest = useRef<AbortController | null>(null);
+  const lyricsSource = useRef<{ videoTitle?: string; channelName?: string } | undefined>(undefined);
+  const loadedSongs = useRef(new Map<string, Song>());
+  const isLoadingLyrics = lyricsStatus === 'loading' || lyricsStatus === 'translating';
+  const [quiz, setQuiz] = useActivityState<QuizQuestion[]>('music', 'quiz', []);
+  const [learningRun, setLearningRun] = useActivityState('music', 'learningRun', () => crypto.randomUUID());
+  const [quizIndex, setQuizIndex] = useActivityState('music', 'quizIndex', 0);
+  const [quizAnswer, setQuizAnswer] = useActivityState('music', 'quizAnswer', '');
+  const [quizCorrect, setQuizCorrect] = useActivityState('music', 'quizCorrect', 0);
+  const [quizRewarded, setQuizRewarded] = useActivityState('music', 'quizRewarded', false);
+  const [playerSeconds, setPlayerSeconds] = useActivityState('music', 'playerSeconds', 0);
+
+  const quizDialogRef = useRef<HTMLDivElement | null>(null);
+  const quizVisible = quiz.length > 0;
+  useEffect(() => {
+    if (!quizVisible) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const dialog = quizDialogRef.current;
+    dialog?.focus();
+    const trap = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); closeQuiz(); return; }
+      if (event.key !== 'Tab' || !dialog) return;
+      const buttons = [...dialog.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+      const first = buttons[0], last = buttons.at(-1);
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+        event.preventDefault(); last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first?.focus();
+      }
+    };
+    dialog?.addEventListener('keydown', trap);
+    return () => { dialog?.removeEventListener('keydown', trap); previousFocus?.focus(); };
+  }, [quizVisible]);
 
   const favorites = useMemo(() => user.favorites || [], [user.favorites]);
   const isFavorite = favorites.some((favorite) => favorite.key === activeSong.key || favorite.ytId === activeSong.ytId);
@@ -316,15 +379,53 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   useEffect(() => {
     if (activeSong.tags.includes('custom') || activeSong.tags.includes('favorite')) return;
     if (!visibleSongs.some((song) => song.key === activeSong.key)) {
-      setActiveSong(visibleSongs[0] || SONGS[0]);
+      openSong(visibleSongs[0] || SONGS[0]);
     }
   }, [activeSong.key, visibleSongs]);
 
   useEffect(() => {
-    if (!activeSong.lyrics.length) {
-      void hydrateLyrics(activeSong);
+    const song = activeSong;
+    if (song.lyrics.length && song.lyrics.every(line => !line.translationStatus || line.translationStatus === 'ready')) {
+      setLyricsStatus('ready');
+      return;
     }
-  }, [activeSong.key]);
+    const controller = new AbortController();
+    lyricsRequest.current = controller;
+    setLyricsError('');
+    setLyricsStatus(song.lyrics.length ? 'translating' : 'loading');
+    const options = {
+      signal: controller.signal,
+      onProgress: (lyrics: LyricLine[]) => {
+        if (controller.signal.aborted) return;
+        setActiveSong(current => current.key === song.key ? { ...current, lyrics } : current);
+        setLyricsStatus('translating');
+      }
+    };
+    const result = song.lyrics.length
+      ? translateLyricLines(song.lyrics, options)
+      : fetchSongLyrics(song.title, song.artist, 80, lyricsSource.current, options);
+    void result.then(lyrics => {
+      if (controller.signal.aborted) return;
+      const partial = lyrics.some(line => line.translationStatus === 'unavailable');
+      const hydrated = { ...song, lyrics };
+      setActiveSong(current => current.key === song.key ? hydrated : current);
+      setLyricsStatus(partial ? 'partial' : 'ready');
+      if (!partial) {
+        if (loadedSongs.current.size >= 20) loadedSongs.current.delete(loadedSongs.current.keys().next().value!);
+        loadedSongs.current.set(song.key, hydrated);
+      }
+    }).catch(error => {
+      if (controller.signal.aborted) return;
+      setLyricsStatus('error');
+      setLyricsError(error instanceof Error ? error.message : 'Não foi possível carregar a letra.');
+    });
+    return () => controller.abort();
+  }, [activeSong.key, lyricsRetry]);
+
+  useEffect(() => () => {
+    searchRequest.current?.abort();
+    lyricsRequest.current?.abort();
+  }, []);
 
   useEffect(() => {
     if (!quizDone || quizRewarded) return;
@@ -345,59 +446,45 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
       });
   }, [onProfileRefresh, quizCorrect, quizDone, quizRewarded, quizXp, user]);
 
-  function openSong(song: Song, autoLoadLyrics = true) {
-    setActiveSong(song);
-    setExpandedLine(0);
+  function openSong(song: Song, source?: { videoTitle?: string; channelName?: string }) {
+    searchRequest.current?.abort();
+    searchRequest.current = null;
+    setIsSearching(false);
+    setSearchFailed(false);
     setNotice('');
+    if (song.key === activeSong.key) return;
+    lyricsRequest.current?.abort();
+    lyricsSource.current = source;
+    const selectedSong = loadedSongs.current.get(song.key) || song;
+    setActiveSong(selectedSong);
+    setLyricsError('');
+    setLyricsStatus(selectedSong.lyrics.length ? 'ready' : 'loading');
+    setExpandedLine(0);
+    setPlayerSeconds(0);
     closeQuiz();
-    if (autoLoadLyrics) {
-      void hydrateLyrics(song);
-    }
-  }
-
-  async function hydrateLyrics(
-    song: Song,
-    force = false,
-    source?: { videoTitle?: string; channelName?: string }
-  ) {
-    if (song.lyrics.length || isLoadingLyrics) return;
-    if (!force && lyricsTriedKeys.has(song.key)) return;
-
-    try {
-      setLyricsTriedKeys((keys) => new Set(keys).add(song.key));
-      setIsLoadingLyrics(true);
-      setNotice('Buscando letra completa...');
-      const lyrics = await fetchSongLyrics(song.title, song.artist, 80, source);
-      const hydratedSong = { ...song, lyrics };
-      setActiveSong(hydratedSong);
-      const hasSyncedLines = lyrics.some((line) => line.time !== undefined);
-      setNotice(hasSyncedLines
-        ? `Legenda sincronizada carregada com ${lyrics.length} linhas.`
-        : `Letra carregada com ${lyrics.length} linhas. Esta música não tem sincronismo disponível agora.`);
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Não foi possível carregar a letra agora.');
-    } finally {
-      setIsLoadingLyrics(false);
-    }
   }
 
   async function handleSearch() {
     const trimmedQuery = query.trim();
+    if (!trimmedQuery) return;
     const youtubeId = extractYouTubeId(trimmedQuery);
     const song = findSong(trimmedQuery);
 
     if (song) {
-      openSong(song as Song, false);
-      setNotice('Música aberta. Buscando letra em segundo plano...');
-      void hydrateLyrics(song as Song, true);
+      openSong(song as Song);
       return;
     }
 
+    searchRequest.current?.abort();
+    const controller = new AbortController();
+    searchRequest.current = controller;
     try {
       setIsSearching(true);
+      setSearchFailed(false);
       setNotice(youtubeId ? 'Lendo dados do YouTube...' : 'Buscando música no YouTube...');
-      const foundMusic = youtubeId ? null : await searchMusicByName(trimmedQuery);
-      const metadata = youtubeId ? await fetchYouTubeMetadata(youtubeId) : null;
+      const foundMusic = youtubeId ? null : await searchMusicByName(trimmedQuery, controller.signal);
+      const metadata = youtubeId ? await fetchYouTubeMetadata(youtubeId, controller.signal) : null;
+      if (controller.signal.aborted) return;
       const parsedMetadata = youtubeId && metadata
         ? parseYouTubeMusicMetadata(metadata)
         : {
@@ -423,16 +510,19 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
         tags: ['custom'],
         lyrics: []
       };
-      openSong(youtubeSong, false);
-      setNotice('Vídeo encontrado. Buscando letra em segundo plano...');
-      void hydrateLyrics(youtubeSong, true, {
+      openSong(youtubeSong, {
         videoTitle: parsedMetadata.videoTitle,
         channelName: parsedMetadata.channelName
       });
     } catch (error) {
+      if (controller.signal.aborted) return;
+      setSearchFailed(true);
       setNotice(error instanceof Error ? error.message : 'Não consegui abrir esse link.');
     } finally {
-      setIsSearching(false);
+      if (searchRequest.current === controller) {
+        searchRequest.current = null;
+        setIsSearching(false);
+      }
     }
   }
 
@@ -473,6 +563,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
       return;
     }
 
+    setLearningRun(crypto.randomUUID());
     setQuiz(questions);
     setQuizIndex(0);
     setQuizAnswer('');
@@ -483,6 +574,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
 
   function answerQuiz(choice: string) {
     if (!currentQuestion || quizAnswer) return;
+    recordLearning(user.id, 'music_quiz', choice === currentQuestion.correct ? 100 : 0, `${learningRun}:${quizIndex}`);
     setQuizAnswer(choice);
     if (choice === currentQuestion.correct) {
       setQuizCorrect((value) => value + 1);
@@ -524,7 +616,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
               {isSearching ? 'Buscando...' : 'Buscar'}
             </button>
           </div>
-          {notice && <div className="form-success">{notice}</div>}
+          {notice && <div className={searchFailed ? 'form-error' : 'music-status'} role="status">{notice}</div>}
         </section>
 
         <section className="side-panel">
@@ -555,6 +647,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
                 <span>{song.thumb}</span>
                 <strong>{song.title}</strong>
                 <small>{song.artist} · {song.focus}</small>
+                {curations.some(item => item.content_key === contentKey({ kind: 'music', title: song.title, artist: song.artist }) && item.video_id === song.ytId && isVerified(item)) && <small className="verified-badge">Verificado</small>}
               </button>
             ))}
           </div>
@@ -593,22 +686,23 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
             <button className="secondary-button" type="button" onClick={toggleFavorite}>
               {isFavorite ? 'Remover favorito' : 'Favoritar'}
             </button>
-            <button className="secondary-button" type="button" disabled={isLoadingLyrics || activeSong.lyrics.length > 0} onClick={() => hydrateLyrics(activeSong, true)}>
-              {isLoadingLyrics ? 'Carregando...' : 'Carregar letra'}
+            <button className="secondary-button" type="button" disabled={isLoadingLyrics || lyricsStatus === 'ready'} onClick={() => setLyricsRetry(value => value + 1)}>
+              {lyricsStatus === 'translating' ? 'Traduzindo...' : isLoadingLyrics ? 'Carregando...' : lyricsStatus === 'partial' ? 'Tentar tradução novamente' : 'Carregar letra'}
             </button>
-            <button className="primary-button" type="button" onClick={startQuiz}>
+            <button className="primary-button" type="button" disabled={!activeSong.lyrics.some(line => line.pt && (!line.translationStatus || line.translationStatus === 'ready'))} onClick={startQuiz}>
               Quiz
             </button>
           </div>
         </header>
 
-        <YouTubeFrame song={activeSong} onTimeChange={setPlayerSeconds} />
+        <YouTubeFrame key={activeSong.key} song={activeSong} onTimeChange={setPlayerSeconds} startSeconds={playerSeconds} onVideoChange={setPlaybackVideoId} />
+        <ContentReview key={`${activeSong.key}:${playbackVideoId}`} content={contentIdentity} item={activeCuration} translation={translationLabel} unavailable={curationUnavailable} />
 
         {activeKaraokeLine && (
           <section className="karaoke-panel" aria-label="Legenda da música">
             <span>{formatMusicTime(activeKaraokeLine.time)}</span>
-            <strong>{activeKaraokeLine.en}</strong>
-            <p>{activeKaraokeLine.pt}</p>
+            {lyricMode !== 'pt' && <strong>{activeKaraokeLine.en}</strong>}
+            {lyricMode !== 'en' && <p>{lyricTranslation(activeKaraokeLine)}</p>}
             {nextKaraokeLine && <small>Próxima: {nextKaraokeLine.en}</small>}
           </section>
         )}
@@ -625,22 +719,29 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
           </button>
         </div>
 
+        <div className={lyricsStatus === 'error' ? 'form-error' : 'music-status'} role="status" aria-live="polite">
+          {lyricsStatus === 'loading' && 'Buscando letra...'}
+          {lyricsStatus === 'translating' && `Letra disponível com ${activeSong.lyrics.length} linhas. Traduzindo...`}
+          {lyricsStatus === 'ready' && (syncedLyrics.length ? 'Letra sincronizada disponível.' : 'Letra disponível, sem sincronismo.')}
+          {lyricsStatus === 'partial' && 'Letra disponível. Parte da tradução não está disponível agora.'}
+          {lyricsStatus === 'error' && lyricsError}
+        </div>
+
         {activeSong.lyrics.length ? (
           <div className="lyrics-list">
             {activeSong.lyrics.map((line, index) => (
               <button className={line.time !== undefined && Math.abs((line.time || 0) - (activeKaraokeLine?.time || -999)) < 0.01 ? 'lyric-card active' : 'lyric-card'} key={`${line.en}-${index}`} type="button" onClick={() => setExpandedLine(index)}>
                 {line.time !== undefined && <em>{formatMusicTime(line.time)}</em>}
                 {(lyricMode === 'both' || lyricMode === 'en') && <strong>{line.en}</strong>}
-                {(lyricMode === 'both' || lyricMode === 'pt') && <span>{line.pt}</span>}
+                {(lyricMode === 'both' || lyricMode === 'pt') && <span>{lyricTranslation(line)}</span>}
                 {expandedLine === index && <small>{line.explain}</small>}
               </button>
             ))}
           </div>
         ) : (
           <section className="empty-lyrics">
-            <h2>Letra não carregada</h2>
-            <p>Carregue a letra para transformar a música em estudo com tradução, explicação e quiz.</p>
-            <button className="primary-button" type="button" disabled={isLoadingLyrics} onClick={() => hydrateLyrics(activeSong, true)}>
+            <h2>{isLoadingLyrics ? 'Carregando letra...' : 'Letra não carregada'}</h2>
+            <button className="primary-button" type="button" disabled={isLoadingLyrics} onClick={() => setLyricsRetry(value => value + 1)}>
               {isLoadingLyrics ? 'Carregando...' : 'Carregar letra'}
             </button>
           </section>
@@ -648,7 +749,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
       </div>
 
       {quiz.length > 0 && (
-        <div className="quiz-modal" role="dialog" aria-modal="true" aria-label="Quiz de música">
+        <div className="quiz-modal" ref={quizDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Quiz de música">
           <section>
             {quizDone ? (
               <>

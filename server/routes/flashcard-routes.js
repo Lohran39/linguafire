@@ -1,12 +1,26 @@
+const { mistakeCards } = require('../services/mistake-review');
 const { flashcardReviewSchema, validateBody } = require('../validation');
 
 function setupFlashcardRoutes(app, deps = {}) {
   const {
     authenticateToken = (req, res, next) => next(),
     supabaseGetFlashcards = async () => [],
+    supabaseGetGrammarErrors = async () => [],
     supabaseUpsertFlashcard = async () => ({ error: 'not configured' }),
     supabaseGetUserById = async () => null
   } = deps;
+
+  const getCards = async (userId) => {
+    const [reviews, errors] = await Promise.all([supabaseGetFlashcards(userId), supabaseGetGrammarErrors(userId)]);
+    return [...mistakeCards(errors, reviews), ...reviews.filter(card => !card.word.startsWith('mistake:'))];
+  };
+
+  app.get('/api/flashcards/mistakes', authenticateToken, async (req, res) => {
+    try {
+      const cards = (await getCards(req.user.id)).filter(card => card.source === 'conversation' && card.next_review <= new Date().toISOString());
+      res.json({ cards: cards.slice(0, 10) });
+    } catch { res.status(500).json({ error: 'Não foi possível carregar seus erros.' }); }
+  });
 
   const levelOrder = ['A1', 'A2', 'B1', 'B2', 'C1'];
   const normalizeLevel = (level) => {
@@ -231,13 +245,13 @@ function setupFlashcardRoutes(app, deps = {}) {
   app.get('/api/flashcards/available', authenticateToken, async (req, res) => {
     try {
       const now = new Date().toISOString();
-      const flashcards = await supabaseGetFlashcards(req.user.id);
+      const flashcards = await getCards(req.user.id);
       const today = new Date().toISOString().slice(0, 10);
       const seed = `${req.user.id}-${today}`;
       const due = flashcards
         .filter(f => f.next_review && f.next_review <= now)
         .map(enrichFlashcard)
-        .sort((a, b) => dailySortKey(a.word, seed) - dailySortKey(b.word, seed));
+        .sort((a, b) => Number(b.source === 'conversation') - Number(a.source === 'conversation') || dailySortKey(a.word, seed) - dailySortKey(b.word, seed));
       const seen = due.map(d => d.word);
 
       if (due.length < 20) {
@@ -268,7 +282,7 @@ function setupFlashcardRoutes(app, deps = {}) {
     const { word, translation, quality } = req.validatedBody;
 
     try {
-      const flashcards = await supabaseGetFlashcards(req.user.id);
+      const flashcards = await getCards(req.user.id);
       const review = flashcards.find(f => f.word === word);
 
       let easeFactor = 2.5;
@@ -297,13 +311,14 @@ function setupFlashcardRoutes(app, deps = {}) {
       const nextReview = new Date();
       nextReview.setDate(nextReview.getDate() + interval);
 
-      await supabaseUpsertFlashcard(req.user.id, word, translation, {
+      const result = await supabaseUpsertFlashcard(req.user.id, word, review?.source === 'conversation' ? review.translation : translation, {
         ease_factor: easeFactor,
         interval_days: interval,
         next_review: nextReview.toISOString(),
         repetitions
       });
 
+      if (result?.error) throw new Error(result.error);
       res.json({ success: true, next_review: nextReview.toISOString(), interval });
     } catch (error) {
       res.status(500).json({ error: 'Erro ao processar review' });
@@ -314,7 +329,7 @@ function setupFlashcardRoutes(app, deps = {}) {
   app.get('/api/flashcards/stats', authenticateToken, async (req, res) => {
     try {
       const now = new Date().toISOString();
-      const flashcards = await supabaseGetFlashcards(req.user.id);
+      const flashcards = await getCards(req.user.id);
       const due = flashcards.filter(f => f.next_review && f.next_review <= now);
       res.json({ due: due.length, total: flashcards.length });
     } catch (error) {

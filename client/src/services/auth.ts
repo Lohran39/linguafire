@@ -1,3 +1,5 @@
+import { createJsonParser } from './http';
+
 const API_BASE = '/api';
 const USER_ID_KEY = 'linguafire_userId';
 
@@ -20,6 +22,7 @@ export type UserProfile = {
   plan?: 'free' | 'pro' | 'max' | string;
   ai_daily_limit?: number;
   ai_uses_today?: number;
+  ai_limit_resets_at?: string;
   favorites?: FavoriteSong[];
   achievements?: string[];
   lives?: number;
@@ -44,23 +47,10 @@ export type RegisterResult = {
   user?: UserProfile;
 };
 
-type ApiErrorBody = {
-  error?: string;
-  message?: string;
-};
-
 const PASSWORD_RESET_TIMEOUT_MS = 20000;
 const PROFILE_UPDATE_TIMEOUT_MS = 15000;
 
-async function parseJson<T>(response: Response): Promise<T> {
-  const data = (await response.json().catch(() => ({}))) as T & ApiErrorBody;
-
-  if (!response.ok) {
-    throw new Error(data.error || data.message || 'Erro ao processar a solicitação');
-  }
-
-  return data;
-}
+const parseJson = createJsonParser('Erro ao processar a solicitação');
 
 function persistUserId(userId: string) {
   localStorage.setItem(USER_ID_KEY, userId);
@@ -169,34 +159,48 @@ export async function deleteAccount(): Promise<void> {
   clearUserId();
 }
 
-export async function getSubscriptionStatus(): Promise<{ active: boolean; expires: number; plan: string | null; price: number; aiDailyLimit?: number; checkoutConfigured?: boolean; checkoutIssues?: string[] }> {
-  return parseJson<{ active: boolean; expires: number; plan: string | null; price: number; aiDailyLimit?: number; checkoutConfigured?: boolean; checkoutIssues?: string[] }>(
-    await fetch(`${API_BASE}/subscription/status`, { credentials: 'include' })
-  );
+export type SubscriptionStatus = {
+  active: boolean; expires: number; plan: string | null; price: number;
+  aiDailyLimit: number; checkoutConfigured: boolean; checkoutIssues?: string[];
+  aiUsage: { used: number; limit: number; remaining: number; resetsAt: string };
+  billingStatus: string; managed: boolean; cancelAtPeriodEnd: boolean; cancelAt: number;
+  portalAvailable: boolean; hasBillingAccount: boolean; canSubscribe: boolean; syncWarning?: string;
+};
+
+export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
+  return parseJson<SubscriptionStatus>(await fetch(`${API_BASE}/subscription/status`, {
+    credentials: 'include', cache: 'no-store', signal: AbortSignal.timeout(20000)
+  }));
 }
 
-export async function createSubscription(plan: 'pro' | 'max' = 'pro'): Promise<{ active: boolean; expires: number; plan: string; price: number; aiDailyLimit?: number }> {
+function redirectToStripe(value: string, host: string) {
+  const url = new URL(value);
+  if (url.protocol !== 'https:' || url.hostname !== host || url.username || url.password) {
+    throw new Error('Endereço de pagamento inválido.');
+  }
+  window.location.assign(url.href);
+}
+
+export async function openBillingPortal(): Promise<void> {
+  const data = await parseJson<{ portalUrl: string }>(await fetch(`${API_BASE}/subscription/portal`, {
+    method: 'POST', credentials: 'include', signal: AbortSignal.timeout(20000)
+  }));
+  redirectToStripe(data.portalUrl, 'billing.stripe.com');
+}
+
+export async function createSubscription(plan: 'pro' | 'max' = 'pro') {
   const data = await parseJson<{
     checkoutUrl?: string;
     subscription?: { active: boolean; expires: number; plan: string; price: number; aiDailyLimit?: number };
-  }>(
-    await fetch(`${API_BASE}/subscription/create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ plan })
-    })
-  );
-
+  }>(await fetch(`${API_BASE}/subscription/create`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+    body: JSON.stringify({ plan }), signal: AbortSignal.timeout(20000)
+  }));
   if (data.checkoutUrl) {
-    window.location.href = data.checkoutUrl;
-    return { active: false, expires: 0, plan, price: plan === 'max' ? 85 : 45 };
+    redirectToStripe(data.checkoutUrl, 'checkout.stripe.com');
+    return null;
   }
-
-  if (!data.subscription) {
-    throw new Error('Resposta de assinatura inválida');
-  }
-
+  if (!data.subscription) throw new Error('Resposta de assinatura inválida');
   return data.subscription;
 }
 

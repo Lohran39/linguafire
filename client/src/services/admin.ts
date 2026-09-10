@@ -1,3 +1,5 @@
+import { createJsonParser } from './http';
+
 export type AdminUserRow = {
   id: string;
   name: string;
@@ -22,11 +24,7 @@ export type AdminSummary = {
   recentUsers: AdminUserRow[];
 };
 
-async function parseJson<T>(response: Response): Promise<T> {
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new Error(data.error || 'Erro ao carregar painel admin');
-  return data;
-}
+const parseJson = createJsonParser('Erro ao carregar painel admin');
 
 export async function getAdminSummary(): Promise<AdminSummary> {
   return parseJson<AdminSummary>(

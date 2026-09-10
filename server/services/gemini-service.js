@@ -78,17 +78,15 @@ function normalizeGeminiModel(model = '') {
 function createGeminiService(config = {}) {
   const {
     geminiBaseUrl = 'https://generativelanguage.googleapis.com',
-    minimaxBaseUrl,
     geminiModel = 'gemini-3.6-flash',
-    minimaxModel,
     openaiModelAlias = geminiModel,
     proxyTimeoutMs = 60000,
     fetchImpl = fetch
   } = config;
 
-  const configuredModel = geminiModel || minimaxModel || 'gemini-3.6-flash';
+  const configuredModel = geminiModel || 'gemini-3.6-flash';
   const configuredAlias = openaiModelAlias || configuredModel;
-  const baseUrl = String(geminiBaseUrl || minimaxBaseUrl || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
+  const baseUrl = String(geminiBaseUrl || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
 
   async function postToGemini(payload, apiKey, signal, attemptTimeoutMs = proxyTimeoutMs, fallbackModel, lowLatency) {
     let lastError = null;
@@ -221,23 +219,13 @@ function createGeminiService(config = {}) {
     };
   }
 
-  return {
-    callGeminiChat,
-    callMiniMaxChat: callGeminiChat
-  };
+  return { callGeminiChat };
 }
-
-const createMiniMaxService = createGeminiService;
-const asMiniMaxMessages = asGeminiContents;
-const pickTextFromMiniMax = pickTextFromGemini;
 
 module.exports = {
   asGeminiContents,
   pickTextFromGemini,
-  asMiniMaxMessages,
-  pickTextFromMiniMax,
   stripThinkBlocks,
   buildOpenAIChatResponse,
-  createGeminiService,
-  createMiniMaxService
+  createGeminiService
 };

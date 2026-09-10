@@ -34,3 +34,29 @@ test('Stripe accepts both plan prices and the legacy Pro variable', () => {
     assert.deepEqual(service.getConfigurationIssues(), []);
   }
 });
+
+test('portal request uses configured customer, return URL and configuration', async () => {
+  let request;
+  const stripe = createStripeService({ STRIPE_SECRET_KEY: 'sk_test_example', BASE_URL: 'https://app.example', STRIPE_PORTAL_CONFIGURATION_ID: 'bpc_example' }, async (url, options) => {
+    request = { url, options }; return { ok: true, json: async () => ({ url: 'https://billing.stripe.com/p/session' }) };
+  });
+  assert.equal(stripe.isPortalConfigured(), true);
+  await stripe.createPortalSession('cus_owner');
+  assert.equal(request.url, 'https://api.stripe.com/v1/billing_portal/sessions');
+  assert.equal(request.options.body.get('customer'), 'cus_owner');
+  assert.equal(request.options.body.get('configuration'), 'bpc_example');
+  assert.equal(request.options.body.get('return_url'), 'https://app.example/?billing=return');
+  await assert.rejects(stripe.createPortalSession('bad/id'));
+});
+
+test('Stripe signatures require original body, valid HMAC and recent timestamp; rotation accepts multiple v1 signatures', () => {
+  const crypto = require('node:crypto');
+  const stripe = createStripeService({ STRIPE_WEBHOOK_SECRET: 'whsec_test' });
+  const body = Buffer.from('{"type":"invoice.paid"}');
+  const sign = timestamp => `t=${timestamp},v1=${crypto.createHmac('sha256', 'whsec_test').update(`${timestamp}.${body}`).digest('hex')}`;
+  const now = Math.floor(Date.now() / 1000);
+  assert.equal(stripe.verifyWebhook(body, `${sign(now)},v1=invalid`).type, 'invoice.paid');
+  assert.throws(() => stripe.verifyWebhook(body, sign(now - 600)));
+  assert.throws(() => stripe.verifyWebhook(Buffer.from('{}'), sign(now)));
+  assert.throws(() => stripe.verifyWebhook(body.toString(), sign(now)));
+});

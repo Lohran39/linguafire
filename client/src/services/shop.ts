@@ -1,3 +1,5 @@
+import { createJsonParser } from './http';
+
 export type ShopItem = {
   id: string;
   name: string;
@@ -21,13 +23,7 @@ export type ShopPurchase = {
   };
 };
 
-async function parseJson<T>(response: Response): Promise<T> {
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) {
-    throw new Error(data.error || 'Erro na loja');
-  }
-  return data;
-}
+const parseJson = createJsonParser('Erro na loja');
 
 export async function getShopItems(): Promise<ShopItem[]> {
   const data = await parseJson<{ items: ShopItem[] }>(await fetch('/api/shop', { credentials: 'include' }));

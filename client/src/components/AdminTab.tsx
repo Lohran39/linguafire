@@ -1,3 +1,4 @@
+import { CuratorPanel } from './CuratorPanel';
 import { FormEvent, useEffect, useState } from 'react';
 import { getAdminSummary, saveCuratedNativeVideos, type AdminSummary } from '../services/admin';
 import { nativeLanguages } from '../services/natives';
@@ -89,6 +90,8 @@ export function AdminTab() {
         </button>
         {error && <div className="form-error">{error}</div>}
       </div>
+
+      <CuratorPanel />
 
       {summary && (
         <>

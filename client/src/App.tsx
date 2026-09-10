@@ -1,4 +1,7 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { TabContent } from './components/TabContent';
+const AdminTab = lazy(() => import('./components/AdminTab').then(module => ({ default: module.AdminTab })));
+import { ActivityProgress, useActivityState, useSaveBeforeLeave } from './hooks/activity-progress';
+import { FormEvent, lazy, useEffect, useState } from 'react';
 import {
   getProfile,
   getSession,
@@ -11,24 +14,22 @@ import {
   type UserProfile
 } from './services/auth';
 import { HomeDashboard } from './components/HomeDashboard';
-import { MusicTab } from './components/MusicTab';
-import { FlashcardTab } from './components/FlashcardTab';
-import { ConversationTab } from './components/ConversationTab';
-import { ProfileTab } from './components/ProfileTab';
-import { NativesTab } from './components/NativesTab';
-import { ShopTab } from './components/ShopTab';
-import { PlacementTab } from './components/PlacementTab';
-import { LessonTab } from './components/LessonTab';
-import { AdminTab } from './components/AdminTab';
-import { applyTheme, getStoredTheme } from './theme';
+const MusicTab = lazy(() => import('./components/MusicTab').then(module => ({ default: module.MusicTab })));
+const FlashcardTab = lazy(() => import('./components/FlashcardTab').then(module => ({ default: module.FlashcardTab })));
+const ConversationTab = lazy(() => import('./components/ConversationTab').then(module => ({ default: module.ConversationTab })));
+const ProfileTab = lazy(() => import('./components/ProfileTab').then(module => ({ default: module.ProfileTab })));
+const NativesTab = lazy(() => import('./components/NativesTab').then(module => ({ default: module.NativesTab })));
+const ShopTab = lazy(() => import('./components/ShopTab').then(module => ({ default: module.ShopTab })));
+const PlacementTab = lazy(() => import('./components/PlacementTab').then(module => ({ default: module.PlacementTab })));
+const LessonTab = lazy(() => import('./components/LessonTab').then(module => ({ default: module.LessonTab })));
 
 type Screen = 'splash' | 'login' | 'register' | 'forgot' | 'reset' | 'app';
 type AppTab = 'home' | 'lessons' | 'music' | 'flashcard' | 'conversation' | 'natives' | 'shop' | 'placement' | 'profile' | 'admin';
 
 const highlights = [
-  { icon: '♪', title: 'Músicas', copy: 'Letra, tradução e quiz' },
-  { icon: '*', title: 'Palavra do dia', copy: 'Vocabulário novo todo dia' },
-  { icon: '"', title: 'Nativos', copy: 'Expressões em contexto real' },
+  { icon: '♪', title: 'Musicas', copy: 'Letra, traducao e quiz' },
+  { icon: '*', title: 'Palavra do dia', copy: 'Vocabulario novo todo dia' },
+  { icon: '"', title: 'Nativos', copy: 'Expressoes em contexto real' },
   { icon: '+', title: 'Progresso', copy: 'Sua conta guarda tudo' }
 ];
 
@@ -51,15 +52,11 @@ function AuthForm({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  const [verificationLink, setVerificationLink] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
-    setMessage('');
-    setVerificationLink('');
 
     if (!email.trim() || !password) {
       setError('Preencha email e senha.');
@@ -72,30 +69,19 @@ function AuthForm({
     }
 
     if (!isLogin && password !== confirmPassword) {
-      setError('As senhas não coincidem.');
+      setError('As senhas nao coincidem.');
       return;
     }
 
     try {
       setIsSubmitting(true);
-      if (isLogin) {
-        const user = await login(email.trim(), password);
-        onAuthenticated(user, false);
-        return;
-      }
-
-      const result = await register(name.trim(), email.trim(), password);
-      if (result.requiresEmailVerification) {
-        setMessage(result.message);
-        setVerificationLink(result.verificationLink || '');
-        setPassword('');
-        setConfirmPassword('');
-        return;
-      }
-
-      if (result.user) {
-        onAuthenticated(result.user, true);
-      }
+      const user = isLogin
+        ? await login(email.trim(), password)
+        : await register(name.trim(), email.trim(), password);
+      if ('requiresEmailVerification' in user) {
+        if (user.user && !user.requiresEmailVerification) onAuthenticated(user.user, true);
+        else setError(user.message);
+      } else onAuthenticated(user, false);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Erro ao autenticar.');
     } finally {
@@ -151,12 +137,6 @@ function AuthForm({
         )}
 
         {error && <div className="form-error">{error}</div>}
-        {message && <div className="form-success">{message}</div>}
-        {verificationLink && (
-          <a className="dev-link" href={verificationLink}>
-            Abrir confirmação de desenvolvimento
-          </a>
-        )}
 
         <button className="primary-button" type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Aguarde...' : isLogin ? 'Entrar' : 'Criar conta'}
@@ -171,7 +151,7 @@ function AuthForm({
           {isLogin ? 'Entrar com Google' : 'Criar conta com Google'}
         </button>
         <button className="secondary-button" type="button" onClick={onSwitch}>
-          {isLogin ? 'Criar conta gratuita' : 'Já tenho conta'}
+          {isLogin ? 'Criar conta gratuita' : 'Ja tenho conta'}
         </button>
         <button className="ghost-button" type="button" onClick={onBack}>
           Voltar
@@ -206,7 +186,7 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
       setDevResetLink(result.resetLink || '');
       setEmail('');
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Erro ao enviar recuperação.');
+      setError(submitError instanceof Error ? submitError.message : 'Erro ao enviar recuperacao.');
     } finally {
       setIsSubmitting(false);
     }
@@ -257,7 +237,7 @@ function ResetPasswordForm({ token, onDone }: { token: string; onDone: () => voi
     setError('');
 
     if (!token) {
-      setError('Token inválido. Solicite um novo link.');
+      setError('Token invalido. Solicite um novo link.');
       return;
     }
 
@@ -267,7 +247,7 @@ function ResetPasswordForm({ token, onDone }: { token: string; onDone: () => voi
     }
 
     if (password !== confirmPassword) {
-      setError('As senhas não coincidem.');
+      setError('As senhas nao coincidem.');
       return;
     }
 
@@ -320,7 +300,7 @@ const appTabs: Array<{ id: AppTab; label: string }> = [
   { id: 'home', label: 'Início' },
   { id: 'lessons', label: 'Lições' },
   { id: 'music', label: 'Música' },
-  { id: 'flashcard', label: 'Flash' },
+  { id: 'flashcard', label: 'Revisão' },
   { id: 'conversation', label: 'Conversar' },
   { id: 'natives', label: 'Nativos' },
   { id: 'shop', label: 'Loja' },
@@ -342,82 +322,82 @@ function AppHome({
   onProfileRefresh: (user: UserProfile) => void;
   onLoadProfile: () => Promise<UserProfile>;
 }) {
-  const [activeTab, setActiveTab] = useState<AppTab>(initialTab);
-  const needsPlacement = Number(user.placement_completed || 0) !== 1;
-  const isAdmin = user.role === 'admin';
-  const visibleTabs = appTabs.filter((tab) => tab.id !== 'admin' || isAdmin);
-  const currentTab = needsPlacement ? 'placement' : activeTab === 'admin' && !isAdmin ? 'home' : activeTab;
-  const navTabs = needsPlacement ? visibleTabs.filter((tab) => tab.id === 'placement') : visibleTabs;
+  const [activeTab, setActiveTab] = useActivityState<AppTab>('navigation', 'activeTab', initialTab);
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('billing') !== 'return') return;
+    setActiveTab('profile');
+    url.searchParams.delete('billing');
+    url.searchParams.delete('checkout');
+    window.history.replaceState({}, '', url);
+  }, [setActiveTab]);
+
+  const saveBeforeLeave = useSaveBeforeLeave();
+  const visibleTabs = appTabs.filter(tab => tab.id !== 'admin' || user.role === 'admin');
+  const primaryTabs = ['home', 'lessons', 'flashcard', 'conversation'];
+  function navigate(tab: AppTab) {
+    setActiveTab(tab);
+    setMoreOpen(false);
+    requestAnimationFrame(() => document.getElementById('activity-content')?.focus());
+  }
 
   return (
     <main className="app-screen">
+      <a className="skip-link" href="#activity-content">Pular para a atividade</a>
       <nav className="topbar">
         <strong>LinguaFire</strong>
-        <div className="app-nav" aria-label="Navegação principal">
-          {navTabs.map((tab) => (
+        <div className="app-nav" aria-label="Navegacao principal">
+          {visibleTabs.map((tab) => (
             <button
-              className={currentTab === tab.id ? 'active' : ''}
+              className={`${activeTab === tab.id ? 'active' : ''} ${primaryTabs.includes(tab.id) ? '' : 'secondary-nav-item'}`}
+              aria-current={activeTab === tab.id ? 'page' : undefined}
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => navigate(tab.id)}
             >
               {tab.label}
             </button>
           ))}
+          <button className={`mobile-more ${!primaryTabs.includes(activeTab) ? 'active' : ''}`} type="button"
+            aria-expanded={moreOpen} aria-controls="more-navigation" onClick={() => setMoreOpen(!moreOpen)}>Mais</button>
         </div>
-        <button className="compact-button" type="button" onClick={onLogout}>
+        <button className="compact-button" type="button" onClick={async () => { if (await saveBeforeLeave()) onLogout(); }}>
           Sair
         </button>
       </nav>
 
-      {needsPlacement && (
-        <div className="placement-lock">
-          <strong>Antes de começar</strong>
-          <span>Faça o nivelamento inicial para liberar uma trilha ajustada ao seu inglês.</span>
-        </div>
-      )}
-
-      {currentTab === 'home' && (
+      {moreOpen && <nav className="more-navigation" id="more-navigation" aria-label="Mais opções"
+        onKeyDown={event => { if (event.key === 'Escape') { setMoreOpen(false); document.querySelector<HTMLButtonElement>('.mobile-more')?.focus(); } }}>
+        {visibleTabs.filter(tab => !primaryTabs.includes(tab.id)).map(tab => <button key={tab.id} type="button"
+          aria-current={activeTab === tab.id ? 'page' : undefined} onClick={() => navigate(tab.id)}>{tab.label}</button>)}
+      </nav>}
+      <div id="activity-content" tabIndex={-1}>
+      <TabContent key={activeTab} label={appTabs.find(tab => tab.id === activeTab)?.label || activeTab}>
+      {activeTab === 'home' && (
         <HomeDashboard user={user} onLoadProfile={onLoadProfile} onProfileRefresh={onProfileRefresh} />
       )}
-      {currentTab === 'lessons' && (
+      {activeTab === 'lessons' && (
         <LessonTab user={user} onProfileRefresh={onProfileRefresh} />
       )}
-      {currentTab === 'music' && (
+      {activeTab === 'music' && (
         <MusicTab user={user} onProfileRefresh={onProfileRefresh} />
       )}
-      {currentTab === 'flashcard' && (
+      {activeTab === 'flashcard' && (
         <FlashcardTab user={user} onProfileRefresh={onProfileRefresh} />
       )}
-      {currentTab === 'conversation' && (
+      {activeTab === 'conversation' && (
         <ConversationTab user={user} onProfileRefresh={onProfileRefresh} />
       )}
-      {currentTab === 'natives' && <NativesTab user={user} onProfileRefresh={onProfileRefresh} />}
-      {currentTab === 'shop' && <ShopTab user={user} onProfileRefresh={onProfileRefresh} />}
-      {currentTab === 'placement' && (
-        <PlacementTab
-          user={user}
-          required={needsPlacement}
-          onProfileRefresh={(updatedUser) => {
-            setActiveTab('placement');
-            onProfileRefresh(updatedUser);
-          }}
-          onContinue={() => setActiveTab('lessons')}
-        />
+      {activeTab === 'natives' && <NativesTab user={user} onProfileRefresh={onProfileRefresh} />}
+      {activeTab === 'shop' && <ShopTab user={user} onProfileRefresh={onProfileRefresh} />}
+      {activeTab === 'placement' && (
+        <PlacementTab user={user} onProfileRefresh={onProfileRefresh} onContinue={() => setActiveTab('lessons')} />
       )}
-      {currentTab === 'profile' && <ProfileTab user={user} onProfileRefresh={onProfileRefresh} />}
-      {currentTab === 'admin' && isAdmin && <AdminTab />}
-
-      <footer className="app-footer" aria-label="Contato e direitos autorais">
-        <div>
-          <strong>Contato</strong>
-          <a href="https://www.linkedin.com/in/lohran-lira-/" target="_blank" rel="noreferrer">
-            LinkedIn: Lohran Lira
-          </a>
-          <a href="mailto:Lohrandev39@gmail.com">Email: Lohrandev39@gmail.com</a>
-        </div>
-        <span>© 2026. Lohran Lira. Todos os direitos reservados.</span>
-      </footer>
+      {activeTab === 'admin' && (user.role === 'admin' ? <AdminTab /> : <p role="alert">Acesso restrito ao administrador.</p>)}
+      {activeTab === 'profile' && <ProfileTab user={user} onProfileRefresh={onProfileRefresh} />}
+      </TabContent>
+      </div>
     </main>
   );
 }
@@ -430,14 +410,8 @@ export function App() {
   const [resetToken, setResetToken] = useState('');
   const [authNotice, setAuthNotice] = useState('');
 
-  function replaceScreen(nextScreen: Screen) {
-    window.history.replaceState({ screen: nextScreen }, '', '/');
-    setScreen(nextScreen);
-  }
-
   useEffect(() => {
     let isMounted = true;
-    applyTheme(getStoredTheme());
 
     async function boot() {
       try {
@@ -452,36 +426,21 @@ export function App() {
 
         const authError = params.get('error') || '';
         if (authError === 'google_oauth_not_configured') {
-          setAuthNotice('Login com Google ainda não está configurado.');
+          setAuthNotice('Login com Google ainda nao esta configurado.');
           window.history.replaceState({}, '', '/');
         } else if (authError === 'auth_failed') {
-          setAuthNotice('Não foi possível entrar com Google.');
+          setAuthNotice('Nao foi possivel entrar com Google.');
           window.history.replaceState({}, '', '/');
         } else if (authError === 'google_link_failed') {
-          setAuthNotice('Não foi possível vincular sua conta Google.');
+          setAuthNotice('Nao foi possivel vincular sua conta Google.');
           window.history.replaceState({}, '', '/');
         } else if (authError === 'google_already_linked') {
-          setAuthNotice('Esta conta Google já está vinculada a outro usuário.');
+          setAuthNotice('Esta conta Google ja esta vinculada a outro usuario.');
           window.history.replaceState({}, '', '/');
         } else if (params.get('auth') === 'success') {
           if (params.get('placement') === '1') {
             setInitialAppTab('placement');
           }
-          window.history.replaceState({}, '', '/');
-        } else if (params.get('auth') === 'email_verified') {
-          setAuthNotice('Email confirmado com sucesso.');
-          if (params.get('placement') === '1') {
-            setInitialAppTab('placement');
-          }
-          window.history.replaceState({}, '', '/');
-        } else if (authError === 'email_verification_expired') {
-          setAuthNotice('Link de confirmação expirado. Volte em criar conta para receber outro email.');
-          window.history.replaceState({}, '', '/');
-        } else if (authError === 'email_verification_invalid') {
-          setAuthNotice('Link de confirmação inválido. Volte em criar conta para receber outro email.');
-          window.history.replaceState({}, '', '/');
-        } else if (authError === 'email_verification_failed') {
-          setAuthNotice('Não foi possível confirmar seu email. Tente novamente.');
           window.history.replaceState({}, '', '/');
         }
 
@@ -490,7 +449,6 @@ export function App() {
 
         const profile = await getProfile();
         if (!isMounted) return;
-        applyTheme(profile.theme);
         setUser(profile);
         setScreen('app');
       } catch {
@@ -511,17 +469,16 @@ export function App() {
   }, []);
 
   function handleAuthenticated(nextUser: UserProfile, openPlacement = false) {
-    applyTheme(nextUser.theme);
     setUser(nextUser);
     setInitialAppTab(openPlacement ? 'placement' : 'home');
-    replaceScreen('app');
+    setScreen('app');
   }
 
   async function handleLogout() {
     await logout();
     setUser(null);
     setInitialAppTab('home');
-    replaceScreen('splash');
+    setScreen('splash');
   }
 
   if (isBooting) {
@@ -530,7 +487,7 @@ export function App() {
         <section className="hero">
           <div className="brand-mark">LF</div>
           <h1>LinguaFire</h1>
-          <p className="lead">Carregando sua sessão...</p>
+          <p className="lead">Carregando sua sessao...</p>
         </section>
       </main>
     );
@@ -538,25 +495,24 @@ export function App() {
 
   if (screen === 'app' && user) {
     return (
+      <ActivityProgress key={user.id} userId={user.id}>
       <AppHome
         user={user}
         initialTab={initialAppTab}
         onLogout={handleLogout}
         onLoadProfile={getProfile}
-        onProfileRefresh={(nextUser) => {
-          applyTheme(nextUser.theme);
-          setUser(nextUser);
-        }}
+        onProfileRefresh={(nextUser) => setUser(nextUser)}
       />
+      </ActivityProgress>
     );
   }
 
   if (screen === 'forgot') {
-    return <ForgotPasswordForm onBack={() => replaceScreen('login')} />;
+    return <ForgotPasswordForm onBack={() => setScreen('login')} />;
   }
 
   if (screen === 'reset') {
-    return <ResetPasswordForm token={resetToken} onDone={() => replaceScreen('login')} />;
+    return <ResetPasswordForm token={resetToken} onDone={() => setScreen('login')} />;
   }
 
   if (screen === 'login') {
@@ -564,9 +520,9 @@ export function App() {
       <AuthForm
         mode="login"
         onAuthenticated={handleAuthenticated}
-        onBack={() => replaceScreen('splash')}
-        onForgot={() => replaceScreen('forgot')}
-        onSwitch={() => replaceScreen('register')}
+        onBack={() => setScreen('splash')}
+        onForgot={() => setScreen('forgot')}
+        onSwitch={() => setScreen('register')}
       />
     );
   }
@@ -576,9 +532,9 @@ export function App() {
       <AuthForm
         mode="register"
         onAuthenticated={handleAuthenticated}
-        onBack={() => replaceScreen('splash')}
-        onForgot={() => replaceScreen('forgot')}
-        onSwitch={() => replaceScreen('login')}
+        onBack={() => setScreen('splash')}
+        onForgot={() => setScreen('forgot')}
+        onSwitch={() => setScreen('login')}
       />
     );
   }
@@ -617,7 +573,7 @@ export function App() {
         </div>
 
         <div className="actions">
-          <button className="primary-button" type="button" onClick={() => replaceScreen('login')}>
+          <button className="primary-button" type="button" onClick={() => setScreen('login')}>
             Começar agora
           </button>
         </div>

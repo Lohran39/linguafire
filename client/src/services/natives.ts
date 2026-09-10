@@ -1,3 +1,4 @@
+import { reportContent } from './curation';
 export type NativesLanguage =
   | 'english'
   | 'english-us'
@@ -16,6 +17,7 @@ export type NativesSearchResult = {
   searchUrl?: string;
   cached?: boolean;
   curated?: boolean;
+  verifiedVideoIds?: string[];
 };
 
 export type NativeCoachTurn = { answer: string; reply: string };
@@ -124,12 +126,7 @@ export async function reportBadNativeVideo(payload: {
   videoId: string;
   reason?: string;
 }): Promise<void> {
-  await fetch('/api/natives/report', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(payload)
-  }).catch(() => undefined);
+  await reportContent({ kind: 'native', title: payload.query, lang: payload.lang, videoId: payload.videoId }, 'wrong_video', payload.reason || '');
 }
 
 export async function getSavedNativeVideos(): Promise<NativeSavedVideo[]> {
