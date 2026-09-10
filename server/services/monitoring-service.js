@@ -6,8 +6,14 @@ function createMonitoringService({ logger } = {}) {
     errors: 0,
     recentErrors: []
   };
+  const durations = [];
+  let unhandledErrors = 0;
 
-  function recordRequest({ statusCode }) {
+  function recordRequest({ statusCode, durationMs }) {
+    if (Number.isFinite(durationMs) && durationMs >= 0) {
+      durations.push(durationMs);
+      if (durations.length > 2000) durations.shift();
+    }
     const statusKey = String(statusCode || 0);
     counters.totalRequests += 1;
     counters.statusCodes[statusKey] = (counters.statusCodes[statusKey] || 0) + 1;
@@ -18,13 +24,14 @@ function createMonitoringService({ logger } = {}) {
   }
 
   function recordError(error, req = {}) {
-    counters.errors += 1;
+    unhandledErrors += 1;
 
     const entry = {
       at: new Date().toISOString(),
       method: req.method || null,
-      path: req.path || null,
-      message: error?.message || String(error || 'Erro desconhecido')
+      path: req.route?.path || 'unmatched',
+      requestId: req.requestId || null,
+      code: error?.code || 'unhandled_error'
     };
 
     counters.recentErrors.unshift(entry);
@@ -33,6 +40,7 @@ function createMonitoringService({ logger } = {}) {
   }
 
   function snapshot() {
+    const sorted = [...durations].sort((a, b) => a - b);
     return {
       started_at: startedAt.toISOString(),
       uptime_seconds: Math.round(process.uptime()),
@@ -42,8 +50,12 @@ function createMonitoringService({ logger } = {}) {
       },
       errors: {
         total: counters.errors,
+        unhandled: unhandledErrors,
         recent: counters.recentErrors.slice(0, 5)
-      }
+      },
+      latency_ms: { sample_size: sorted.length, window: 'last_2000_requests',
+        p95: sorted.length ? sorted[Math.ceil(sorted.length * 0.95) - 1] : 0 },
+      scope: 'instance'
     };
   }
 

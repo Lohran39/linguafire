@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
 const session = require('express-session');
+const { SupabaseSessionStore } = require('./services/session-store');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 require('dotenv').config();
@@ -177,6 +178,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 app.use(cors({ origin: resolveCorsOrigin, credentials: true }));
+app.use(createRequestLogger({ logger, monitoring }));
 app.use(express.json({
   limit: process.env.JSON_BODY_LIMIT || '1mb',
   verify: (req, _res, buf) => {
@@ -186,8 +188,9 @@ app.use(express.json({
   }
 }));
 
-// Session + Passport
+// Session + Passport: shared across instances, with no MemoryStore fallback.
 app.use(session({
+  store: new SupabaseSessionStore({ client: supabase, logger }),
   name: 'linguafire_session',
   secret: JWT_SECRET,
   resave: false,
@@ -207,7 +210,6 @@ app.use('/legacy', express.static(LEGACY_FRONTEND_DIR));
 app.use(express.static(ACTIVE_FRONTEND_DIR));
 app.use(express.static(LEGACY_FRONTEND_DIR, { index: false }));
 
-app.use(createRequestLogger({ logger, monitoring }));
 app.use(createRateLimiter());
 
 // ============ AUTH UTILS ============
@@ -272,12 +274,13 @@ function getBearerToken(req) {
 }
 
 // ============ AI SERVICES ============
-const { callGeminiChat } = createGeminiService({
+const { callGeminiChat: rawGeminiChat } = createGeminiService({
   geminiBaseUrl: GEMINI_BASE_URL,
   geminiModel: GEMINI_MODEL,
   openaiModelAlias: OPENAI_MODEL_ALIAS,
   proxyTimeoutMs: PROXY_TIMEOUT_MS
 });
+const callGeminiChat = require('./services/observed-ai').observeAI(rawGeminiChat, logger);
 
 const agentTools = createAgentTools({
   workspaceRoot: WORKSPACE_ROOT,

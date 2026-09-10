@@ -8,6 +8,7 @@
     "dev": "node index.js",
     "check": "node scripts/check-syntax.js",
     "test": "node --test",
+    "eval:ai": "node scripts/eval-ai.js",
     "test:e2e": "RUN_PLAYWRIGHT_E2E=1 node --test test/e2e/*.test.js"
   },
   "keywords": [],

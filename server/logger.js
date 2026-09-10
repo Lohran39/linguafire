@@ -1,9 +1,13 @@
 // Logger seguro: evita imprimir credenciais, tokens e dados pessoais.
-const SENSITIVE_FIELDS = ['password', 'email', 'token', 'resetToken', 'authorization', 'cookie', 'secret', 'key', 'auth'];
+const { AsyncLocalStorage } = require('node:async_hooks');
+const requestContext = new AsyncLocalStorage();
+const SENSITIVE_FIELDS = ['password', 'email', 'token', 'resetToken', 'authorization', 'cookie', 'secret', 'key', 'auth', 'prompt', 'content', 'history', 'answer', 'body'];
 const SECRET_VALUE_PATTERNS = [
   /\beyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b/,
   /\bsk-[a-zA-Z0-9_-]{12,}\b/,
-  /\bBearer\s+[a-zA-Z0-9._-]+\b/i
+  /\bBearer\s+[a-zA-Z0-9._-]+\b/i,
+  /\bsk_(?:live|test)_[a-zA-Z0-9]+\b/,
+  /\b[^\s@]+@[^\s@]+\.[^\s@]+\b/
 ];
 
 function isSensitiveKey(key) {
@@ -15,8 +19,8 @@ function sanitizeValue(value, depth = 0) {
   if (value instanceof Error) {
     return {
       name: value.name,
-      message: value.message,
-      stack: process.env.NODE_ENV === 'production' ? undefined : value.stack
+      code: value.code,
+      status: value.status
     };
   }
 
@@ -42,7 +46,7 @@ function sanitizeValue(value, depth = 0) {
 function sanitizeObject(obj, depth = 0) {
   const sanitized = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (isSensitiveKey(key)) {
+    if (isSensitiveKey(key) || (key === 'error' && typeof value === 'string')) {
       sanitized[key] = '[REDACTED]';
     } else {
       sanitized[key] = sanitizeValue(value, depth + 1);
@@ -56,11 +60,9 @@ function safeLog(level, message, meta = {}) {
   const timestamp = new Date().toISOString();
   const logMethod = typeof console[level] === 'function' ? console[level] : console.log;
 
-  if (sanitizedMeta && typeof sanitizedMeta === 'object' && Object.keys(sanitizedMeta).length > 0) {
-    logMethod(`[${timestamp}] [${level.toUpperCase()}] ${message}`, sanitizedMeta);
-  } else {
-    logMethod(`[${timestamp}] [${level.toUpperCase()}] ${message}`);
-  }
+  logMethod(JSON.stringify({ timestamp, level, service: 'linguafire',
+    requestId: requestContext.getStore()?.requestId,
+    message: sanitizeValue(message), metadata: sanitizedMeta }));
 }
 
 const logger = {
@@ -70,4 +72,4 @@ const logger = {
   debug: (msg, meta) => safeLog('debug', msg, meta)
 };
 
-module.exports = { logger };
+module.exports = { logger, requestContext };
