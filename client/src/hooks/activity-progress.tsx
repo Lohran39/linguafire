@@ -57,7 +57,7 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
         if (JSON.stringify(entry.state) === state) store.dirty.delete(activity);
         cache();
       }
-      if (mounted.current) { setStatus('Salvo na conta · continue em outro dispositivo'); setFailed(false); }
+      if (mounted.current) { setStatus(''); setFailed(false); }
     } catch (error) {
       if (mounted.current) {
         setFailed(true);
@@ -145,12 +145,12 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
   }
 
   return <Context.Provider value={store}>
-    <div className={`activity-sync ${failed ? 'sync-error' : ''}`} role="status" aria-live="polite">
+    {status && <div className={`activity-sync ${failed ? 'sync-error' : ''}`} role="status" aria-live="polite">
       <span>{status}</span>
       {failed && (conflict
         ? <button type="button" onClick={useCloudVersion}>Guardar cópia local e carregar conta</button>
         : <button type="button" onClick={() => ready ? void flush() : window.location.reload()}>Tentar novamente</button>)}
-    </div>
+    </div>}
     {ready && !conflict ? children : null}
   </Context.Provider>;
 }

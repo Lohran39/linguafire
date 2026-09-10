@@ -54,7 +54,9 @@ test('activities resume across isolated devices; mobile navigation and keyboard 
     await page.getByRole('button', { name: 'Lições', exact: true }).waitFor();
     return page;
   }
-  async function synced(page) { await page.getByText('Salvo na conta · continue em outro dispositivo', { exact: true }).waitFor(); }
+  async function synced(page) {
+    await page.waitForFunction(() => !document.querySelector('.activity-sync'));
+  }
   try {
     const phone = await device({ width: 390, height: 844 });
     assert.equal(await phone.locator('.app-nav button:visible').count(), 5);
