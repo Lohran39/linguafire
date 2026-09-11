@@ -38,6 +38,7 @@ test('learning evidence, verified recommendations and moderation work on mobile'
       if (req.method() === 'PUT') { review = req.postDataJSON(); reports = []; payload = { success: true }; }
       else payload = { reports };
     } else if (url.pathname === '/api/admin/summary') payload = { stats: { totalUsers: 1, verifiedUsers: 1, googleUsers: 0, passwordUsers: 1 }, topUsers: [], recentUsers: [] };
+    else if (url.pathname === '/api/admin/product-usage') payload = { activeToday: 0, active28Days: 0, retention: [], features: [] };
     else if (url.pathname === '/api/natives/search') payload = { videoIds: ['native12345'], verifiedVideoIds: ['native12345'] };
     else if (url.pathname === '/api/daily/word') payload = { word: 'hello', translation: 'olá', level: 'A1' };
     else if (url.pathname === '/api/lyrics/find') payload = { success: true, plainLyrics: 'Hello friend\nGood morning\nI like music\nSee you tomorrow' };
@@ -45,7 +46,6 @@ test('learning evidence, verified recommendations and moderation work on mobile'
     await route.fulfill({ json: payload });
   });
   async function tab(name) {
-    if (!['Início','Lições','Revisão','Conversar'].includes(name)) await page.getByRole('button', { name: 'Mais', exact: true }).click();
     await page.getByRole('button', { name, exact: true }).click();
   }
   try {

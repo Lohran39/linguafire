@@ -76,6 +76,7 @@ function readRequestJson(request) {
 async function mockAuthenticatedApis(page) {
   const user = fixtureUser();
   const activities = {};
+  await page.route('**/api/product/usage', route => route.fulfill({ status: 204 }));
   await page.route('**/api/learning/summary', route => route.fulfill({ json: { consolidatedWords: 0, reviewedWords: 0, words: [], recurringErrors: [], skills: [] } }));
   await page.route('**/api/learning/events', route => route.fulfill({ json: { success: true } }));
   await page.route('**/api/curation?*', route => route.fulfill({ json: { items: [] } }));
@@ -735,9 +736,6 @@ test('Playwright E2E: React desktop and mobile layouts avoid horizontal overflow
         await assertNoHorizontalOverflow(page, `${viewport.label}: home`);
 
         for (const tab of ['Lições', 'Música', 'Revisão', 'Conversar', 'Nativos', 'Loja', 'Nível', 'Perfil']) {
-          if (viewport.label === 'mobile' && !['Lições', 'Revisão', 'Conversar'].includes(tab)) {
-            await page.getByRole('button', { name: 'Mais', exact: true }).click();
-          }
           await page.getByRole('button', { name: tab, exact: true }).click();
           await page.waitForTimeout(120);
           await assertNoHorizontalOverflow(page, `${viewport.label}: ${tab}`);

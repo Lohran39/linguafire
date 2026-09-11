@@ -61,6 +61,7 @@ const FORMULATE_GUIDES = {
 };
 
 const CONTEXT_LOCK_MESSAGE = 'This practice is locked because you kept leaving the scenario. Start a new situation to continue.';
+const CONVERSATION_GENERATION = { temperature: 0.55, maxTokens: 2048, lowLatency: true, timeoutMs: 25000 };
 
 function buildConversationSystemPrompt(topic, englishLevel) {
   return [
@@ -135,8 +136,7 @@ function setupConversationRoutes(app, deps = {}) {
     try {
       const result = await callGeminiChat({
         messages,
-        temperature: 0.55,
-        maxTokens: 180,
+        ...CONVERSATION_GENERATION,
         requestedModel: OPENAI_MODEL_ALIAS,
         apiKey: AI_API_KEY || ''
       });
@@ -181,7 +181,8 @@ function setupConversationRoutes(app, deps = {}) {
       const result = await callGeminiChat({
         messages,
         temperature: 0.45,
-        maxTokens: 90,
+        maxTokens: 1024,
+        lowLatency: true,
         requestedModel: OPENAI_MODEL_ALIAS,
         apiKey: AI_API_KEY || ''
       });
@@ -240,7 +241,8 @@ If there are no obvious errors, respond with an empty array [].`;
       const result = await callGeminiChat({
         messages: [{ role: 'system', content: analysisPrompt }, { role: 'user', content: conversationText }],
         temperature: 0.3,
-        maxTokens: 500,
+        maxTokens: 2048,
+        lowLatency: true,
         requestedModel: OPENAI_MODEL_ALIAS,
         apiKey: AI_API_KEY || ''
       });
@@ -302,4 +304,4 @@ If there are no obvious errors, respond with an empty array [].`;
   });
 }
 
-module.exports = { setupConversationRoutes, setupGrammarRoutes, CONVERSATION_TOPICS, buildConversationSystemPrompt };
+module.exports = { setupConversationRoutes, setupGrammarRoutes, CONVERSATION_TOPICS, buildConversationSystemPrompt, CONVERSATION_GENERATION };

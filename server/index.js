@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const session = require('express-session');
 const { SupabaseSessionStore } = require('./services/session-store');
+const { createRedisSessions } = require('./services/redis-sessions');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 require('dotenv').config();
@@ -188,9 +189,13 @@ app.use(express.json({
   }
 }));
 
-// Session + Passport: shared across instances, with no MemoryStore fallback.
+const redisSessions = (IS_PRODUCTION || process.env.REDIS_URL)
+  ? createRedisSessions({ url: process.env.REDIS_URL, logger }) : null;
+app.get('/readyz', (_req, res) => res.status(!redisSessions || redisSessions.client.isReady ? 200 : 503)
+  .json({ ready: !redisSessions || redisSessions.client.isReady }));
+// Production requires Redis; local development can use the existing PostgreSQL store.
 app.use(session({
-  store: new SupabaseSessionStore({ client: supabase, logger }),
+  store: redisSessions?.store || new SupabaseSessionStore({ client: supabase, logger }),
   name: 'linguafire_session',
   secret: JWT_SECRET,
   resave: false,
@@ -345,6 +350,7 @@ setupShopRoutes(app, {
 
 const contentCuration = require('./services/content-curation').createContentCuration(supabase);
 require('./routes/learning-routes').setupLearningRoutes(app, { authenticateToken, supabase });
+require('./routes/product-usage-routes').setupProductUsageRoutes(app, { authenticateToken, supabaseGetUserById, supabase });
 require('./routes/curation-routes').setupCurationRoutes(app, { authenticateToken, supabaseGetUserById, supabase, curation: contentCuration });
 
 require('./routes/activity-routes').setupActivityRoutes(app, { authenticateToken, supabase });
@@ -478,12 +484,15 @@ app.use((req, res) => {
 
 // ============ START SERVER ============
 if (require.main === module) {
-  app.listen(PORT, HOST, () => {
+  Promise.resolve(redisSessions?.connect()).then(() => app.listen(PORT, HOST, () => {
     logger.info('Servidor iniciado', {
       port: PORT,
       host: HOST,
       url: `http://localhost:${PORT}`
     });
+  })).catch(() => {
+    logger.error('Server startup failed', { code: 'redis_startup_failed' });
+    process.exitCode = 1;
   });
 }
 

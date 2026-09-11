@@ -2,7 +2,7 @@
 require('dotenv').config({ quiet: true });
 const fs = require('node:fs');
 const { cases, evaluateReply } = require('../evals/conversation-cases');
-const { CONVERSATION_TOPICS, buildConversationSystemPrompt } = require('../routes/conversation-routes');
+const { CONVERSATION_TOPICS, buildConversationSystemPrompt, CONVERSATION_GENERATION } = require('../routes/conversation-routes');
 const { createGeminiService } = require('../services/gemini-service');
 
 async function main() {
@@ -15,7 +15,7 @@ async function main() {
     const started = Date.now();
     try {
       const result = await callGeminiChat({ apiKey: process.env.GEMINI_API_KEY, requestedModel: model,
-        temperature: 0.55, maxTokens: 180, timeoutMs: 25000,
+        ...CONVERSATION_GENERATION,
         messages: [{ role: 'system', content: buildConversationSystemPrompt(CONVERSATION_TOPICS.find(t => t.id === item.topicId), 'A2') },
           { role: 'user', content: item.input }] });
       results.push({ id: item.id, failures: evaluateReply(item, result.content), reply: result.content, model: result.providerModel, durationMs: Date.now() - started });

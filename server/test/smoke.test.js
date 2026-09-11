@@ -58,6 +58,7 @@ test('server module loads in production when React build exists', async () => {
     env: {
       ...process.env,
       NODE_ENV: 'production',
+      REDIS_URL: 'redis://127.0.0.1:6379',
       BASE_URL: 'https://example.com',
       CORS_ORIGINS: 'https://example.com',
       JWT_SECRET: 'unit-test-production-secret-with-enough-entropy',

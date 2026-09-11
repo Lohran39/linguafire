@@ -1,14 +1,16 @@
-# Sessões, observabilidade e avaliação da IA
+# Redis, observabilidade e avaliação da IA
 
 ## Ativação
 
-1. Execute `migrations/20260910-production-sessions.sql` no SQL Editor do Supabase **antes do deploy**.
-2. Todas as instâncias devem usar o mesmo `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `JWT_SECRET`, com HTTPS e a configuração de proxy existente.
-3. Publique o backend. O Express passa a usar PostgreSQL via Supabase, sem fallback para memória.
+1. Execute `migrations/20260910-product-usage.sql` no SQL Editor do Supabase **antes do deploy**.
+2. Configure `REDIS_URL` com a conexão interna do Render Key Value na mesma região do serviço. Todas as instâncias devem usar o mesmo Redis e `JWT_SECRET`, além das credenciais Supabase já existentes. Não exponha Redis publicamente.
+3. Publique o backend. Em produção, Redis é obrigatório: sem URL ou conexão inicial, o servidor não inicia. `/readyz` retorna 503 quando Redis está indisponível. Configure esse caminho no health check do Render.
 
-A tabela de sessões só pode ser acessada por `service_role`. IDs são armazenados como SHA-256; dados da sessão ficam em JSONB. O cookie expira em 24 horas; sessões expiradas são recusadas e removidas de hora em hora. Sessões antigas em memória não são migradas: um fluxo OAuth em andamento pode precisar ser reiniciado. A autenticação principal por JWT continua independente desse armazenamento.
+Redis usa `connect-redis`, prefixo `linguafire:session:` e TTL de 24 horas, renovado nas interações. Não há fallback para memória em produção. Escolha `noeviction` para não remover silenciosamente sessões válidas quando a memória encher. O piloto gratuito do Render Key Value não persiste dados em reinícios; use plano com persistência para operação durável. Sessões antigas não são migradas: um fluxo OAuth em andamento pode precisar ser reiniciado. A autenticação principal por JWT continua independente desse armazenamento.
 
-Em homologação, valide login Google, reinício do servidor, continuidade em outra instância e logout. Os testes automatizados usam um banco simulado compartilhado; não substituem essa validação real nem um teste de carga. Limites de requisição e contadores de monitoramento ainda são locais por instância; esta mudança não torna todo o sistema distribuído.
+O store PostgreSQL anterior foi mantido somente para desenvolvimento sem REDIS_URL; nesse caso, execute `migrations/20260910-production-sessions.sql`. Essa tabela não é necessária para produção com Redis.
+
+Em homologação, valide login Google, reinício do servidor, continuidade em outra instância e logout. Os testes automatizados usam clientes simulados compartilhando dados; não substituem essa validação real nem um teste de carga. Limites de requisição e contadores de monitoramento ainda são locais por instância; esta mudança não torna todo o sistema distribuído.
 
 ## Logs
 
@@ -30,3 +32,11 @@ Usa `GEMINI_API_KEY` e `GEMINI_MODEL` do ambiente; faz até 20 chamadas pagas, c
 São cinco cenários, cada um com frase correta, erro gramatical, linguagem informal e tentativa de fuga de contexto. Os critérios verificam correções indevidas, correção esperada, pergunta de continuidade e manutenção de contexto. São heurísticas: paráfrases válidas podem reprovar e uma resposta pedagogicamente ruim pode passar. Revise o relatório manualmente para preservação de sentido, adequação ao nível, precisão da explicação e naturalidade antes de mudar modelo ou prompt. Os cenários de Nativos têm testes de contrato separados; a suíte de 20 casos avalia conversa, não todos os recursos de IA.
 
 Para entrevista: esta implementação demonstra persistência compartilhada, falha fechada, rastreabilidade sem guardar conversas e avaliação reproduzível. Não afirme capacidade para 100 usuários simultâneos ou precisão pedagógica garantida sem medições de carga e revisão humana.
+
+## Medição com alunos
+
+O Admin inclui ativos diários, ativos em 28 dias, D1/D7 por primeiro uso observado e usuários por funcionalidade. A coleta ignora administradores e deduplica por conta, dia UTC e aba; não registra texto de conversa. Veja `PILOT.md` para conduzir o piloto e interpretar as métricas. A instrumentação não substitui recrutar participantes e acompanhar o uso real.
+
+## Avaliação real de 10/09/2026
+
+A primeira execução completou 9 respostas, todas reprovadas por truncamento, e parou na décima solicitação com HTTP 429. Foi ampliado o orçamento de saída da conversa, ativado o modo de menor latência e adicionada rejeição de `MAX_TOKENS`. A reavaliação parou na primeira solicitação com HTTP 504. Portanto, **a qualidade do modelo após a correção ainda não foi aprovada**. Testes locais confirmam os contratos e a rejeição de respostas truncadas, não a qualidade pedagógica do provedor.

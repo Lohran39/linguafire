@@ -1,4 +1,5 @@
 import { CuratorPanel } from './CuratorPanel';
+import { ProductUsagePanel } from './ProductUsagePanel';
 import { FormEvent, useEffect, useState } from 'react';
 import { getAdminSummary, saveCuratedNativeVideos, type AdminSummary } from '../services/admin';
 import { nativeLanguages } from '../services/natives';
@@ -92,6 +93,7 @@ export function AdminTab() {
       </div>
 
       <CuratorPanel />
+      <ProductUsagePanel />
 
       {summary && (
         <>

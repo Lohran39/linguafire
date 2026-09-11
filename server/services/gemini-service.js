@@ -191,6 +191,11 @@ function createGeminiService(config = {}) {
       throw err;
     }
 
+    if (responseJson?.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+      throw Object.assign(new Error('A resposta ficou incompleta. Tente novamente.'), {
+        status: 502, code: 'AI_RESPONSE_TRUNCATED'
+      });
+    }
     const content = stripThinkBlocks(pickTextFromGemini(responseJson));
     if (!content) {
       const finishReason = responseJson?.candidates?.[0]?.finishReason;

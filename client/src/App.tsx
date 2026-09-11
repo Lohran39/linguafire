@@ -324,6 +324,17 @@ function AppHome({
 }) {
   const [activeTab, setActiveTab] = useActivityState<AppTab>('navigation', 'activeTab', initialTab);
   useEffect(() => {
+    if (user.role === 'admin') return;
+    const record = () => {
+      if (document.visibilityState !== 'visible') return;
+      void fetch('/api/product/usage', { method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: activeTab }) }).catch(() => {});
+    };
+    record();
+    document.addEventListener('visibilitychange', record);
+    return () => document.removeEventListener('visibilitychange', record);
+  }, [activeTab, user.id, user.role]);
+  useEffect(() => {
     document.querySelector('.app-nav [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [activeTab]);
   useEffect(() => {
