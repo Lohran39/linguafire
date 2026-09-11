@@ -837,6 +837,7 @@ function buildNativeEmbedUrl(videoId: string) {
 
 export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
   const englishLevel = normalizeEnglishLevel(user.english_level);
+  const [practiceMode, setPracticeMode] = useState<'shadow' | 'dictation' | 'coach'>('shadow');
   const [curations, setCurations] = useState<CurationItem[]>([]);
   const [curationUnavailable, setCurationUnavailable] = useState(false);
   useEffect(() => {
@@ -1263,10 +1264,11 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
     <section className="natives-layout" aria-label="Nativos">
       <header className="natives-hero">
         <p className="kicker">Nativos</p>
-        <h1>Treine inglês real por situação</h1>
+        <h1>Inglês na vida real</h1>
         <p className="lead">
-          Frases naturais, contexto, áudio, favoritos e correção com IA para o seu nível {englishLevel}.
+          Escolha uma expressão, assista e pratique no seu nível {englishLevel}.
         </p>
+        <details className="native-disclosure"><summary>Meu progresso · {todayHistory.length}/{nativeDailyGoal} hoje</summary>
         <div className="native-progress-strip" aria-label="Progresso em Nativos">
           <span>{nativeCompletedCount}</span>
           <strong>frases treinadas</strong>
@@ -1282,9 +1284,132 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
             <div style={{ width: `${dailyGoalProgress}%` }} />
           </div>
         </div>
+        </details>
       </header>
 
       <section className="native-section">
+        <div className="panel-heading">
+          <div>
+            <p className="kicker">Vídeos reais</p>
+            <h2>Busque a expressão no contexto</h2>
+          </div>
+        </div>
+        <form className="natives-search" onSubmit={handleSubmit}>
+          <input
+            className="field"
+            id="nativesInput"
+            aria-label="Expressão para buscar em vídeos"
+            placeholder="Ex: look forward to"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <button className="primary-button" disabled={isSearching || !query.trim()} id="nativesSearchBtn" type="submit">
+            {isSearching ? 'Buscando...' : 'Buscar'}
+          </button>
+        </form>
+
+        <p className="native-suggestion-label">Sugestões para {englishLevel}</p>
+        <div className="suggestion-tags">
+          {nativePhrases.filter(phrase => phrase.level === englishLevel).slice(0, 3).map(phrase => (
+            <button key={phrase.id} type="button" onClick={() => { setSelectedSituation(phrase.situation); setSelectedPhraseId(phrase.id); setDictationAnswer(''); setShadowMessage(''); setDictationMessage(''); setProgressMessage(''); setLang('english'); performSearch(phrase.natural, 'english'); }}>
+              {phrase.natural}
+            </button>
+          ))}
+        </div>
+        <details className="native-disclosure"><summary>Mais opções de busca</summary>
+          <select aria-label="Idioma dos vídeos" value={lang} onChange={(event) => setLang(event.target.value as NativesLanguage)}>
+            {nativeLanguages.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+          <div className="suggestion-tags">
+            {verifiedSuggestions.map(suggestion => <button key={suggestion} type="button" onClick={() => performSearch(suggestion)}>{suggestion}</button>)}
+          </div>
+        </details>
+      </section>
+      {error && <div className="form-error">{error}</div>}
+
+      {activeVideo && (
+        <section className="natives-result">
+          <div className="panel-heading">
+            <h2>{lastQuery}</h2>
+            <span>{isVerified(activeCuration) ? 'Verificado' : 'Exemplo em vídeo'}</span>
+          </div>
+          <div className="video-frame native-video-frame">
+            <iframe
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="native-video-iframe"
+              height="100%"
+              id="nativesIframe"
+              key={activeVideo}
+              referrerPolicy="strict-origin-when-cross-origin"
+              src={buildNativeEmbedUrl(activeVideo)}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+              title={`Native result for ${lastQuery}`}
+              width="100%"
+            />
+          </div>
+          <details className="native-disclosure"><summary>Detalhes e opções do vídeo</summary>
+          <ContentReview key={`${activeSearchQuery}:${lang}:${activeVideo}`} content={contentIdentity} item={activeCuration} translation={activeCuration ? translationLabels[activeCuration.translation] : 'Tradução ainda não verificada'} unavailable={curationUnavailable} />
+          <div className="native-video-actions">
+            <button type="button" onClick={toggleSavedVideo}>
+              {activeVideoSaved ? 'Remover salvo' : 'Salvar vídeo'}
+            </button>
+            <button type="button" onClick={markActiveVideoAsBad}>
+              Vídeo ruim
+            </button>
+            <a href={`https://www.youtube.com/watch?v=${activeVideo}`} rel="noopener noreferrer" target="_blank">
+              Abrir no YouTube
+            </a>
+            <small>Não mostrar de novo para esta busca.</small>
+          </div>
+          </details>
+          {savedVideoMessage && <div className="form-success">{savedVideoMessage}</div>}
+          {visibleVideoIds.length > 1 && (
+            <div className="native-thumbs">
+              {visibleVideoIds.map((id, index) => (
+                <button aria-label={`Assistir vídeo ${index + 1}`} aria-pressed={activeVideo === id} className={activeVideo === id ? 'active' : ''} key={id} type="button" onClick={() => setActiveVideo(id)}>
+                  <img alt="" src={`https://img.youtube.com/vi/${id}/mqdefault.jpg`} />
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {result && !activeVideo && (
+        <section className="natives-fallback">
+          <span>Modo nativo</span>
+          <h2>Refine a busca aqui dentro</h2>
+          <p>
+            {badVideoIds.length > 0 && (result.videoIds || []).length > 0
+              ? 'Todos os vídeos encontrados para essa busca foram marcados como ruins.'
+              : result.reason === 'providers_unavailable'
+                ? 'A busca automática não conseguiu consultar os provedores agora. Use a busca pronta abaixo ou tente novamente em alguns segundos.'
+                : result.message || 'Nenhum vídeo confiável encontrado para essa expressão.'}
+          </p>
+          <strong>"{lastQuery}"</strong>
+          <div className="suggestion-tags">
+            {badVideoIds.length > 0 && (result.videoIds || []).length > 0 && (
+              <button type="button" onClick={restoreBadVideosForSearch}>
+                Restaurar vídeos desta busca
+              </button>
+            )}
+            {retryVariants.map((variant) => (
+              <button key={variant} type="button" onClick={() => performSearch(variant)}>
+                {variant}
+              </button>
+            ))}
+          </div>
+          <a className="secondary-link" href={fallbackUrl} rel="noopener noreferrer" target="_blank">
+            Abrir busca exata no YouTube Shorts
+          </a>
+        </section>
+      )}
+<details className="native-disclosure"><summary>Explorar situações e expressões</summary>      <section className="native-section">
         <div className="panel-heading">
           <div>
             <p className="kicker">Situações reais</p>
@@ -1318,7 +1443,6 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
         ))}
       </section>
 
-      <section className="native-workbench">
         <div className="native-library">
           <div className="panel-heading">
             <div>
@@ -1352,6 +1476,8 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
           </div>
         </div>
 
+</details>
+      <section className="native-workbench">
         <article className="native-practice-panel">
           <div className="native-compare">
             <div>
@@ -1364,6 +1490,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
             </div>
           </div>
 
+          <details className="native-disclosure"><summary>Quando usar e exemplos</summary>
           <div className="native-explain-grid">
             <div>
               <span>Quando usar</span>
@@ -1379,6 +1506,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
             </div>
           </div>
 
+          </details>
           <div className="native-actions">
             <button type="button" onClick={() => speakText(selectedPhrase.natural)}>Ouvir pronúncia</button>
             <button type="button" onClick={() => toggleFavorite(selectedPhrase.id)}>
@@ -1387,8 +1515,15 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
             <button type="button" onClick={() => performSearch(selectedPhrase.natural)}>Ver vídeo real</button>
           </div>
 
+          <details className="native-disclosure native-practice-disclosure">
+            <summary>Praticar: {selectedPhrase.natural}</summary>
+            <div className="native-mode-switch" role="group" aria-label="Tipo de treino">
+              {([{ id: 'shadow', label: 'Ouvir e repetir' }, { id: 'dictation', label: 'Ditado' }, { id: 'coach', label: 'Conversa com IA' }] as const).map(mode => (
+                <button key={mode.id} type="button" aria-pressed={practiceMode === mode.id} onClick={() => setPracticeMode(mode.id)}>{mode.label}</button>
+              ))}
+            </div>
           <section className="native-drill-grid" aria-label="Treinos rápidos">
-            <article>
+            <article hidden={practiceMode !== 'shadow'}>
               <span>Modo sombra</span>
               <strong>{selectedPhrase.natural}</strong>
               <p>Ouça, pause e repita junto tentando copiar ritmo e entonação.</p>
@@ -1400,7 +1535,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
               {shadowMessage && <small>{shadowMessage}</small>}
             </article>
 
-            <article>
+            <article hidden={practiceMode !== 'dictation'}>
               <span>Ditado</span>
               <strong>Escreva o que ouviu</strong>
               <p>Toque o áudio, escreva a frase e compare com o inglês natural.</p>
@@ -1418,7 +1553,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
             </article>
           </section>
 
-          <form className="native-coach" onSubmit={handleCoachSubmit}>
+          <form hidden={practiceMode !== 'coach'} className="native-coach" onSubmit={handleCoachSubmit}>
             <label htmlFor="native-answer">Treino com IA</label>
             <p>{selectedPhrase.prompt}</p>
             {coachHistory.length > 0 && (
@@ -1450,7 +1585,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
             )}
           </form>
 
-          {coachResult && (
+          {practiceMode === 'coach' && coachResult && (
             <section className="native-score-card">
               <div className="panel-heading">
                 <h3>{coachResult.score}/100</h3>
@@ -1461,16 +1596,18 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
               </div>
               <p><strong>Correção:</strong> {coachResult.correction}</p>
               <p><strong>Mais natural:</strong> {coachResult.natural}</p>
-              <p><strong>Feedback:</strong> {coachResult.feedback}</p>
+              <details className="native-disclosure"><summary>Entender a correção</summary><p>{coachResult.feedback}</p></details>
               <button className="primary-button" disabled={isSavingProgress} type="button" onClick={saveNativeProgress}>
                 {isSavingProgress ? 'Salvando...' : savedCurrentPhrase ? 'Salvar treino repetido' : 'Salvar progresso'}
               </button>
               {progressMessage && <div className="form-success">{progressMessage}</div>}
             </section>
           )}
+          </details>
         </article>
       </section>
 
+      <details className="native-disclosure"><summary>Minha biblioteca e histórico</summary>
       {favoritePhrases.length > 0 && (
         <section className="native-section">
           <div className="panel-heading">
@@ -1562,42 +1699,6 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
         </section>
       )}
 
-      <section className="native-section">
-        <div className="panel-heading">
-          <div>
-            <p className="kicker">Vídeos reais</p>
-            <h2>Busque a expressão no contexto</h2>
-          </div>
-        </div>
-        <form className="natives-search" onSubmit={handleSubmit}>
-          <input
-            className="field"
-            id="nativesInput"
-            placeholder="Ex: look forward to"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <select value={lang} onChange={(event) => setLang(event.target.value as NativesLanguage)}>
-            {nativeLanguages.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-          <button className="primary-button" disabled={isSearching || !query.trim()} id="nativesSearchBtn" type="submit">
-            {isSearching ? 'Buscando...' : 'Buscar'}
-          </button>
-        </form>
-
-        <div className="suggestion-tags">
-          {verifiedSuggestions.map((suggestion) => (
-            <button key={suggestion} type="button" onClick={() => performSearch(suggestion)}>
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      </section>
-
       {recentSearches.length > 0 && (
         <section className="native-section">
           <div className="panel-heading">
@@ -1622,55 +1723,6 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
               </button>
             ))}
           </div>
-        </section>
-      )}
-
-      {error && <div className="form-error">{error}</div>}
-
-      {activeVideo && (
-        <section className="natives-result">
-          <div className="panel-heading">
-            <h2>{lastQuery}</h2>
-            <span>{isVerified(activeCuration) ? 'Verificado' : 'Exemplo em vídeo'}</span>
-          </div>
-          <div className="video-frame native-video-frame">
-            <iframe
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="native-video-iframe"
-              height="100%"
-              id="nativesIframe"
-              key={activeVideo}
-              referrerPolicy="strict-origin-when-cross-origin"
-              src={buildNativeEmbedUrl(activeVideo)}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
-              title={`Native result for ${lastQuery}`}
-              width="100%"
-            />
-          </div>
-          <ContentReview key={`${activeSearchQuery}:${lang}:${activeVideo}`} content={contentIdentity} item={activeCuration} translation={activeCuration ? translationLabels[activeCuration.translation] : 'Tradução ainda não verificada'} unavailable={curationUnavailable} />
-          <div className="native-video-actions">
-            <button type="button" onClick={toggleSavedVideo}>
-              {activeVideoSaved ? 'Remover salvo' : 'Salvar vídeo'}
-            </button>
-            <button type="button" onClick={markActiveVideoAsBad}>
-              Vídeo ruim
-            </button>
-            <a href={`https://www.youtube.com/watch?v=${activeVideo}`} rel="noopener noreferrer" target="_blank">
-              Abrir no YouTube
-            </a>
-            <small>Não mostrar de novo para esta busca.</small>
-          </div>
-          {savedVideoMessage && <div className="form-success">{savedVideoMessage}</div>}
-          {visibleVideoIds.length > 1 && (
-            <div className="native-thumbs">
-              {visibleVideoIds.map((id) => (
-                <button className={activeVideo === id ? 'active' : ''} key={id} type="button" onClick={() => setActiveVideo(id)}>
-                  <img alt="" src={`https://img.youtube.com/vi/${id}/mqdefault.jpg`} />
-                </button>
-              ))}
-            </div>
-          )}
         </section>
       )}
 
@@ -1709,35 +1761,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
         </section>
       )}
 
-      {result && !activeVideo && (
-        <section className="natives-fallback">
-          <span>Modo nativo</span>
-          <h2>Refine a busca aqui dentro</h2>
-          <p>
-            {badVideoIds.length > 0 && (result.videoIds || []).length > 0
-              ? 'Todos os vídeos encontrados para essa busca foram marcados como ruins.'
-              : result.reason === 'providers_unavailable'
-                ? 'A busca automática não conseguiu consultar os provedores agora. Use a busca pronta abaixo ou tente novamente em alguns segundos.'
-                : result.message || 'Nenhum vídeo confiável encontrado para essa expressão.'}
-          </p>
-          <strong>"{lastQuery}"</strong>
-          <div className="suggestion-tags">
-            {badVideoIds.length > 0 && (result.videoIds || []).length > 0 && (
-              <button type="button" onClick={restoreBadVideosForSearch}>
-                Restaurar vídeos desta busca
-              </button>
-            )}
-            {retryVariants.map((variant) => (
-              <button key={variant} type="button" onClick={() => performSearch(variant)}>
-                {variant}
-              </button>
-            ))}
-          </div>
-          <a className="secondary-link" href={fallbackUrl} rel="noopener noreferrer" target="_blank">
-            Abrir busca exata no YouTube Shorts
-          </a>
-        </section>
-      )}
+      </details>
     </section>
   );
 }

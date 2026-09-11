@@ -5158,3 +5158,31 @@ body[data-theme='light'] { --muted: #685444; }
 .study-tips-controls span { color: var(--muted); font-size: 0.8rem; }
 .study-tips-controls button { min-width: 44px; min-height: 44px; border: 1px solid var(--border); border-radius: 10px; background: transparent; color: inherit; cursor: pointer; }
 .study-tips-controls button:focus-visible { outline: 2px solid var(--fire-2); outline-offset: 2px; }
+
+/* Nativos: reveal supporting material only when requested. */
+.natives-layout .native-workbench,
+.natives-layout .native-drill-grid { grid-template-columns: minmax(0, 1fr); }
+.natives-layout [hidden] { display: none !important; }
+.natives-layout .natives-search { grid-template-columns: minmax(0, 1fr) auto; }
+.native-disclosure { min-width: 0; padding: 1rem; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.native-disclosure > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: .75rem; font-weight: 800; list-style: none; }
+.native-disclosure > summary::-webkit-details-marker { display: none; }
+.native-disclosure > summary::after { content: '+'; margin-left: auto; font-size: 1.4rem; flex-shrink: 0; }
+.native-disclosure[open] > summary::after { content: '−'; }
+.native-disclosure[open] > summary { margin-bottom: .75rem; }
+.native-disclosure > summary:focus-visible,
+.native-mode-switch button:focus-visible { outline: 3px solid var(--accent, #ff9900); outline-offset: 3px; }
+.native-disclosure select { max-width: 100%; min-height: 44px; padding: .7rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.native-disclosure > section + section { margin-top: 1rem; }
+.native-mode-switch { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.native-mode-switch button { min-height: 44px; padding: .65rem 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); cursor: pointer; }
+.native-mode-switch button[aria-pressed='true'] { background: #ffae65; color: #18120d; border-color: #ffae65; }
+.native-suggestion-label { color: var(--muted); margin-bottom: .5rem; }
+.natives-layout .native-thumbs { display: flex; overflow-x: auto; gap: .75rem; scroll-snap-type: x mandatory; padding-bottom: .5rem; }
+.natives-layout .native-thumbs button { flex: 0 0 160px; scroll-snap-align: start; }
+.natives-layout .native-coach-history { max-height: 320px; overflow-y: auto; }
+@media (max-width: 600px) {
+  .natives-layout .natives-search { grid-template-columns: minmax(0, 1fr); }
+  .natives-layout .natives-hero h1 { font-size: 1.65rem; }
+  .native-disclosure { padding: .75rem; }
+}
