@@ -21,32 +21,38 @@ export function LearningPanel({ userId }: { userId: string }) {
     return () => { cancelled = true; };
   }, [userId, retry]);
   return <section className="learning-evidence" aria-labelledby="learning-heading">
-    <h2 id="learning-heading">Seu aprendizado além do XP</h2>
-    <p>Resultados dos exercícios. O nível de inglês vem do nivelamento; o XP mede sua participação.</p>
+    <h2 id="learning-heading">Seu aprendizado</h2>
+    <p>Seu progresso nos estudos, além do XP.</p>
     {loading && <p role="status">Carregando seu aprendizado…</p>}
     {error && <p role="alert">{error}</p>}
     {(error || pending > 0) && <button type="button" className="secondary-button" onClick={() => setRetry(value => value + 1)}>Atualizar indicadores</button>}
     {pending > 0 && <p role="status">{pending} resultado(s) aguardam sincronização neste dispositivo.</p>}
     {data && !loading && <>
       <div className="learning-word-count"><strong>{data.consolidatedWords}</strong><span>palavras consolidadas de {data.reviewedWords} revisadas</span></div>
-      <small>Critério: ao menos 3 revisões bem avaliadas e intervalo de revisão de 7 dias ou mais. Baseado na sua autoavaliação nos flashcards.</small>
+
       {data.words.length > 0 && <ul className="learned-words">{data.words.map(item => <li key={item.word}>{item.word} <span>· {item.translation}</span></li>)}</ul>}
-      <h3>Prática por habilidade</h3>
-      <p>Últimos 14 dias comparados aos 14 anteriores. A variação aparece com pelo menos 5 respostas em cada período.</p>
-      <div className="skill-evidence-grid">{data.skills.map(skill => <article key={skill.activity}>
+      <h3>Últimos 14 dias</h3>
+      {!data.skills.some(skill => skill.attempts > 0) && <p>Complete uma lição ou revisão para acompanhar sua evolução.</p>}
+      <div className="skill-evidence-grid">{data.skills.filter(skill => skill.attempts > 0).map(skill => <article key={skill.activity}>
         <h4>{skill.label}</h4>
         <strong>{skill.score === null ? 'Sem dados' : `${skill.score}%`}</strong>
         {skill.score !== null && <meter min={0} max={100} value={skill.score} aria-label={`${skill.label}: ${skill.score}%`} />}
-        <p>{skill.attempts} resposta(s) nos últimos 14 dias</p>
-        <small>{skill.change === null ? 'Sem comparação neste período.' : `${skill.change > 0 ? '+' : ''}${skill.change} pontos percentuais em relação ao período anterior.`}</small>
+        <p>{skill.attempts} respostas</p>
+        {skill.change !== null && <small>{skill.change > 0 ? '+' : ''}{skill.change} p.p. no período</small>}
       </article>)}</div>
-      <small>Vocabulário usa sua avaliação dos cartões. Escrita usa a avaliação da IA. Os demais percentuais vêm das respostas aos exercícios. Estes indicadores não certificam proficiência.</small>
-      <h3>Erros recorrentes</h3>
+
+      {data.recurringErrors.length > 0 && <h3>Para revisar</h3>}
       {data.recurringErrors.length ? <ul className="recurring-errors">{data.recurringErrors.map(item => <li key={item.type}>
         <strong>{item.type} · {item.count} registros</strong>
         {item.examples.map(example => <p key={example.incorrect}><span>{example.incorrect}</span> → <b>{example.correct}</b></p>)}
-      </li>)}</ul> : <p>Nenhum padrão recorrente identificado nas análises salvas.</p>}
-      <small>A evolução por habilidade começa com os exercícios registrados nesta versão. Palavras e erros aproveitam seu histórico existente.</small>
+      </li>)}</ul> : null}
+      <details className="learning-method">
+        <summary>Como medimos</summary>
+        <p>Palavras consolidadas: 3 revisões bem avaliadas e intervalo de pelo menos 7 dias, conforme sua autoavaliação.</p>
+        <p>Comparamos os últimos 14 dias com os 14 anteriores, com pelo menos 5 respostas em cada período.</p>
+        <p>Vocabulário usa sua autoavaliação; escrita, a avaliação da IA; demais habilidades, os acertos nos exercícios. O nível de inglês vem do nivelamento, e o XP mede participação.</p>
+        <p>Estes indicadores não certificam proficiência. A evolução usa exercícios registrados nesta versão; palavras e erros incluem o histórico anterior.</p>
+      </details>
     </>}
   </section>;
 }

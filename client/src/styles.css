@@ -5126,3 +5126,29 @@ body[data-theme='light'] { --muted: #685444; }
 .subscription-usage progress { width: 100%; height: 12px; accent-color: var(--fire); }
 .subscription-panel .profile-actions { flex-wrap: wrap; }
 .subscription-panel button { min-height: 44px; white-space: normal; }
+
+.study-tips {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  padding: 0 1rem;
+}
+.study-tips summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 64px;
+  padding: 0.75rem 0;
+  cursor: pointer;
+  list-style: none;
+}
+.study-tips summary::-webkit-details-marker { display: none; }
+.study-tips summary:focus-visible { outline: 2px solid var(--fire-2); outline-offset: 4px; }
+.study-tips summary strong { display: block; font-size: 0.95rem; }
+.study-tips summary small { display: block; color: var(--muted); font-size: 0.8rem; margin-top: 0.2rem; }
+.study-tips-toggle { font-size: 1.4rem; flex-shrink: 0; }
+.study-tips[open] .study-tips-toggle { transform: rotate(45deg); }
+.study-tips ul { padding-left: 1.2rem; margin: 0.4rem 0 0.8rem; }
+.study-tips li { margin-bottom: 0.65rem; font-size: 0.9rem; line-height: 1.5; }
+.study-tips > p { color: var(--muted); font-size: 0.8rem; line-height: 1.5; margin: 0 0 1rem; }

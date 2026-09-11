@@ -111,6 +111,19 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
   return (
     <section className="home-layout" aria-label="Inicio">
       <div className="home-main">
+        <details className="study-tips">
+          <summary>
+            <span><strong>Por onde começar?</strong><small>Uma lição, uma revisão e uma conversa curta.</small></span>
+            <span className="study-tips-toggle" aria-hidden="true">+</span>
+          </summary>
+          <ul>
+            <li><strong>Encontre seu ponto de partida.</strong> Faça o teste na aba Nível se ainda não sabe por onde começar.</li>
+            <li><strong>Estude um pouco por dia.</strong> Reserve 10 minutos e revise palavras de dias anteriores.</li>
+            <li><strong>Pratique sem medo de errar.</strong> Use frases simples na conversa e tente novamente após a correção.</li>
+            <li><strong>Escute e repita.</strong> Nas músicas, escolha um trecho curto, acompanhe a letra e repita em voz alta.</li>
+          </ul>
+          <p>A IA também pode errar. Se uma correção parecer estranha, confira com um professor ou uma fonte de confiança.</p>
+        </details>
         <section className="welcome-panel">
           <p className="kicker">Conta conectada</p>
           <h1>Olá, {user.name || 'estudante'}</h1>
