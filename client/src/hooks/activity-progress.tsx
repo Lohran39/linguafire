@@ -104,7 +104,7 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
         loaded.current = true;
         cache();
         setReady(true);
-        setStatus('Atividades carregadas da conta');
+        setStatus('');
         void flush();
       } catch (error) {
         if (!cancelled) { setFailed(true); setStatus(error instanceof Error ? error.message : 'Falha ao carregar atividades.'); }
