@@ -2341,8 +2341,28 @@ body[data-theme='light'] .placement-layout.result {
   filter: blur(2px) saturate(0.9);
 }
 
-.music-embed.has-video-error { aspect-ratio: auto; }
-.music-embed.has-video-error .video-fallback { position: relative; min-height: 200px; }
+.music-embed.has-video-error,
+.music-embed.has-video-error .video-fallback {
+  min-height: 200px;
+}
+
+@media (max-width: 600px) {
+  .video-fallback {
+    padding: 0.65rem;
+  }
+
+  .video-fallback div {
+    gap: 0.45rem;
+  }
+
+  .video-fallback strong {
+    font-size: 1rem;
+  }
+
+  .video-fallback span {
+    display: none;
+  }
+}
 
 .video-fallback div {
   position: relative;

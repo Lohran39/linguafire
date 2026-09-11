@@ -131,11 +131,12 @@ function formatMusicTime(value?: number) {
 
 function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { song: Song; onTimeChange: (seconds: number) => void; startSeconds: number; onVideoChange: (id: string) => void }) {
   const resumeAt = useRef(startSeconds);
-  const playerRef = useRef<HTMLDivElement | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerInstanceRef = useRef<{ destroy?: () => void } | null>(null);
   const [embedFailed, setEmbedFailed] = useState(false);
   const [embedLoaded, setEmbedLoaded] = useState(false);
   const [embedHost, setEmbedHost] = useState<'youtube' | 'nocookie'>('youtube');
+  const [reloadToken, setReloadToken] = useState(0);
   const candidateIds = useMemo(() => {
     const ids = [song.ytId, ...(song.videoCandidates || []).map((candidate) => candidate.videoId)];
     return [...new Set(ids.filter(Boolean))];
@@ -146,8 +147,19 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
   useEffect(() => { onVideoChange(currentVideoId); }, [currentVideoId, onVideoChange]);
   const watchUrl = `https://www.youtube.com/watch?v=${currentVideoId}`;
   const thumbUrl = `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`;
-  const embedBaseUrl = embedHost === 'youtube' ? 'https://www.youtube.com' : 'https://www.youtube-nocookie.com';
-  const playerKey = `${embedHost}:${currentVideoId}`;
+  const embedUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      enablejsapi: '1',
+      origin: window.location.origin,
+      widget_referrer: window.location.href,
+      playsinline: '1',
+      rel: '0',
+      start: String(Math.max(0, Math.floor(resumeAt.current)))
+    });
+    const host = embedHost === 'youtube' ? 'https://www.youtube.com' : 'https://www.youtube-nocookie.com';
+    return `${host}/embed/${currentVideoId}?${params.toString()}`;
+  }, [currentVideoId, embedHost, reloadToken]);
+  const playerKey = `${embedHost}:${currentVideoId}:${reloadToken}`;
 
   const reportCurrentVideo = useCallback((status: 'working' | 'bad', reason?: string) => {
     reportMusicVideoStatus({
@@ -183,34 +195,13 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
   }, [candidatesKey, onTimeChange, song.ytId]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      if (!embedLoaded) failCurrentVideo('timeout');
-    }, 20000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [embedLoaded, playerKey, failCurrentVideo]);
-
-  useEffect(() => {
     let intervalId: number | undefined;
     let cancelled = false;
 
     function startPlayer() {
-      if (cancelled || !playerRef.current || !window.YT?.Player) return;
+      if (cancelled || !iframeRef.current || !window.YT?.Player) return;
       playerInstanceRef.current?.destroy?.();
-      const playerTarget = document.createElement('div');
-      playerRef.current.replaceChildren(playerTarget);
-
-      playerInstanceRef.current = new window.YT.Player(playerTarget, {
-        videoId: currentVideoId,
-        host: embedBaseUrl,
-        playerVars: {
-          origin: window.location.origin,
-          enablejsapi: 1,
-          playsinline: 1,
-          start: Math.max(0, Math.floor(resumeAt.current)),
-          rel: 0,
-          modestbranding: 1
-        },
+      playerInstanceRef.current = new window.YT.Player(iframeRef.current, {
         events: {
           onReady: (event) => {
             if (cancelled) return;
@@ -247,7 +238,8 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
         script.async = true;
         script.onerror = () => {
           script.remove();
-          if (!cancelled) failCurrentVideo('iframe_api_blocked');
+          // The plain iframe remains usable when Safari or an in-app browser
+          // blocks the optional JavaScript API used to sync lyric timing.
         };
         document.body.appendChild(script);
       }
@@ -258,13 +250,22 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
       if (intervalId) window.clearInterval(intervalId);
       playerInstanceRef.current?.destroy?.();
       playerInstanceRef.current = null;
-      playerRef.current?.replaceChildren();
     };
-  }, [currentVideoId, embedBaseUrl, failCurrentVideo, onTimeChange, reportCurrentVideo]);
+  }, [currentVideoId, failCurrentVideo, onTimeChange, playerKey, reportCurrentVideo]);
 
   return (
     <section className={`video-frame music-embed${embedFailed ? ' has-video-error' : ''}`} aria-label={`Vídeo de ${song.title}`}>
-      <div key={playerKey} ref={playerRef} className="youtube-player" title={`${song.title} - ${song.artist}`} />
+      <iframe
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        className="youtube-player"
+        key={playerKey}
+        onLoad={() => setEmbedLoaded(true)}
+        ref={iframeRef}
+        referrerPolicy="strict-origin-when-cross-origin"
+        src={embedUrl}
+        title={`${song.title} - ${song.artist}`}
+      />
       {!embedLoaded && !embedFailed && (
         <div className="video-loading">
           <img src={thumbUrl} alt="" loading="lazy" />
@@ -281,12 +282,13 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
             <button
               type="button"
               onClick={() => {
-              setEmbedLoaded(false);
-              setEmbedFailed(false);
-              setEmbedHost((host) => (host === 'youtube' ? 'nocookie' : 'youtube'));
-              setCandidateIndex(0);
-            }}
-          >
+                setEmbedLoaded(false);
+                setEmbedFailed(false);
+                setCandidateIndex(0);
+                setEmbedHost((host) => (host === 'youtube' ? 'nocookie' : 'youtube'));
+                setReloadToken((token) => token + 1);
+              }}
+            >
               Tentar carregar aqui
             </button>
             <a href={watchUrl} target="_blank" rel="noreferrer">Abrir no YouTube</a>

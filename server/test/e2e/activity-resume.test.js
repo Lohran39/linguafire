@@ -18,13 +18,15 @@ test('activities resume across isolated devices; mobile navigation and keyboard 
     const context = await browser.newContext({ viewport });
     await context.addInitScript(() => {
       window.YT = { Player: class {
-        constructor(_target, options) {
+        constructor(target, options) {
+          const url = new URL(target.src);
+          const start = Number(url.searchParams.get('start') || 0);
           window.__playerOptions = options;
-          window.__playerHost = options.host;
-          window.__playerStart = options.playerVars.start;
+          window.__playerHost = url.origin;
+          window.__playerStart = start;
           setTimeout(() => window.__failPlayer
             ? options.events.onError({ data: 153 })
-            : options.events.onReady({ target: { getCurrentTime: () => options.playerVars.start || 12 } }), 0);
+            : options.events.onReady({ target: { getCurrentTime: () => start || 12 } }), 0);
         }
         destroy() {}
       } };
