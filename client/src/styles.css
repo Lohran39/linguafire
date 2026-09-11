@@ -5152,3 +5152,9 @@ body[data-theme='light'] { --muted: #685444; }
 .study-tips ul { padding-left: 1.2rem; margin: 0.4rem 0 0.8rem; }
 .study-tips li { margin-bottom: 0.65rem; font-size: 0.9rem; line-height: 1.5; }
 .study-tips > p { color: var(--muted); font-size: 0.8rem; line-height: 1.5; margin: 0 0 1rem; }
+.study-tips-slide h3 { font-size: 0.95rem; margin: 0.5rem 0; }
+.study-tips-slide h3 small { color: var(--muted); font-size: 0.8rem; font-weight: 400; }
+.study-tips-controls { display: flex; align-items: center; justify-content: center; gap: 1rem; padding-bottom: 0.75rem; }
+.study-tips-controls span { color: var(--muted); font-size: 0.8rem; }
+.study-tips-controls button { min-width: 44px; min-height: 44px; border: 1px solid var(--border); border-radius: 10px; background: transparent; color: inherit; cursor: pointer; }
+.study-tips-controls button:focus-visible { outline: 2px solid var(--fire-2); outline-offset: 2px; }
