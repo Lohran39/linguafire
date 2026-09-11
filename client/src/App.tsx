@@ -1,3 +1,4 @@
+import { StudyGuide } from './components/StudyGuide';
 import { TabContent } from './components/TabContent';
 const AdminTab = lazy(() => import('./components/AdminTab').then(module => ({ default: module.AdminTab })));
 import { ActivityProgress, useActivityState, useSaveBeforeLeave } from './hooks/activity-progress';
@@ -377,6 +378,7 @@ function AppHome({
       </nav>
 
       <div id="activity-content" tabIndex={-1}>
+      <StudyGuide key={`guide-${activeTab}`} tab={activeTab} level={user.english_level || 'A1'} assessed={Boolean(user.placement_completed)} />
       <TabContent key={activeTab} label={appTabs.find(tab => tab.id === activeTab)?.label || activeTab}>
       {activeTab === 'home' && (
         <HomeDashboard user={user} onLoadProfile={onLoadProfile} onProfileRefresh={onProfileRefresh} />

@@ -5186,3 +5186,27 @@ body[data-theme='light'] { --muted: #685444; }
   .natives-layout .natives-hero h1 { font-size: 1.65rem; }
   .native-disclosure { padding: .75rem; }
 }
+
+.study-guide-toolbar { display: flex; justify-content: flex-end; margin: .4rem 0 .75rem; }
+.study-guide-trigger { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; padding: .5rem .8rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font: inherit; font-size: .85rem; }
+.study-guide-trigger > span { display: grid; place-items: center; width: 1.3rem; height: 1.3rem; border: 1px solid currentColor; border-radius: 50%; font-weight: 800; }
+.study-guide-dialog { width: min(540px, calc(100% - 24px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; margin: auto; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; overflow: auto; box-shadow: 0 20px 70px #0008; }
+.study-guide-dialog::backdrop { background: #000a; }
+.study-guide-body { padding: 1.25rem; }
+.study-guide-body header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.study-guide-body header small { color: var(--muted); }
+.study-guide-body h2 { margin: .25rem 0 0; font-size: 1.2rem; }
+.study-guide-body h3 { font-size: 1.05rem; margin: 1.25rem 0 .75rem; }
+.study-guide-close, .study-guide-controls button { display: grid; place-items: center; flex-shrink: 0; min-width: 44px; min-height: 44px; padding: .4rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-size: 1.25rem; }
+.study-guide-page { min-height: 245px; }
+.study-guide-page ol { padding-left: 1.4rem; margin: 0; }
+.study-guide-page li { padding-left: .25rem; margin: .6rem 0; line-height: 1.5; }
+.study-guide-tip { padding: .8rem; background: var(--surface-2, var(--surface)); border-left: 3px solid #ff9900; border-radius: 8px; line-height: 1.5; font-size: .9rem; }
+.study-guide-controls { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; }
+.study-guide-controls span { color: var(--muted); font-size: .85rem; }
+.study-guide-toolbar button:focus-visible { outline: 3px solid #ff9900; outline-offset: 3px; }
+@media (max-width: 600px) {
+  .study-guide-body { padding: 1rem; }
+  .study-guide-page { min-height: 280px; }
+}
+body:has(.study-guide-dialog[open]) { overflow: hidden; }
