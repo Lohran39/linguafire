@@ -20,4 +20,10 @@ Compare contagens absolutas junto das taxas. Uma amostra de 5–10 pessoas serve
 
 ## Revisão pedagógica
 
+A suíte contém 30 casos sintéticos: 20 nos cinco cenários e 10 para dialeto, ambiguidade, elipses, gírias e preservação de sentido, nos níveis A1, A2, B1 e C1. B2 e conversas com múltiplos turnos ainda precisam de cobertura específica. Rode a partir de `server`: `AI_EVAL_LIVE=1 npm run eval:ai`. A chave fica no ambiente ou no `.env`; nunca inclua credenciais no relatório. São até 30 casos, com possíveis requisições adicionais pelas tentativas do provedor.
+
+O resultado padrão fica em `/tmp/linguafire-ai-eval.json` (configure `AI_EVAL_REPORT` para outro caminho). `automaticPassed` representa apenas checagens heurísticas; `pedagogicalStatus: pending_review` exige leitura das respostas. `completed` conta respostas recebidas, `attempted` inclui erros do provedor e `notRun` conta os casos restantes. A primeira falha do provedor interrompe a rodada para evitar consumo inútil.
+
+As checagens podem rejeitar paráfrases corretas ou deixar passar erros sutis. Revise cada resposta comparando com a entrada, a correção esperada e `reviewGuidance`. Preencha os cinco critérios de `pedagogicalReview`, adicione justificativa e só então altere o status. Não interprete os testes unitários da suíte como avaliação do modelo real.
+
 Execute `AI_EVAL_LIVE=1 npm run eval:ai` no servidor antes de mudanças de modelo/prompt. No relatório de exemplos sintéticos, um revisor deve avaliar: correção necessária, significado preservado, explicação correta, adequação ao nível e resposta natural. Marque cada critério como aprovado/reprovado e anote justificativa. Transforme cada falha confirmada em novo caso de regressão; não guarde conversas completas de alunos para montar o conjunto.

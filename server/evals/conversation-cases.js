@@ -14,11 +14,12 @@ const cases = scenarios.flatMap(([topicId, correct, incorrect, correction, infor
 function evaluateReply(item, reply) {
   const failures = [];
   const text = String(reply || '').trim();
-  const hasCorrection = /quick correction\s*:/i.test(text);
+  const hasCorrection = /quick correction\s*:|\b(?:you should say|the correct (?:sentence|form) is|grammar mistake)\b/i.test(text);
   if (!text || text.length > 700) failures.push('response_length');
   if (!text.includes('?')) failures.push('missing_follow_up');
   if (item.correction === false && hasCorrection) failures.push('false_correction');
-  if (typeof item.correction === 'string' && (!hasCorrection || !text.toLowerCase().includes(item.correction.toLowerCase()))) failures.push('missed_correction');
+  const normalize = value => value.normalize('NFKC').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').toLowerCase();
+  if (typeof item.correction === 'string' && (!hasCorrection || !normalize(text).includes(normalize(item.correction)))) failures.push('missed_correction');
   if (item.offTopic && (!new RegExp(item.context, 'i').test(text) || /```|function\s*\(|=>|\.sort\(/.test(text))) failures.push('scenario_escape');
   return failures;
 }
