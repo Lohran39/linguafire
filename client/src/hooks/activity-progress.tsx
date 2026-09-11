@@ -72,7 +72,7 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
   store.change = activity => {
     store.dirty.add(activity);
     const cached = cache();
-    if (mounted.current) setStatus(cached ? 'Alterações neste dispositivo · sincronizando…' : 'Salvamento local indisponível · aguarde a sincronização antes de sair.');
+    if (mounted.current) setStatus(cached ? '' : 'Salvamento local indisponível · aguarde a sincronização antes de sair.');
     clearTimeout(timer.current);
     timer.current = setTimeout(() => void flush(), 600);
   };
