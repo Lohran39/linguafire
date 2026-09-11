@@ -5,11 +5,14 @@ services:
     plan: free
     buildCommand: npm --prefix client ci --include=dev && npm --prefix server ci && npm run build
     startCommand: npm --prefix server start
+    healthCheckPath: /readyz
     envVars:
       - key: NODE_ENV
         value: production
       - key: HOST
         value: 0.0.0.0
+      - key: REDIS_URL
+        sync: false
       - key: BASE_URL
         sync: false
       - key: CORS_ORIGINS
