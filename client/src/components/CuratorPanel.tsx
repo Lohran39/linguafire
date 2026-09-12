@@ -1,8 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getContentReports, getCurations, reportReasons, reviewContent, type ContentIdentity, type ContentReport, type CurationItem } from '../services/curation';
 import { nativeLanguages } from '../services/natives';
 const emptyContent: ContentIdentity = { kind: 'music', title: '', artist: '', lang: 'english', videoId: '' };
-export function CuratorPanel() {
+export function CuratorPanel({ onReportsChange }: { onReportsChange?: (reports: ContentReport[]) => void }) {
+  const [kindFilter, setKindFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const reviewRef = useRef<HTMLDetailsElement>(null);
+  function openReview() {
+    if (reviewRef.current) {
+      reviewRef.current.open = true;
+      reviewRef.current.scrollIntoView({ block: 'start' });
+      reviewRef.current.querySelector('input')?.focus({ preventScroll: true });
+    }
+  }
   const [reports, setReports] = useState<ContentReport[]>([]);
   const [catalog, setCatalog] = useState<CurationItem[]>([]);
   const [content, setContent] = useState<ContentIdentity>(emptyContent);
@@ -13,15 +25,18 @@ export function CuratorPanel() {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   async function load() {
+    setLoading(true); setLoadError('');
     try {
       const [pending, music, native] = await Promise.all([getContentReports(), getCurations('music'), getCurations('native')]);
-      setReports(pending); setCatalog([...music, ...native]);
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Não foi possível carregar.'); }
+      setReports(pending); onReportsChange?.(pending); setCatalog([...music, ...native]);
+    } catch (error) { setLoadError(error instanceof Error ? error.message : 'Não foi possível carregar.'); }
+    finally { setLoading(false); }
   }
   useEffect(() => { void load(); }, []);
   function select(item: ContentReport | CurationItem) {
     setContent({ kind: item.kind, title: item.title, artist: item.artist, lang: item.lang, videoId: item.video_id });
     setVideoMatches(false); setTextMatches(false); setTranslation(''); setNotes(''); setMessage('');
+    openReview();
   }
   async function save(status: 'verified' | 'rejected') {
     if (busy) return;
@@ -36,15 +51,18 @@ export function CuratorPanel() {
   return <section className="curator-panel" aria-labelledby="curator-heading">
     <h2 id="curator-heading">Revisão de músicas e Nativos</h2>
     <p>Confira o vídeo e o texto na atividade antes de aprovar. A reprodução do vídeo, por si só, não confirma a correspondência.</p>
-    <button type="button" className="secondary-button" onClick={() => void load()}>Atualizar fila</button>
-    <h3>Denúncias pendentes · {reports.length}</h3>
+    <button type="button" className="secondary-button" disabled={loading || busy} onClick={() => void load()}>Atualizar fila</button>
+    {loadError && <p role="status" className="form-error">{loadError}</p>}
+    <label className="admin-content-filter">Mostrar<select value={kindFilter} onChange={event => setKindFilter(event.target.value)}><option value="all">Músicas e Nativos</option><option value="music">Músicas</option><option value="native">Nativos</option></select></label>
+    <h3>Denúncias pendentes</h3>
     <p>Até 100 denúncias, começando pelas mais antigas.</p>
-    {reports.length ? <ul className="curation-queue">{reports.map(report => <li key={report.id}>
+    {loading ? <p>Carregando fila…</p> : loadError && !reports.length ? <p>Fila indisponível. Atualize para tentar novamente.</p> : reports.filter(item => kindFilter === 'all' || item.kind === kindFilter).length ? <ul className="curation-queue">{reports.filter(item => kindFilter === 'all' || item.kind === kindFilter).map(report => <li key={report.id}>
       <strong>{report.title} {report.artist && `· ${report.artist}`}</strong>
       <p>{reportReasons[report.reason as keyof typeof reportReasons] || report.reason}</p>
       {report.detail && <p>{report.detail}</p>}
       <button type="button" onClick={() => select(report)}>Revisar este conteúdo</button>
     </li>)}</ul> : <p>Nenhuma denúncia pendente carregada.</p>}
+    <details ref={reviewRef} className="admin-review-details"><summary>Ficha de revisão · revisar um conteúdo</summary>
     <form onSubmit={event => { event.preventDefault(); void save('verified'); }}>
       <fieldset disabled={busy}>
         <legend>Ficha de revisão</legend>
@@ -60,7 +78,8 @@ export function CuratorPanel() {
         <div className="curation-actions"><button type="submit" className="primary-button" disabled={!videoMatches || !textMatches || !translation}>Aprovar conteúdo</button><button type="button" className="secondary-button" disabled={!translation || !content.title || !content.videoId} onClick={() => void save('rejected')}>Reprovar conteúdo</button></div>
       </fieldset>
     </form>
+    </details>
     {message && <p role="status">{message}</p>}
-    <details><summary>Conteúdos revisados · {catalog.length}</summary><ul className="curation-queue">{catalog.map(item => <li key={`${item.kind}:${item.content_key}:${item.video_id}`}><strong>{item.title} · {item.status === 'verified' ? 'Aprovado' : 'Reprovado'}</strong><button type="button" onClick={() => select(item)}>Reavaliar</button></li>)}</ul></details>
+    <details><summary>Conteúdos revisados · {catalog.length}</summary><label>Estado<select value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="all">Todos</option><option value="verified">Verificados</option><option value="rejected">Reprovados</option></select></label><ul className="curation-queue">{catalog.filter(item => (kindFilter === 'all' || item.kind === kindFilter) && (statusFilter === 'all' || item.status === statusFilter)).map(item => <li key={`${item.kind}:${item.content_key}:${item.video_id}`}><strong>{item.title} · {item.status === 'verified' ? 'Aprovado' : 'Reprovado'}</strong><button type="button" onClick={() => select(item)}>Reavaliar</button></li>)}</ul></details>
   </section>;
 }

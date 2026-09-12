@@ -1,37 +1,23 @@
-import { useEffect, useState } from 'react';
-type Summary = { activeToday: number; active28Days: number;
-  retention: { day: number; eligible: number; returned: number }[];
-  features: { feature: string; users: number; activeDays: number }[] };
+import type { ProductUsageSummary } from '../services/admin';
 const names: Record<string, string> = { home: 'Início', lessons: 'Lições', music: 'Música', flashcard: 'Revisão', conversation: 'Conversar', natives: 'Nativos', shop: 'Loja', placement: 'Nível', profile: 'Perfil' };
-export function ProductUsagePanel() {
-  const [data, setData] = useState<Summary | null>(null);
-  const [error, setError] = useState('');
-  async function load() {
-    setError('');
-    try {
-      const result = await fetch('/api/admin/product-usage', { credentials: 'include' });
-      if (!result.ok) throw new Error();
-      setData(await result.json());
-    } catch { setError('Não foi possível carregar os indicadores. Tente novamente.'); }
-  }
-  useEffect(() => { void load(); }, []);
-  return <section className="admin-panel" aria-label="Retenção e uso">
-    <h2>Retorno dos alunos e uso</h2>
-    <button type="button" onClick={load}>Atualizar indicadores</button>
-    {error && <p role="status">{error}</p>}
+export function ProductUsagePanel({ data, loading }: { data: ProductUsageSummary | null; loading: boolean }) {
+  return <section aria-label="Retenção e uso">
+    <h2>Uso e retorno</h2>
+    <p className="admin-note">Acesso às abas, não conclusão de exercícios nem satisfação.</p>
+    {!data && <p>{loading ? 'Carregando indicadores…' : 'Indicadores indisponíveis.'}</p>}
     {data && <>
-      <p>{data.activeToday} alunos ativos hoje · {data.active28Days} nos últimos 28 dias</p>
-      <p>Retorno no dia exato após o primeiro uso observado. Datas em UTC; contas administradoras não entram.</p>
-      {[1, 7].map(day => {
+      <div className="admin-grid">{[1, 7].map(day => {
         const item = data.retention.find(r => r.day === day);
-        return <p key={day}><strong>D{day}: </strong>{item?.eligible
-          ? `${Math.round(100 * item.returned / item.eligible)}% (${item.returned}/${item.eligible} alunos)`
-          : 'Aguardando alunos com tempo suficiente de acompanhamento'}</p>;
-      })}
-      <p>Coortes dos últimos 90 dias. Uso indica acesso à aba, não conclusão nem satisfação.</p>
-      {data.features.length ? <ul>{data.features.map(item => <li key={item.feature}>
-        {names[item.feature] || item.feature}: {item.users} alunos · {item.activeDays} dias de uso somados
-      </li>)}</ul> : <p>Ainda não há uso registrado de alunos.</p>}
+        return <article className="admin-panel" key={day}><h3>Retorno após {day} {day === 1 ? 'dia' : 'dias'}</h3>{item?.eligible
+          ? <><strong className="admin-retention-value">{Math.round(100 * item.returned / item.eligible)}%</strong><p>{item.returned} de {item.eligible} alunos voltaram.</p></>
+          : <p>Aguardando tempo suficiente de acompanhamento.</p>}</article>;
+      })}</div>
+      <section className="admin-panel"><h3>Abas acessadas · últimos 28 dias</h3>
+        {data.features.length ? <ul className="admin-feature-list">{[...data.features].sort((a, b) => b.users - a.users).map(item => <li key={item.feature}>
+          <strong>{names[item.feature] || item.feature}</strong><span>{item.users} alunos</span><small>{item.activeDays} dias de uso somados</small>
+        </li>)}</ul> : <p>Ainda não há uso registrado de alunos.</p>}
+      </section>
+      <details className="admin-panel"><summary>Como os indicadores são calculados</summary><p>Retorno no dia exato após o primeiro uso observado, com grupos dos últimos 90 dias. Datas em UTC; administradores não entram.</p><p>Cada aluno conta uma vez por aba por dia. Dias de uso somam esses registros entre os alunos.</p></details>
     </>}
   </section>;
 }

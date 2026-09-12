@@ -29,7 +29,8 @@ const parseJson = createJsonParser('Erro ao carregar painel admin');
 export async function getAdminSummary(): Promise<AdminSummary> {
   return parseJson<AdminSummary>(
     await fetch('/api/admin/summary', {
-      credentials: 'include'
+      credentials: 'include',
+      signal: AbortSignal.timeout(10000)
     })
   );
 }
@@ -47,4 +48,17 @@ export async function saveCuratedNativeVideos(payload: {
       body: JSON.stringify(payload)
     })
   );
+}
+
+export type ProductUsageSummary = {
+  activeToday: number;
+  active28Days: number;
+  retention: { day: number; eligible: number; returned: number }[];
+  features: { feature: string; users: number; activeDays: number }[];
+};
+
+export async function getProductUsageSummary(): Promise<ProductUsageSummary> {
+  return parseJson<ProductUsageSummary>(await fetch('/api/admin/product-usage', {
+    credentials: 'include', signal: AbortSignal.timeout(10000)
+  }));
 }
