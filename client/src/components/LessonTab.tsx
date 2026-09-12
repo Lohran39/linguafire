@@ -1,3 +1,4 @@
+import { useLessonHint } from '../services/shop';
 import { recordLearning } from '../services/learning';
 import { useActivityState } from '../hooks/activity-progress';
 import { getMistakeFlashcards, reviewFlashcard, type Flashcard } from '../services/flashcards';
@@ -98,7 +99,23 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const isComplete = answers.length === currentQuestions.length;
   const progress = Math.round((answers.length / currentQuestions.length) * 100);
   const modeXpBonus = practiceMode === 'complete' ? activeLesson.xp : Math.round(activeLesson.xp / 2);
-  const earnedXp = correctCount * 12 + (correctCount === currentQuestions.length ? modeXpBonus : 0);
+  const baseEarnedXp = correctCount * 12 + (correctCount === currentQuestions.length ? modeXpBonus : 0);
+  const boosterActive = user.xp_multiplier === 2 && Number(user.xp_multiplier_until || 0) > Date.now();
+  const earnedXp = baseEarnedXp * (boosterActive ? 2 : 1);
+  const [hintQuestions, setHintQuestions] = useActivityState<string[]>('lessons', 'hintQuestions', []);
+  const [usingHint, setUsingHint] = useState(false);
+  const [hintError, setHintError] = useState('');
+  const hintKey = `${learningRun}:${activeQuestion.id}`;
+  async function revealHint() {
+    if (usingHint || hintQuestions.includes(hintKey)) return;
+    setUsingHint(true); setHintError('');
+    try {
+      const remaining = await useLessonHint();
+      setHintQuestions(current => [...current, hintKey]);
+      onProfileRefresh({ ...user, has_free_hint: remaining });
+    } catch (error) { setHintError(error instanceof Error ? error.message : 'Não foi possível usar a dica.'); }
+    finally { setUsingHint(false); }
+  }
   const englishLevel = normalizeEnglishLevel(user.english_level);
   const levelProfile = LEVEL_PROFILES[englishLevel];
   const recommendedLevelLessons = recommendedLessons.filter((lesson) => isRecommendedEnglishLevel(lesson.level, englishLevel));
@@ -226,14 +243,16 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     try {
       setIsSaving(true);
       setSavedResult('');
-      await updateProfile({
+      const saved = await updateProfile({
+        lesson_xp: baseEarnedXp,
+        xp_base: Number(user.xp || 0),
         xp: nextUser.xp,
         level: nextUser.level,
         correct_answers: nextUser.correct_answers,
         lessons_completed: nextUser.lessons_completed,
         achievements: nextUser.achievements
       });
-      onProfileRefresh(nextUser);
+      onProfileRefresh({ ...nextUser, ...saved });
       setSavedResult(wasAlreadyCompleted ? 'Treino repetido salvo.' : 'Progresso salvo.');
     } catch (error) {
       setSavedResult(error instanceof Error ? error.message : 'Não foi possível salvar.');
@@ -359,6 +378,13 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
               <h3>{activeQuestion.prompt}</h3>
             </article>
 
+            {!isAnswered && <div className="lesson-hint">
+              {hintQuestions.includes(hintKey) ? <p role="status">{activeQuestion.explain}</p> :
+                <button className="secondary-button" type="button" disabled={usingHint || Number(user.has_free_hint || 0) < 1} onClick={() => void revealHint()}>
+                  {usingHint ? 'Abrindo dica...' : `Ver explicação · ${Number(user.has_free_hint || 0)} dica(s)`}
+                </button>}
+              {hintError && <p role="alert">{hintError}</p>}
+            </div>}
             {isTypeQuestion ? (
               <div className="lesson-type-answer">
                 <input

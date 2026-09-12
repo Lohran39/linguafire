@@ -11,6 +11,7 @@ export type ShopPurchase = {
   success: boolean;
   xp: number;
   lives?: number;
+  streak_freeze_active?: number;
   has_free_hint?: number | boolean;
   xp_multiplier?: number;
   xp_multiplier_until?: number;
@@ -39,4 +40,9 @@ export async function buyShopItem(itemId: string): Promise<ShopPurchase> {
       body: JSON.stringify({ itemId })
     })
   );
+}
+
+export async function useLessonHint(): Promise<number> {
+  const result = await parseJson<{ has_free_hint: number }>(await fetch('/api/shop/use-hint', { method: 'POST', credentials: 'include' }));
+  return result.has_free_hint;
 }

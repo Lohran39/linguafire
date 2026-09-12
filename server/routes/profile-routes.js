@@ -1,3 +1,4 @@
+const { mutateUser, lessonXp } = require('../services/shop-benefits');
 const { aiUsage } = require('../services/subscription-state');
 const { profileUpdateSchema, validateBody } = require('../validation');
 
@@ -56,10 +57,23 @@ function setupProfileRoutes(app, deps = {}) {
         }
       }
 
-      await supabaseUpdateUser(req.user.id, updates);
+      if (req.validatedBody.lesson_xp !== undefined || updates.xp !== undefined) {
+        if (req.validatedBody.xp_base === undefined) return res.status(400).json({ error: 'Saldo inicial obrigatório.' });
+        const result = await mutateUser(deps, req.user.id, user => {
+          if (Number(user.xp || 0) !== req.validatedBody.xp_base) {
+            const error = new Error('Seu saldo mudou. Atualize a página antes de salvar.'); error.status = 409; throw error;
+          }
+          const xp = req.validatedBody.lesson_xp !== undefined ? Number(user.xp || 0) + lessonXp(user, req.validatedBody.lesson_xp) : updates.xp;
+          const level = Math.max(Number(user.level || 1), [200, 400, 700, 1200].filter(threshold => xp >= threshold).length + 1);
+          return { updates: { ...updates, xp, level } };
+        });
+        return res.json({ success: true, updates: { xp: result.user.xp, level: result.user.level } });
+      }
+      const result = await supabaseUpdateUser(req.user.id, updates);
+      if (result?.error) throw new Error(result.error);
       res.json({ success: true, message: 'Perfil atualizado com sucesso' });
     } catch (error) {
-      res.status(500).json({ error: 'Erro ao atualizar perfil' });
+      res.status(error.status || 500).json({ error: error.status ? error.message : 'Erro ao atualizar perfil' });
     }
   });
 }

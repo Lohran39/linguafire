@@ -408,3 +408,5 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.consume_ai_use(UUID) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.consume_ai_use(UUID) TO service_role;
+
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_study_date TEXT DEFAULT '';

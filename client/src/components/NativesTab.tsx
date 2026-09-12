@@ -1203,6 +1203,7 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
       setIsSavingProgress(true);
       setProgressMessage('');
       await updateProfile({
+        xp_base: Number(user.xp || 0),
         xp: nextUser.xp,
         level: nextUser.level,
         correct_answers: nextUser.correct_answers,

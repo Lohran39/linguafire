@@ -41,7 +41,7 @@ function router() {
 const auth = (_req, _res, next) => next();
 test('learning events are idempotent, scoped to the session and store no answer text', async () => {
   const r = router(), events = new Map();
-  setupLearningRoutes(r.app, { authenticateToken: auth, supabase: { from: () => ({ upsert: async (row, options) => {
+  setupLearningRoutes(r.app, { authenticateToken: auth, supabaseGetUserById: async () => ({ xp: 0, streak: 0 }), supabaseCompareUpdateUser: async (_id, updates) => ({ data: updates }), supabase: { from: () => ({ upsert: async (row, options) => {
     assert.equal(options.ignoreDuplicates, true);
     if (!events.has(row.event_id)) events.set(row.event_id, row);
     return {};

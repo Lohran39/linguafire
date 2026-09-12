@@ -173,6 +173,16 @@ async function supabaseUpdateUser(id, updates) {
   return { data };
 }
 
+async function supabaseCompareUpdateUser(id, updates, expected) {
+  let query = supabase.from('users').update(updates).eq('id', id);
+  const fields = new Set(['xp', ...Object.keys(updates)]);
+  for (const key of fields) {
+    query = expected[key] == null ? query.is(key, null) : query.eq(key, expected[key]);
+  }
+  const { data, error } = await query.select().maybeSingle();
+  return { data, error: error?.message };
+}
+
 async function supabaseUpdateUserXP(id, xpToAdd) {
   const user = await supabaseGetUserById(id);
   if (!user) return { error: 'User not found' };
@@ -514,6 +524,7 @@ module.exports = {
   supabaseFindUserByGoogleOrEmail,
   supabaseCreateUser,
   supabaseUpdateUser,
+  supabaseCompareUpdateUser,
   supabaseUpdateGoogleLink,
   supabaseSetPasswordResetToken,
   supabaseGetUserByResetToken,

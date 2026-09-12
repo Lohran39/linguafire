@@ -446,7 +446,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
     };
 
     setQuizRewarded(true);
-    updateProfile({ xp: nextUser.xp, correct_answers: nextUser.correct_answers })
+    updateProfile({ xp_base: Number(user.xp || 0), xp: nextUser.xp, correct_answers: nextUser.correct_answers })
       .then(() => {
         onProfileRefresh(nextUser);
       })

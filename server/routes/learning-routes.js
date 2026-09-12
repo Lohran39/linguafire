@@ -1,5 +1,7 @@
+const { mutateUser, streakUpdates, studyDay } = require('../services/shop-benefits');
 const { buildLearningSummary, SKILLS } = require('../services/learning-summary');
-function setupLearningRoutes(app, { authenticateToken, supabase }) {
+function setupLearningRoutes(app, deps) {
+  const { authenticateToken, supabase } = deps;
   app.post('/api/learning/events', authenticateToken, async (req, res) => {
     if (req.body?.userId !== req.user.id) return res.status(403).json({ error: 'Conta do resultado inválida.' });
     const { eventId, activity, score, occurredAt } = req.body || {};
@@ -11,6 +13,7 @@ function setupLearningRoutes(app, { authenticateToken, supabase }) {
     try {
       const { error } = await supabase.from('learning_events').upsert({ user_id: req.user.id, event_id: eventId, activity, score, occurred_at: new Date(date).toISOString() }, { onConflict: 'user_id,event_id', ignoreDuplicates: true });
       if (error) throw error;
+      await mutateUser(deps, req.user.id, user => ({ updates: streakUpdates(user, studyDay(new Date(occurredAt))) }));
       res.json({ success: true });
     } catch { res.status(503).json({ error: 'Não foi possível registrar o resultado.' }); }
   });

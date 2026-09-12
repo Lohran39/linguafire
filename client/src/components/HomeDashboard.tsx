@@ -1,3 +1,4 @@
+import { flushLearningEvents } from '../services/learning';
 import { StudyTips } from './StudyTips';
 import { LearningPanel } from './LearningPanel';
 import { useEffect, useMemo, useState } from 'react';
@@ -69,15 +70,18 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
     let isMounted = true;
 
     async function loadDashboard() {
-      const [wordResult, rankingResult, rankResult, rewardResult, questResult] = await Promise.allSettled([
+      await flushLearningEvents(user.id);
+      const [wordResult, rankingResult, rankResult, rewardResult, questResult, profileResult] = await Promise.allSettled([
         getDailyWord(),
         getLeaderboard(),
         getRank(),
         getStreakRewards(),
-        getQuests()
+        getQuests(),
+        onLoadProfile()
       ]);
 
       if (!isMounted) return;
+      if (profileResult.status === 'fulfilled') onProfileRefresh(profileResult.value);
 
       if (wordResult.status === 'fulfilled') setDailyWord(wordResult.value);
       if (rankingResult.status === 'fulfilled') setRanking(rankingResult.value);

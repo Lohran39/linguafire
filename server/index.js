@@ -122,7 +122,7 @@ const {
   supabase,
   supabaseFindUserByStripe,
   supabaseSyncSubscription,
-  supabaseGetUserByEmail, supabaseGetUserById, supabaseFindUserByGoogleOrEmail, supabaseCreateUser, supabaseUpdateUser,
+  supabaseGetUserByEmail, supabaseGetUserById, supabaseFindUserByGoogleOrEmail, supabaseCreateUser, supabaseUpdateUser, supabaseCompareUpdateUser,
   supabaseUpdateGoogleLink, supabaseSetPasswordResetToken, supabaseGetUserByResetToken, supabaseResetPassword,
   supabaseGetUserByEmailVerificationToken, supabaseSetEmailVerificationToken, supabaseVerifyUserEmail,
   supabaseGetPushSubscription, supabaseGetAllPushSubscriptions, supabaseSavePushSubscription, supabaseDeletePushSubscription,
@@ -322,7 +322,7 @@ setupAuthRoutes(app, {
 
 // Profile routes
 setupProfileRoutes(app, {
-  authenticateToken, supabaseGetUserById, supabaseUpdateUser, parseJsonField
+  authenticateToken, supabaseGetUserById, supabaseUpdateUser, supabaseCompareUpdateUser, parseJsonField
 });
 
 // Subscription routes
@@ -345,11 +345,11 @@ setupStreakRoutes(app, {
 
 // Shop routes
 setupShopRoutes(app, {
-  authenticateToken, supabaseGetUserById, supabaseUpdateUser, parseJsonField
+  authenticateToken, supabaseGetUserById, supabaseUpdateUser, supabaseCompareUpdateUser, parseJsonField
 });
 
 const contentCuration = require('./services/content-curation').createContentCuration(supabase);
-require('./routes/learning-routes').setupLearningRoutes(app, { authenticateToken, supabase });
+require('./routes/learning-routes').setupLearningRoutes(app, { authenticateToken, supabase, supabaseGetUserById, supabaseCompareUpdateUser });
 require('./routes/product-usage-routes').setupProductUsageRoutes(app, { authenticateToken, supabaseGetUserById, supabase });
 require('./routes/curation-routes').setupCurationRoutes(app, { authenticateToken, supabaseGetUserById, supabase, curation: contentCuration });
 

@@ -26,6 +26,7 @@ export type UserProfile = {
   favorites?: FavoriteSong[];
   achievements?: string[];
   lives?: number;
+  streak_freeze_active?: number;
   has_free_hint?: number | boolean;
   xp_multiplier?: number;
   xp_multiplier_until?: number;
@@ -112,12 +113,12 @@ export async function getProfile(): Promise<UserProfile> {
   return data.user;
 }
 
-export async function updateProfile(updates: Partial<UserProfile>): Promise<void> {
+export async function updateProfile(updates: Partial<UserProfile> & { lesson_xp?: number; xp_base?: number }): Promise<Partial<UserProfile>> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), PROFILE_UPDATE_TIMEOUT_MS);
 
   try {
-    await parseJson<{ success: boolean }>(
+    const result = await parseJson<{ success: boolean; updates?: Partial<UserProfile> }>(
       await fetch(`${API_BASE}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -126,6 +127,7 @@ export async function updateProfile(updates: Partial<UserProfile>): Promise<void
         body: JSON.stringify(updates)
       })
     );
+    return result.updates || {};
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new Error('O salvamento demorou demais. Tente novamente em alguns segundos.');

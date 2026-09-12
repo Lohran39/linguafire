@@ -52,6 +52,7 @@ function setupAuthRoutes(app, deps = {}) {
       ai_uses_today: user.ai_uses_today || 0,
       lives: user.lives || 5,
       has_free_hint: user.has_free_hint || 0,
+      streak_freeze_active: user.streak_freeze_active || 0,
       xp_multiplier: user.xp_multiplier || 1,
       xp_multiplier_until: user.xp_multiplier_until || 0
     };
