@@ -36,7 +36,6 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
     clearTimeout(timer.current);
     if (inFlight.current || blocked.current || !store.dirty.size) return;
     inFlight.current = true;
-    if (mounted.current) setStatus('Salvando na sua conta…');
     try {
       for (const activity of [...store.dirty]) {
         const entry = store.entries[activity];
