@@ -596,6 +596,12 @@ async function searchYouTubeMusicCandidates(searchQuery, apiKey, ignoredVideoIds
     .filter(isValidYouTubeId))];
   if (!videoIds.length) return [];
 
+  return (await fetchMusicVideoMetadata(videoIds, apiKey, query))
+    .filter(item => isValidYouTubeId(item.videoId) && item.embeddable && item.privacyStatus === 'public' && !ignored.has(item.videoId))
+    .sort((a, b) => b.score - a.score).slice(0, 6);
+}
+
+async function fetchMusicVideoMetadata(videoIds, apiKey, query) {
   const videosUrl = buildMusicYouTubeVideosUrl(videoIds, apiKey);
   const videosResult = await fetchJsonWithTimeout(videosUrl, 10000);
   if (!videosResult.response.ok || !Array.isArray(videosResult.data?.items)) {
@@ -614,13 +620,19 @@ async function searchYouTubeMusicCandidates(searchQuery, apiKey, ignoredVideoIds
         privacyStatus: item?.status?.privacyStatus || 'public'
       };
       return { ...candidate, score: scoreMusicVideoCandidate(candidate, query) };
-    })
-    .filter((item) => isValidYouTubeId(item.videoId)
-      && item.embeddable
-      && item.privacyStatus === 'public'
-      && !ignored.has(item.videoId))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6);
+    });
+}
+
+function isSingleTrackVideo(candidate, query, expectedDuration = 0) {
+  const title = String(candidate.title || '');
+  if (/\b(compilation|medley|mashup|playlist|full album|full mixtape|full concert|non[ -]?stop|two songs|2 songs|2 in 1)\b/i.test(title)) return false;
+  if (!candidate.embeddable || candidate.privacyStatus !== 'public') return false;
+  if (overlapRatio(normalizeLyricsText(query), `${normalizeLyricsText(title)} ${normalizeArtistName(candidate.author)}`) < 0.8) return false;
+  if (expectedDuration > 0) {
+    const seconds = Number(candidate.durationSeconds || 0);
+    if (!seconds || Math.abs(seconds - expectedDuration) > Math.max(30, expectedDuration * 0.15)) return false;
+  }
+  return true;
 }
 
 function tokenSet(text = '') {
@@ -939,27 +951,31 @@ function registerLyricsRoutes(app, deps = {}) {
       const knownBadIds = trackKey ? await supabaseGetBadMusicVideos(trackKey) : [];
       const candidatesWithoutKnownBad = initialCandidates.filter((candidate) => !knownBadIds.includes(candidate.videoId));
       const cachedWorkingVideo = trackKey ? await supabaseGetWorkingMusicVideo(trackKey) : null;
-      const cachedCandidate = cachedWorkingVideo?.video_id && !knownBadIds.includes(cachedWorkingVideo.video_id)
-        ? {
-            ...firstCandidate,
-            videoId: cachedWorkingVideo.video_id,
-            title: cachedWorkingVideo.track || firstCandidate.title,
-            author: cachedWorkingVideo.artist || firstCandidate.author,
-            cached: true,
-            score: firstCandidate.score + 1000
-          }
-        : null;
-      let candidates = [
-        ...(cachedCandidate ? [cachedCandidate] : []),
-        ...candidatesWithoutKnownBad.filter((candidate) => candidate.videoId !== cachedCandidate?.videoId)
-      ];
       const curated = await contentCuration.list('music', contentKey({ kind: 'music', title: firstParsed.trackOriginal || firstCandidate.title, artist: firstParsed.artistOriginal || firstCandidate.author })).catch(() => []);
       const rejectedIds = new Set(curated.filter(item => item.status === 'rejected').map(item => item.video_id));
-      const verified = curated.filter(isVerified).filter(item => !knownBadIds.includes(item.video_id));
-      candidates = [
-        ...verified.map(item => ({ ...firstCandidate, videoId: item.video_id, title: `${item.artist} - ${item.title}`, author: item.artist, cached: true, verified: true })),
-        ...candidates.filter(item => !verified.some(record => record.video_id === item.videoId))
-      ].filter(item => !rejectedIds.has(item.videoId));
+      const verifiedIds = new Set(curated.filter(isVerified).map(item => item.video_id));
+      const persistedIds = [...new Set([cachedWorkingVideo?.video_id, ...verifiedIds])].filter(id => isValidYouTubeId(id) && !initialCandidates.some(candidate => candidate.videoId === id));
+      // Cached/curated IDs need their OWN YouTube metadata, never another video's title/duration.
+      const persistedCandidates = persistedIds.length ? await fetchMusicVideoMetadata(persistedIds, YOUTUBE_API_KEY, query).catch(() => []) : [];
+      const referenceTrack = firstParsed.trackOriginal || firstCandidate.title;
+      const referenceArtist = firstParsed.artistOriginal || firstCandidate.author;
+      let expectedDuration = 0;
+      try {
+        const cachedLyrics = await supabaseGetLyricsCache(buildLyricsCacheKey(referenceTrack, referenceArtist));
+        if (isUsableLyricsCache(cachedLyrics, referenceTrack, referenceArtist)) expectedDuration = Number(getCachedLyricsPayload(cachedLyrics)?.duration || 0);
+        if (!expectedDuration) {
+          const reference = await fetchJsonWithTimeout(`https://lrclib.net/api/get?${new URLSearchParams({ track_name: referenceTrack, artist_name: referenceArtist })}`, 4000);
+          if (reference.response.ok && isReliableLyricsMatch(reference.data, referenceTrack, referenceArtist)) expectedDuration = Number(reference.data.duration || 0);
+        }
+      } catch { /* Duration unavailable: still reject explicit compilations and verify video metadata. */ }
+      let candidates = [...candidatesWithoutKnownBad, ...persistedCandidates]
+        .filter(item => !knownBadIds.includes(item.videoId) && !rejectedIds.has(item.videoId) && isSingleTrackVideo(item, query, expectedDuration))
+        .map(item => ({ ...item, cached: item.videoId === cachedWorkingVideo?.video_id, verified: verifiedIds.has(item.videoId) }))
+        .sort((a, b) => Number(b.verified) - Number(a.verified) || b.score - a.score);
+      if (!candidates.length) {
+        candidates = (await searchYouTubeMusicCandidates(`${query} official audio`, YOUTUBE_API_KEY, knownBadIds))
+          .filter(item => !rejectedIds.has(item.videoId) && isSingleTrackVideo(item, query, expectedDuration));
+      }
       const video = candidates[0];
 
       if (!video) {
@@ -1338,6 +1354,7 @@ module.exports = {
   parseYouTubeMusicTitle,
   buildMusicTrackKey,
   scoreMusicVideoCandidate,
+  isSingleTrackVideo,
   searchYouTubeMusicCandidates,
   getLyricsMatchDetails,
   MIN_LYRICS_CONFIDENCE,

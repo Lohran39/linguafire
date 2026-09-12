@@ -9,3 +9,11 @@ Consulta à API publicada em 12/09/2026: Shape of You retornou sucesso via LRCLI
 Validação: build aprovado; 12 testes do cliente; teste móvel com 105 versos fictícios por faixa, incluindo restauração de rascunho antigo e troca de abas sem nova busca desnecessária. Nenhuma letra integral foi adicionada ao repositório.
 
 Não requer migração SQL. Publicar o cliente atualizado; a versão antiga continua exibindo os trechos até o deploy e recarregamento.
+
+## Vídeos com mais de uma música — 12/09/2026
+
+A busca pública por `don toliver no pole` retornou um ID salvo com miniatura e duração herdadas de outro candidato. A seleção agora consulta os metadados reais de IDs salvos/verificados, exige relação entre consulta e título/artista e exclui compilações explícitas. Quando a duração da faixa é obtida de uma referência de letra com correspondência confiável, exclui vídeos com diferença superior a 30 segundos ou 15% (o maior dos dois). Se necessário, tenta uma busca adicional por áudio oficial.
+
+Validação: 133 testes do servidor aprovados, 1 ignorado; 70 arquivos com sintaxe válida. Regressões cobrem cache com vídeo longo, títulos de compilação e fallback para áudio oficial. A regra usa metadados, não análise do áudio; sem duração de referência, só os filtros de metadados se aplicam. A reprodução integral de No Pole após o deploy ainda precisa ser conferida.
+
+Não requer SQL nem apagar caches: vídeos anteriormente salvos são revalidados quando encontrados pela busca atualizada.

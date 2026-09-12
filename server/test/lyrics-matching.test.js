@@ -194,3 +194,55 @@ test('approved lyrics cache writes require token in production or local dev requ
   assert.equal(canWriteApprovedLyricsCache(remoteReq, { NODE_ENV: 'production', LYRICS_ADMIN_TOKEN: 'secret-token' }), true);
   assert.equal(canWriteApprovedLyricsCache(remoteReq, { NODE_ENV: 'production', LYRICS_ADMIN_TOKEN: 'other-token' }), false);
 });
+
+test('single-track selection rejects extra songs, long videos and unrelated cached metadata', () => {
+  const { isSingleTrackVideo } = require('../routes/lyrics-routes');
+  const candidate = { title: 'Don Toliver - No Pole (Official Audio)', author: 'Don Toliver', durationSeconds: 184, embeddable: true, privacyStatus: 'public' };
+  assert.equal(isSingleTrackVideo(candidate, 'don toliver no pole', 184), true);
+  assert.equal(isSingleTrackVideo({...candidate,durationSeconds:256}, 'don toliver no pole',184),false);
+  assert.equal(isSingleTrackVideo({...candidate,durationSeconds:90}, 'don toliver no pole',184),false);
+  assert.equal(isSingleTrackVideo({...candidate,title:'Don Toliver - No Pole medley'}, 'don toliver no pole'),false);
+  assert.equal(isSingleTrackVideo({...candidate,title:'Don Toliver full album'}, 'don toliver no pole'),false);
+  assert.equal(isSingleTrackVideo({...candidate,title:'Another Track',author:'Another Artist'}, 'don toliver no pole'),false);
+  assert.equal(isSingleTrackVideo({...candidate,embeddable:false}, 'don toliver no pole',184),false);
+});
+
+test('music search rechecks cached video duration instead of copying another candidate', async t => {
+  const { registerLyricsRoutes } = require('../routes/lyrics-routes');
+  const routes = {};
+  registerLyricsRoutes({get:(path,...handlers)=>{routes[path]=handlers.at(-1);},post:()=>{}}, {
+    YOUTUBE_API_KEY:'test-key',
+    supabaseGetWorkingMusicVideo:async()=>({video_id:'cached00001',track:'No Pole',artist:'Don Toliver'})
+  });
+  const item=(id,seconds)=>({id,snippet:{title:'Don Toliver - No Pole (Official Audio)',channelTitle:'Don Toliver'},contentDetails:{duration:`PT${seconds}S`},status:{embeddable:true,privacyStatus:'public'}});
+  const metadataRequests=[];
+  t.mock.method(globalThis,'fetch',async url=>{
+    const u=new URL(url);
+    if(u.pathname.endsWith('/search')) return Response.json({items:[{id:{videoId:'single00001'}}]});
+    if(u.pathname.endsWith('/videos')) {const id=u.searchParams.get('id');metadataRequests.push(id);return Response.json({items:[item(id,id==='cached00001'?256:184)]});}
+    if(u.hostname==='lrclib.net') return Response.json({trackName:'No Pole',artistName:'Don Toliver',duration:184,plainLyrics:'Synthetic test text'});
+    throw new Error('Unexpected request');
+  });
+  let body; const res={status(){return this;},json(value){body=value;}};
+  await routes['/api/music/search']({query:{q:'don toliver no pole'}},res);
+  assert.equal(body.success,true); assert.equal(body.videoId,'single00001');
+  assert.deepEqual(body.candidates.map(c=>c.videoId),['single00001']);
+  assert.ok(metadataRequests.includes('cached00001'));
+});
+
+test('music search retries official audio when the first results contain extra audio', async t => {
+  const { registerLyricsRoutes } = require('../routes/lyrics-routes');
+  const routes={}; const searches=[];
+  registerLyricsRoutes({get:(path,...handlers)=>{routes[path]=handlers.at(-1);},post:()=>{}},{YOUTUBE_API_KEY:'test-key'});
+  t.mock.method(globalThis,'fetch',async url=>{
+    const u=new URL(url);
+    if(u.pathname.endsWith('/search')) {
+      searches.push(u.searchParams.get('q'));
+      return Response.json({items:[{id:{videoId:searches.length===1?'longvid0001':'audiovid001'}}]});
+    }
+    if(u.pathname.endsWith('/videos')) return Response.json({items:[{id:u.searchParams.get('id'),snippet:{title:'Don Toliver - No Pole (Official Audio)',channelTitle:'Don Toliver'},contentDetails:{duration:searches.length===1?'PT256S':'PT184S'},status:{embeddable:true,privacyStatus:'public'}}]});
+    return Response.json({trackName:'No Pole',artistName:'Don Toliver',duration:184,plainLyrics:'Synthetic reference'});
+  });
+  let body; await routes['/api/music/search']({query:{q:'don toliver no pole'}},{status(){return this;},json(value){body=value;}});
+  assert.equal(body.videoId,'audiovid001');assert.equal(searches.length,2);assert.match(searches[1],/official audio/);
+});
