@@ -12,7 +12,7 @@ const Context = createContext<Store | null>(null);
 
 export function ActivityProgress({ userId, children }: { userId: string; children: ReactNode }) {
   const [ready, setReady] = useState(false);
-  const [status, setStatus] = useState('Carregando atividades salvas…');
+  const [status, setStatus] = useState('');
   const [failed, setFailed] = useState(false);
   const [conflict, setConflict] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
