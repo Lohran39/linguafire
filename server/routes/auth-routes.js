@@ -50,7 +50,7 @@ function setupAuthRoutes(app, deps = {}) {
       plan: user.plan || (user.subscription_active ? 'pro' : 'free'),
       ai_daily_limit: user.ai_daily_limit || 10,
       ai_uses_today: user.ai_uses_today || 0,
-      lives: user.lives || 5,
+      lives: user.lives ?? 10,
       has_free_hint: user.has_free_hint || 0,
       streak_freeze_active: user.streak_freeze_active || 0,
       xp_multiplier: user.xp_multiplier || 1,

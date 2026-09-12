@@ -5210,3 +5210,9 @@ body[data-theme='light'] { --muted: #685444; }
   .study-guide-page { min-height: 280px; }
 }
 body:has(.study-guide-dialog[open]) { overflow: hidden; }
+
+.lives-indicator { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; padding: .65rem .85rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); font-size: .9rem; }
+.lives-indicator strong { white-space: nowrap; }
+.lives-low { border-color: #e9a240; }
+.lesson-mode-switch button[aria-pressed='true'] { background: #ffae65; color: #18120d; }
+.lesson-no-lives { padding: .75rem; border: 1px solid var(--border); border-radius: 12px; }

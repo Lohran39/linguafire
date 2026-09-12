@@ -67,7 +67,7 @@ async function supabaseCreateUser(userData) {
       achievements: userData.achievements ?? '[]',
       favorites: userData.favorites ?? '[]',
       theme: userData.theme ?? 'default',
-      lives: userData.lives ?? 5,
+      lives: userData.lives ?? 10,
       xp_multiplier: userData.xp_multiplier ?? 1,
       xp_multiplier_until: userData.xp_multiplier_until ?? 0,
       last_quest_reset: userData.last_quest_reset ?? '',
@@ -171,6 +171,11 @@ async function supabaseUpdateUser(id, updates) {
 
   if (error) return { error: error.message };
   return { data };
+}
+
+async function supabaseRecordChallengeAnswer(userId, attemptId, correct) {
+  const { data, error } = await supabase.rpc('record_challenge_answer', { p_user_id: userId, p_attempt_id: attemptId, p_correct: correct });
+  return { data, error: error?.message };
 }
 
 async function supabaseCompareUpdateUser(id, updates, expected) {
@@ -525,6 +530,7 @@ module.exports = {
   supabaseCreateUser,
   supabaseUpdateUser,
   supabaseCompareUpdateUser,
+  supabaseRecordChallengeAnswer,
   supabaseUpdateGoogleLink,
   supabaseSetPasswordResetToken,
   supabaseGetUserByResetToken,

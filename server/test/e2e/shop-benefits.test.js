@@ -5,8 +5,9 @@ const assert=require('node:assert/strict');
 const {setupShopRoutes}=require('../../routes/shop-routes');
 const {setupProfileRoutes}=require('../../routes/profile-routes');
 test('shop purchases and lesson hints work on mobile', { skip: process.env.RUN_PLAYWRIGHT_E2E !== '1' }, async()=>{
- let user={id:'shop-ui',name:'Aluno',email:'test@example.com',xp:500,level:1,english_level:'A1',placement_completed:1,streak:0,achievements:'[]',favorites:'[]',has_free_hint:0,correct_answers:0,lessons_completed:0};
- const deps={authenticateToken:(req,_res,next)=>{req.user={id:user.id};next();},supabaseGetUserById:async()=>({...user}),supabaseCompareUpdateUser:async(_id,updates,old)=>{if(user.xp!==old.xp)return {data:null};user={...user,...updates};return {data:user};},parseJsonField:(v,f)=>typeof v==='string'?JSON.parse(v):v||f};
+ let user={id:'shop-ui',name:'Aluno',email:'test@example.com',xp:500,lives:1,level:1,english_level:'A1',placement_completed:1,streak:0,achievements:'[]',favorites:'[]',has_free_hint:0,correct_answers:0,lessons_completed:0};
+ const attempts=new Map();
+ const deps={supabaseRecordChallengeAnswer:async(_id,key,correct)=>{ if(attempts.has(key)) return {data:{lives:user.lives,correct:attempts.get(key),replayed:true}}; if(user.lives===0)return {data:{lives:0,blocked:true}}; attempts.set(key,correct); if(!correct)user.lives--; return {data:{lives:user.lives,correct}}; },authenticateToken:(req,_res,next)=>{req.user={id:user.id};next();},supabaseGetUserById:async()=>({...user}),supabaseCompareUpdateUser:async(_id,updates,old)=>{if(user.xp!==old.xp)return {data:null};user={...user,...updates};return {data:user};},parseJsonField:(v,f)=>typeof v==='string'?JSON.parse(v):v||f};
  const app=express();app.use(express.json());setupShopRoutes(app,deps);setupProfileRoutes(app,deps);
  app.get('/api/auth/session',(_req,res)=>res.json({userId:user.id}));
  app.get('/api/activities',(_req,res)=>res.json({activities:[]}));
@@ -34,6 +35,28 @@ test('shop purchases and lesson hints work on mobile', { skip: process.env.RUN_P
  await page.getByRole('button',{name:'Loja',exact:true}).click();
  await page.getByRole('button',{name:'Lições',exact:true}).click();
  await page.locator('.lesson-hint p[role="status"]').waitFor();assert.equal(user.has_free_hint,0);
- assert.deepEqual(errors,[]);console.log('PASS: mobile purchases, exact debit, active booster, hint delivery and draft retention without another charge');
+ await page.getByRole('button',{name:'Desafio · usa vidas',exact:true}).click();
+ const {lessonSets}=await import('../../../client/src/data/lessons.ts');
+ const typed=page.getByLabel('Digite a resposta',{exact:true});
+ if(await typed.isVisible()) {
+   await typed.fill('deliberately wrong');await page.getByRole('button',{name:'Conferir',exact:true}).click();
+ } else {
+   const prompt=await page.locator('.lesson-question h3').innerText();
+   const question=lessonSets.flatMap(set=>set.questions).find(q=>q.prompt===prompt);
+   assert.ok(question);await page.locator('.lesson-choices button').nth((question.answer+1)%question.choices.length).click();
+ }
+ await page.getByText('Sem vidas para desafios',{exact:true}).waitFor();assert.equal(user.lives,0);assert.equal(attempts.size,1);
+ await page.getByRole('button',{name:'Continuar na prática livre',exact:true}).click();
+ await page.getByRole('button',{name:'Próxima',exact:true}).click();
+ assert.equal(await page.getByRole('button',{name:'Desafio · usa vidas',exact:true}).isEnabled(),false);
+ if(await typed.isVisible()) { await typed.fill('wrong again');await page.getByRole('button',{name:'Conferir',exact:true}).click(); }
+ else await page.locator('.lesson-choices button').first().click();
+ assert.equal(user.lives,0);assert.equal(attempts.size,1);
+ await page.getByRole('button',{name:'Loja',exact:true}).click();
+ await page.locator('.shop-card').filter({hasText:'Vidas cheias'}).getByRole('button',{name:'Comprar',exact:true}).click();
+ await page.locator('.lives-indicator').getByText('10/10',{exact:true}).waitFor();assert.equal(user.xp,120);
+ assert.equal(await page.locator('.shop-card').filter({hasText:'Vida extra'}).getByRole('button',{name:'Vidas cheias',exact:true}).isEnabled(),false);
+ await page.screenshot({path:'/tmp/ten-lives-mobile.png',fullPage:true});
+ assert.deepEqual(errors,[]);console.log('PASS: mobile purchases, hints, last challenge life, free practice at zero and refill to ten');
  }finally{await browser?.close();server.close();}
 });

@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   favorites TEXT DEFAULT '[]',
   google_id TEXT,
   theme TEXT DEFAULT 'default',
-  lives INTEGER DEFAULT 5,
+  lives INTEGER DEFAULT 10,
   xp_multiplier INTEGER DEFAULT 1,
   xp_multiplier_until BIGINT DEFAULT 0,
   last_quest_reset TEXT DEFAULT '',
@@ -55,7 +55,7 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAUL
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT DEFAULT '';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS google_id TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT 'default';
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS lives INTEGER DEFAULT 5;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS lives INTEGER DEFAULT 10;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS xp_multiplier INTEGER DEFAULT 1;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS xp_multiplier_until BIGINT DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_quest_reset TEXT DEFAULT '';
@@ -410,3 +410,5 @@ REVOKE ALL ON FUNCTION public.consume_ai_use(UUID) FROM PUBLIC, anon, authentica
 GRANT EXECUTE ON FUNCTION public.consume_ai_use(UUID) TO service_role;
 
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_study_date TEXT DEFAULT '';
+
+-- Para bancos novos e existentes: aplicar também migration-ten-lives.sql.

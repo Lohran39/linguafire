@@ -59,7 +59,7 @@ test('login endpoint returns stored profile arrays and shop bonuses', async () =
       subscription_active: 1,
       subscription_expires: 1999999999999,
       ai_uses_today: 3,
-      lives: 7,
+      lives: 0,
       has_free_hint: 2,
       xp_multiplier: 2,
       xp_multiplier_until: 1999999999999
@@ -83,7 +83,7 @@ test('login endpoint returns stored profile arrays and shop bonuses', async () =
     assert.equal(body.user.theme, 'light');
     assert.equal(body.user.subscription_active, true);
     assert.equal(body.user.ai_uses_today, 3);
-    assert.equal(body.user.lives, 7);
+    assert.equal(body.user.lives, 0);
     assert.equal(body.user.has_free_hint, 2);
     assert.equal(body.user.xp_multiplier, 2);
   } finally {

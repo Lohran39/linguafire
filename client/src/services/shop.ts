@@ -46,3 +46,7 @@ export async function useLessonHint(): Promise<number> {
   const result = await parseJson<{ has_free_hint: number }>(await fetch('/api/shop/use-hint', { method: 'POST', credentials: 'include' }));
   return result.has_free_hint;
 }
+
+export async function recordChallengeAnswer(attemptId: string, correct: boolean): Promise<{ lives: number; blocked?: boolean; correct?: boolean }> {
+  return parseJson(await fetch('/api/lessons/challenge-answer', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ attemptId, correct }) }));
+}

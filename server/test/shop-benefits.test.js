@@ -5,14 +5,21 @@ const { purchase, lessonXp, streakUpdates, studyDay } = require('../services/sho
 const { setupShopRoutes } = require('../routes/shop-routes');
 const { setupProfileRoutes } = require('../routes/profile-routes');
 
-test('purchases grant hints, reject unavailable lives and duplicate active benefits', () => {
+test('purchases grant hints and reject duplicate active benefits', () => {
   assert.equal(purchase({xp:100,has_free_hint:2},'free_hint').updates.has_free_hint,3);
   assert.equal(purchase({xp:100},'free_hint').updates.xp,70);
   assert.throws(()=>purchase({xp:29},'free_hint'),/insuficiente/);
-  assert.throws(()=>purchase({xp:1000,lives:0},'extra_life'),/disponível/);
+
   assert.throws(()=>purchase({xp:1000,streak_freeze_active:1},'streak_freeze'),/ativa/);
   assert.throws(()=>purchase({xp:1000,xp_multiplier:2,xp_multiplier_until:2000},'xp_booster',1000),/ativo/);
   assert.equal(purchase({xp:1000},'streak_freeze').updates.streak_freeze_active,1);
+});
+test('life purchases recover from zero, cap at ten and reject full balances without a debit', () => {
+  assert.deepEqual(purchase({xp:500,lives:0},'extra_life').updates,{xp:450,lives:1});
+  assert.deepEqual(purchase({xp:500,lives:9},'extra_life').updates,{xp:450,lives:10});
+  assert.deepEqual(purchase({xp:500,lives:0},'all_lives').updates,{xp:300,lives:10});
+  assert.deepEqual(purchase({xp:500,lives:8},'all_lives').updates,{xp:300,lives:10});
+  for(const id of ['extra_life','all_lives']) assert.throws(()=>purchase({xp:500,lives:10},id),/cheias/);
 });
 test('booster expires exactly at boundary and box always grants its announced reward', () => {
   const user={xp:200,...purchase({xp:200},'xp_booster',1000).updates};
@@ -36,6 +43,7 @@ test('routes persist benefits, guard concurrent spending, and surface database f
   let fail=false;
   const deps={
     authenticateToken:(req,_res,next)=>{req.user={id:'u'};next();},
+    supabaseRecordChallengeAnswer:async(id, attempt, correct)=>{ assert.equal(id,'u'); return {data:{lives:correct?10:9,correct}}; },
     supabaseGetUserById:async()=>({...user}),
     supabaseCompareUpdateUser:async(_id,updates,expected)=>{
       await new Promise(resolve=>setImmediate(resolve));
@@ -48,6 +56,9 @@ test('routes persist benefits, guard concurrent spending, and surface database f
   const server=await new Promise(resolve=>{const value=app.listen(0,'127.0.0.1',()=>resolve(value));});
   const call=(path,body,method='POST')=>fetch(`http://127.0.0.1:${server.address().port}/api/${path}`,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   try {
+    assert.equal((await call('lessons/challenge-answer',{attemptId:'run:1',correct:'false'})).status,400);
+    const challenge=await call('lessons/challenge-answer',{attemptId:'run:1',correct:false,userId:'other'});
+    assert.equal(challenge.status,200); assert.equal((await challenge.json()).lives,9);
     const results=await Promise.all([call('shop/buy',{itemId:'free_hint'}),call('shop/buy',{itemId:'free_hint'})]);
     assert.deepEqual(results.map(r=>r.status).sort(),[200,400]);
     assert.equal(user.xp,20); assert.equal(user.has_free_hint,1);

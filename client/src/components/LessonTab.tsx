@@ -1,8 +1,9 @@
-import { useLessonHint } from '../services/shop';
+import { LivesIndicator } from './LivesIndicator';
+import { useLessonHint, recordChallengeAnswer } from '../services/shop';
 import { recordLearning } from '../services/learning';
 import { useActivityState } from '../hooks/activity-progress';
 import { getMistakeFlashcards, reviewFlashcard, type Flashcard } from '../services/flashcards';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   APP_LEVELS,
   LEVEL_PROFILES,
@@ -39,6 +40,9 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const recommendedLessons = useMemo(() => sortByEnglishLevel(lessonSets, user.english_level), [user.english_level]);
   const [activeLesson, setActiveLesson] = useActivityState<LessonSet>('lessons', 'activeLesson', recommendedLessons[0]);
   const [learningRun, setLearningRun] = useActivityState('lessons', 'learningRun', () => crypto.randomUUID());
+  const [challenge, setChallenge] = useActivityState('lessons', 'challenge', false);
+  const [lifeMessage, setLifeMessage] = useState('');
+  const submittingChallenge = useRef(false);
   const [practiceMode, setPracticeMode] = useActivityState<'quick' | 'complete'>('lessons', 'practiceMode', 'quick');
   const [questionIndex, setQuestionIndex] = useActivityState('lessons', 'questionIndex', 0);
   const [selectedChoice, setSelectedChoice] = useActivityState<number | null>('lessons', 'selectedChoice', null);
@@ -167,14 +171,26 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     setSavedResult('');
   }
 
-  function chooseAnswer(choiceIndex: number) {
-    if (isAnswered || isComplete) return;
-    setSelectedChoice(choiceIndex);
+  async function submitAnswer(choice: number | null, text = '') {
+    if (isAnswered || isComplete || savingAnswer || submittingChallenge.current) return;
+    const correct = choice === null ? text.trim().toLowerCase() === normalizedCorrectAnswer : choice === activeQuestion.answer;
+    if (challenge) {
+      submittingChallenge.current = true; setSavingAnswer(true); setLifeMessage('');
+      try {
+        const result = await recordChallengeAnswer(`${learningRun}:${questionIndex}`, correct);
+        onProfileRefresh({ ...user, lives: result.lives });
+        if (result.blocked) { setLifeMessage('Sem vidas. Continue na prática livre ou recupere vidas na Loja.'); return; }
+        if (result.correct !== correct) { setLifeMessage('Esta tentativa já foi registrada com outra resposta. Continue na prática livre.'); return; }
+        setLifeMessage(result.correct ? 'Acertou! Nenhuma vida perdida.' : 'Você perdeu 1 vida. Confira a correção e tente novamente.');
+      } catch (error) { setLifeMessage(error instanceof Error ? error.message : 'Não foi possível salvar.'); return; }
+      finally { submittingChallenge.current = false; setSavingAnswer(false); }
+    }
+    if (choice === null) setSubmittedTextAnswer(text); else setSelectedChoice(choice);
   }
-
+  function chooseAnswer(choiceIndex: number) { void submitAnswer(choiceIndex); }
   function submitTypedAnswer() {
-    if (!isTypeQuestion || isAnswered || isComplete || !typedAnswer.trim()) return;
-    setSubmittedTextAnswer(typedAnswer);
+    if (!isTypeQuestion || !typedAnswer.trim()) return;
+    void submitAnswer(null, typedAnswer);
   }
 
   async function goNext() {
@@ -345,6 +361,17 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
       </div>
 
       <div className="lesson-runner">
+        <LivesIndicator lives={user.lives} />
+        <div className="lesson-mode-switch" role="group" aria-label="Uso de vidas">
+          <button type="button" aria-pressed={!challenge} disabled={savingAnswer || isAnswered} onClick={() => { setChallenge(false); setLifeMessage(''); }}>Prática livre</button>
+          <button type="button" aria-pressed={challenge} disabled={savingAnswer || isAnswered || Number(user.lives ?? 10) === 0} onClick={() => { setChallenge(true); setLifeMessage(''); }}>Desafio · usa vidas</button>
+        </div>
+        <small>{challenge ? 'Cada erro custa 1 vida. Acertos não gastam vidas.' : 'Estude à vontade: erros não gastam vidas.'}</small>
+        {lifeMessage && <p role="status">{lifeMessage}</p>}
+        {challenge && Number(user.lives ?? 10) === 0 && <div className="lesson-no-lives">
+          <p>Recupere vidas na Loja ou continue estudando sem gastar vidas.</p>
+          <button type="button" className="secondary-button" disabled={savingAnswer} onClick={() => { setChallenge(false); setLifeMessage(''); }}>Continuar na prática livre</button>
+        </div>}
         <div className="lesson-mode-switch" aria-label="Modo de treino">
           <button className={practiceMode === 'quick' ? 'active' : ''} type="button" onClick={() => changePracticeMode('quick')}>
             Rápido · 5
@@ -389,7 +416,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
               <div className="lesson-type-answer">
                 <input
                   aria-label="Digite a resposta"
-                  disabled={isAnswered}
+                  disabled={isAnswered || savingAnswer || (challenge && Number(user.lives ?? 10) === 0)}
                   onChange={(event) => setTypedAnswer(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {
@@ -411,6 +438,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
                       className={`${isCorrect ? 'correct' : ''} ${isWrong ? 'wrong' : ''}`.trim()}
                       key={choice}
                       type="button"
+                      disabled={isAnswered || savingAnswer || (challenge && Number(user.lives ?? 10) === 0)}
                       onClick={() => chooseAnswer(index)}
                     >
                       {choice}
@@ -435,7 +463,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
             <button
               className="primary-button"
               type="button"
-              disabled={savingAnswer || (isTypeQuestion ? !typedAnswer.trim() && !isAnswered : !isAnswered)}
+              disabled={savingAnswer || (!isAnswered && challenge && Number(user.lives ?? 10) === 0) || (isTypeQuestion ? !typedAnswer.trim() && !isAnswered : !isAnswered)}
               onClick={isTypeQuestion && !isAnswered ? submitTypedAnswer : goNext}
             >
               {isTypeQuestion && !isAnswered ? 'Conferir' : isLastQuestion ? 'Ver resultado' : 'Próxima'}

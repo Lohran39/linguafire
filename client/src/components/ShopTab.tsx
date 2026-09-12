@@ -1,3 +1,4 @@
+import { LivesIndicator } from './LivesIndicator';
 import { useEffect, useState } from 'react';
 import { buyShopItem, getShopItems, type ShopItem } from '../services/shop';
 import type { UserProfile } from '../services/auth';
@@ -8,11 +9,11 @@ type ShopTabProps = {
 };
 
 const descriptions: Record<string, string> = {
-  extra_life: '+1 vida, até o máximo de 9',
+  extra_life: '+1 vida para desafios, até o máximo de 10',
   free_hint: 'Libera a explicação de uma questão antes de responder. Use na aba Lições.',
   xp_booster: 'Dobra o XP das lições salvas nas próximas 24 horas.',
   streak_freeze: 'Preserva a sequência ao pular um dia. Ativação automática no próximo exercício, no horário de Brasília.',
-  all_lives: 'Restaura vidas ao máximo',
+  all_lives: 'Completa seu saldo para 10 vidas',
   mystery_box: '60% de chance de 50 XP, 30% de 100 XP e 10% de 200 XP. Pode devolver menos que o custo.'
 };
 
@@ -35,7 +36,7 @@ export function ShopTab({ user, onProfileRefresh }: ShopTabProps) {
     async function loadItems() {
       try {
         const result = await getShopItems();
-        if (isMounted) setItems(result.filter(item => !['extra_life', 'all_lives'].includes(item.id)));
+        if (isMounted) setItems(result);
       } catch (error) {
         if (isMounted) setNotice(error instanceof Error ? error.message : 'Erro ao carregar loja.');
       }
@@ -81,6 +82,7 @@ export function ShopTab({ user, onProfileRefresh }: ShopTabProps) {
           <span>{user.xp || 0}</span>
           <strong>XP disponível</strong>
         </div>
+        <LivesIndicator lives={user.lives} />
         <p>Dicas disponíveis: {Number(user.has_free_hint || 0)} · Proteção: {user.streak_freeze_active ? 'ativa' : 'inativa'}</p>
         {user.xp_multiplier === 2 && Number(user.xp_multiplier_until || 0) > Date.now() && <p>XP em dobro nas lições até {new Date(Number(user.xp_multiplier_until)).toLocaleString('pt-BR')}.</p>}
       </header>
@@ -90,7 +92,8 @@ export function ShopTab({ user, onProfileRefresh }: ShopTabProps) {
       <div className="shop-grid">
         {items.map((item) => {
           const name = splitName(item.name);
-          const active = item.id === 'streak_freeze' ? Boolean(user.streak_freeze_active) : item.id === 'xp_booster' && user.xp_multiplier === 2 && Number(user.xp_multiplier_until || 0) > Date.now();
+          const fullLives = ['extra_life', 'all_lives'].includes(item.id) && Number(user.lives ?? 10) >= 10;
+          const active = fullLives || (item.id === 'streak_freeze' ? Boolean(user.streak_freeze_active) : item.id === 'xp_booster' && user.xp_multiplier === 2 && Number(user.xp_multiplier_until || 0) > Date.now());
           const canBuy = Number(user.xp || 0) >= item.cost && !active;
           return (
             <article className="shop-card" key={item.id}>
@@ -107,7 +110,7 @@ export function ShopTab({ user, onProfileRefresh }: ShopTabProps) {
                   type="button"
                   onClick={() => handleBuy(item)}
                 >
-                  {buyingId === item.id ? 'Comprando...' : active ? 'Já ativo' : canBuy ? 'Comprar' : 'XP insuficiente'}
+                  {buyingId === item.id ? 'Comprando...' : fullLives ? 'Vidas cheias' : active ? 'Já ativo' : canBuy ? 'Comprar' : 'XP insuficiente'}
                 </button>
               </div>
             </article>

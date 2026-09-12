@@ -9,7 +9,7 @@ export const studyGuides = {
     { title: 'Perceba seu progresso', steps: ['Volte aos exercícios que ainda geram dúvidas.', 'Observe as palavras revisadas e a prática por habilidade.', 'Escolha um objetivo pequeno para a próxima sessão.'], tip: 'O XP mede participação. O nivelamento indica seu nível de inglês.' }
   ] },
   lessons: { label: 'Lições', pages: [
-    { title: 'Aprenda fazendo', steps: ['Escolha uma lição adequada ao seu nível.', 'Leia o enunciado e tente responder antes de consultar ajuda.', 'Confira a resposta e identifique o que precisa ajustar.'], tip: 'Termine uma lição com atenção antes de começar outra.' },
+    { title: 'Aprenda fazendo', steps: ['Escolha uma lição adequada ao seu nível.', 'Leia o enunciado e tente responder antes de consultar ajuda.', 'Confira a resposta e identifique o que precisa ajustar.'], tip: 'Na prática livre, erros não gastam vidas. No Desafio, cada erro custa 1 das suas 10 vidas.' },
     { title: 'Transforme erros em prática', steps: ['Escolha uma resposta que você errou.', 'Explique para si o motivo da correção.', 'Crie outra frase usando a mesma estrutura.'], tip: 'Na próxima sessão, tente de novo sem olhar a resposta anterior.' }
   ] },
   music: { label: 'Música', pages: [

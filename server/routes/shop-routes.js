@@ -10,6 +10,17 @@ function setupShopRoutes(app, deps = {}) {
       res.json({ success: true, xp, lives, has_free_hint, xp_multiplier, xp_multiplier_until, streak_freeze_active, message: result.message });
     } catch (error) { res.status(error.status || 503).json({ error: error.message }); }
   });
+  app.post('/api/lessons/challenge-answer', authenticateToken, async (req, res) => {
+    const { attemptId, correct } = req.body || {};
+    if (typeof attemptId !== 'string' || !/^[a-zA-Z0-9:_-]{1,160}$/.test(attemptId) || typeof correct !== 'boolean') {
+      return res.status(400).json({ error: 'Resposta de desafio inválida.' });
+    }
+    try {
+      const result = await deps.supabaseRecordChallengeAnswer(req.user.id, attemptId, correct);
+      if (result.error || !result.data) throw new Error('save_failed');
+      res.json(result.data);
+    } catch { res.status(503).json({ error: 'Não foi possível registrar a resposta. Tente novamente.' }); }
+  });
   app.post('/api/shop/use-hint', authenticateToken, async (req, res) => {
     try {
       const result = await mutateUser(deps, req.user.id, user => {

@@ -1,4 +1,6 @@
 const SHOP_ITEMS = [
+  { id: 'extra_life', name: '❤️ Vida extra', cost: 50, type: 'consumable' },
+  { id: 'all_lives', name: '💚 Vidas cheias', cost: 200, type: 'consumable' },
   { id: 'free_hint', name: '💡 Dica de lição', cost: 30, type: 'consumable' },
   { id: 'xp_booster', name: '⚡ XP em dobro nas lições (24h)', cost: 150, type: 'booster' },
   { id: 'streak_freeze', name: '🧊 Proteger sequência', cost: 100, type: 'consumable' },
@@ -11,6 +13,11 @@ function purchase(user, itemId, now = Date.now(), random = Math.random) {
   if (Number(user.xp || 0) < item.cost) reject('XP insuficiente.');
   const updates = { xp: Number(user.xp || 0) - item.cost };
   let message = `${item.name} comprado!`;
+  if (itemId === 'extra_life' || itemId === 'all_lives') {
+    const lives = Math.max(0, Math.min(10, Number(user.lives ?? 10)));
+    if (lives === 10) reject('Suas vidas já estão cheias.');
+    updates.lives = itemId === 'extra_life' ? lives + 1 : 10;
+  }
   if (itemId === 'free_hint') updates.has_free_hint = Number(user.has_free_hint || 0) + 1;
   if (itemId === 'xp_booster') {
     if (Number(user.xp_multiplier_until || 0) > now && user.xp_multiplier === 2) reject('Você já tem um bônus ativo.');

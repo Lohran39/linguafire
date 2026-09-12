@@ -86,7 +86,7 @@ function setupStreakRoutes(app, deps = {}) {
           updates.xp = (user.xp || 0) + boxReward.amount;
           message = `🎁 Caixa Misteriosa aberta! ${boxReward.message}`;
         } else if (boxReward.type === 'lives') {
-          updates.lives = Math.min(9, (user.lives || 5) + boxReward.amount);
+          updates.lives = Math.min(10, (user.lives ?? 10) + boxReward.amount);
           message = `🎁 Caixa Misteriosa aberta! +1 Vida!`;
         }
       } else if (reward.type === 'title') {

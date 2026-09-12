@@ -122,7 +122,7 @@ const {
   supabase,
   supabaseFindUserByStripe,
   supabaseSyncSubscription,
-  supabaseGetUserByEmail, supabaseGetUserById, supabaseFindUserByGoogleOrEmail, supabaseCreateUser, supabaseUpdateUser, supabaseCompareUpdateUser,
+  supabaseGetUserByEmail, supabaseGetUserById, supabaseFindUserByGoogleOrEmail, supabaseCreateUser, supabaseUpdateUser, supabaseCompareUpdateUser, supabaseRecordChallengeAnswer,
   supabaseUpdateGoogleLink, supabaseSetPasswordResetToken, supabaseGetUserByResetToken, supabaseResetPassword,
   supabaseGetUserByEmailVerificationToken, supabaseSetEmailVerificationToken, supabaseVerifyUserEmail,
   supabaseGetPushSubscription, supabaseGetAllPushSubscriptions, supabaseSavePushSubscription, supabaseDeletePushSubscription,
@@ -345,6 +345,7 @@ setupStreakRoutes(app, {
 
 // Shop routes
 setupShopRoutes(app, {
+  supabaseRecordChallengeAnswer,
   authenticateToken, supabaseGetUserById, supabaseUpdateUser, supabaseCompareUpdateUser, parseJsonField
 });
 
