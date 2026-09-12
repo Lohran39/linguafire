@@ -116,3 +116,18 @@ test('empty lyrics do not trigger translation requests', async t => {
   await assert.rejects(fetchSongLyrics('Empty fixture', 'Test'), /vazia/);
   assert.equal(count, 1);
 });
+
+test('full lyrics retain verses beyond line 80 and repeated timestamp tags', async t => {
+  mockTextDecoder(t);
+  const lrc = Array.from({ length: 110 }, (_, i) => `[${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}.00]Fictional verse ${i}`).join('\n');
+  t.mock.method(globalThis, 'fetch', async (url, init) => url.startsWith('/api/lyrics')
+    ? Response.json({ success: true, synced: true, syncedLyrics: '[ar:Test Artist]\n' + lrc + '\n[02:00.00][02:10.50]Repeated fictional verse' })
+    : translation(JSON.parse(init.body).q.replaceAll('Fictional', 'Fictício').replaceAll('Repeated', 'Repetido')));
+  const result = await fetchSongLyrics('Synthetic full track', 'Test');
+  assert.equal(result.length, 112);
+  assert.equal(result[109].en, 'Fictional verse 109');
+  assert.equal(result[110].time, 120);
+  assert.equal(result[111].time, 130.5);
+  assert.equal(result[111].en, 'Repeated fictional verse');
+  assert.ok(result.every(line => line.translationStatus === 'ready'));
+});

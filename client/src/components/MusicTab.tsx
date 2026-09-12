@@ -394,29 +394,30 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
 
   useEffect(() => {
     const song = activeSong;
-    if (song.lyrics.length && song.lyrics.every(line => !line.translationStatus || line.translationStatus === 'ready')) {
+    const hasFetchedLyrics = song.lyricsVersion === 2;
+    if (hasFetchedLyrics && song.lyrics.length && song.lyrics.every(line => !line.translationStatus || line.translationStatus === 'ready')) {
       setLyricsStatus('ready');
       return;
     }
     const controller = new AbortController();
     lyricsRequest.current = controller;
     setLyricsError('');
-    setLyricsStatus(song.lyrics.length ? 'translating' : 'loading');
+    setLyricsStatus(hasFetchedLyrics && song.lyrics.length ? 'translating' : 'loading');
     const options = {
       signal: controller.signal,
       onProgress: (lyrics: LyricLine[]) => {
         if (controller.signal.aborted) return;
-        setActiveSong(current => current.key === song.key ? { ...current, lyrics } : current);
+        setActiveSong(current => current.key === song.key ? { ...current, lyrics, lyricsVersion: 2 } : current);
         setLyricsStatus('translating');
       }
     };
-    const result = song.lyrics.length
+    const result = hasFetchedLyrics && song.lyrics.length
       ? translateLyricLines(song.lyrics, options)
-      : fetchSongLyrics(song.title, song.artist, 80, lyricsSource.current, options);
+      : fetchSongLyrics(song.title, song.artist, undefined, lyricsSource.current, options);
     void result.then(lyrics => {
       if (controller.signal.aborted) return;
       const partial = lyrics.some(line => line.translationStatus === 'unavailable');
-      const hydrated = { ...song, lyrics };
+      const hydrated = { ...song, lyrics, lyricsVersion: 2 };
       setActiveSong(current => current.key === song.key ? hydrated : current);
       setLyricsStatus(partial ? 'partial' : 'ready');
       if (!partial) {
@@ -426,7 +427,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
     }).catch(error => {
       if (controller.signal.aborted) return;
       setLyricsStatus('error');
-      setLyricsError(error instanceof Error ? error.message : 'Não foi possível carregar a letra.');
+      setLyricsError((error instanceof Error ? error.message : 'Não foi possível carregar a letra.') + (!hasFetchedLyrics && song.lyrics.length ? ' Os trechos de estudo abaixo não são a letra completa.' : ''));
     });
     return () => controller.abort();
   }, [activeSong.key, lyricsRetry]);
@@ -467,7 +468,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
     const selectedSong = loadedSongs.current.get(song.key) || song;
     setActiveSong(selectedSong);
     setLyricsError('');
-    setLyricsStatus(selectedSong.lyrics.length ? 'ready' : 'loading');
+    setLyricsStatus(selectedSong.lyricsVersion === 2 && selectedSong.lyrics.length ? 'ready' : 'loading');
     setExpandedLine(0);
     setPlayerSeconds(0);
     closeQuiz();

@@ -92,20 +92,13 @@ async function requestMusicJson<T>(url: string, stage: MusicStage, signal?: Abor
 }
 
 function parseSyncedLyrics(value: string): LyricsApiLine[] {
-  return value
-    .split('\n')
-    .map((line) => {
-      const match = line.match(/^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)$/);
-      if (!match) return { text: line.trim() };
-      const minutes = Number(match[1] || 0);
-      const seconds = Number(match[2] || 0);
-      const millis = Number((match[3] || '0').padEnd(3, '0'));
-      return {
-        text: String(match[4] || '').trim(),
-        time: minutes * 60 + seconds + millis / 1000
-      };
-    })
-    .filter((line) => typeof line === 'string' || Boolean(line.text));
+  return value.split('\n').flatMap(line => {
+    const tags = [...line.matchAll(/\[(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?\]/g)];
+    if (!tags.length) return []; // Ignore LRC metadata instead of treating it as a verse.
+    const text = line.replace(/\[[^\]]*\]/g, '').trim();
+    if (!text) return [];
+    return tags.map(tag => ({ text, time: Number(tag[1]) * 60 + Number(tag[2]) + Number((tag[3] || '0').padEnd(3, '0')) / 1000 }));
+  }).sort((a, b) => a.time - b.time);
 }
 
 function parsePlainLyrics(value: string): LyricsApiLine[] {
@@ -312,7 +305,7 @@ export function reportMusicVideoStatus(payload: {
   }).catch(() => {});
 }
 
-export async function lyricsResponseToLines(data: LyricsFindResponse, maxLines = 80, options: LyricsLoadOptions = {}): Promise<LyricLine[]> {
+export async function lyricsResponseToLines(data: LyricsFindResponse, maxLines = Number.POSITIVE_INFINITY, options: LyricsLoadOptions = {}): Promise<LyricLine[]> {
   const rawLines = data.synced && data.syncedLyrics
     ? parseSyncedLyrics(data.syncedLyrics)
     : parsePlainLyrics(data.plainLyrics || '');
@@ -381,7 +374,7 @@ export function parseYouTubeMusicMetadata(metadata: YouTubeOEmbedResponse) {
 export async function fetchSongLyrics(
   track: string,
   artist: string,
-  maxLines = 80,
+  maxLines = Number.POSITIVE_INFINITY,
   source?: { videoTitle?: string; channelName?: string },
   options: LyricsLoadOptions = {}
 ): Promise<LyricLine[]> {

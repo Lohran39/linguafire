@@ -26,6 +26,7 @@ export type Song = {
   focus: string;
   tags: string[];
   lyrics: LyricLine[];
+  lyricsVersion?: number;
 };
 
 export const SONGS: Song[] = [
