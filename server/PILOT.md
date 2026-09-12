@@ -2,13 +2,68 @@
 
 Objetivo: descobrir se os alunos voltam e quais atividades ajudam no estudo. Métricas instrumentadas não equivalem a um piloto já realizado.
 
-## Condução
+## Situação atual
 
-Convide 5–10 pessoas do público pretendido para 14 dias de uso. Combine expectativas e explique que a plataforma registra acesso diário às funcionalidades e resultados de atividades; não peça dados sensíveis. Convites não são enviados automaticamente.
+Piloto preparado, ainda sem sessões realizadas ou resultados de alunos. O responsável pelo projeto convidará os participantes e trará as respostas. Não houve envio de convites pelo assistente.
 
-Na primeira sessão, observe sem guiar: criar conta, escolher uma atividade, completar uma lição, conversar e revisar. Registre dificuldades, tempo até a primeira atividade concluída e se a pessoa entendeu a correção. Peça que descreva em suas palavras o que aprendeu.
+## Participantes e duração
 
-No dia 7 e no dia 14, pergunte: quando o app foi útil, por que voltou ou parou, qual atividade ajudou mais, qual correção pareceu errada e qual funcionalidade faria falta. Não transforme satisfação declarada em retenção medida.
+Comece com 5–10 alunos, preferencialmente adultos, com diferentes níveis de inglês. Inclua pessoas que usam iPhone/Safari e Android/Chrome. Use códigos P01, P02 etc. no registro, sem nomes, senhas ou conversas completas.
+
+D0 é a primeira sessão (15–20 minutos). Acompanhe D1, D3 e D7; D7 significa sete dias depois da primeira sessão, não o sétimo dia do calendário. O retorno em D7 precisa ser observado nesse dia se for comparado ao indicador D7 do Admin.
+
+## Antes de convidar
+
+1. Confirmar as migrações e o deploy, inclusive vidas e métricas de uso (`migrations/20260910-product-usage.sql`).
+2. Abrir o site em uma conta de aluno comum e concluir uma lição; contas Admin não entram nas métricas de uso.
+3. Conferir o painel Admin → Retorno dos alunos e uso. Anotar a versão testada e as datas de início e fim.
+4. Fazer uma sessão interna para verificar login, Lições, Revisão e reprodução de um vídeo. Se o vídeo falhar, registrar como problema conhecido.
+
+## Convite pronto para copiar
+
+> Estou testando o LinguaFire, meu projeto para estudar inglês. Você toparia usar por alguns minutos e me contar o que funcionou e o que ficou confuso? A primeira sessão leva cerca de 15 minutos, e volto a perguntar depois de sete dias. Não precisa comprar nada nem ser bom em inglês: estamos testando o site. A plataforma registra uso das abas e resultados dos exercícios. Você pode parar quando quiser. Podemos combinar um horário?
+
+Envie manualmente apenas para pessoas que você deseja convidar. Combine qualquer observação de tela; não grave a sessão por padrão.
+
+## Sessão inicial — D0
+
+Diga: “Vou observar como você usa o site. Pense em voz alta. Se algo ficar confuso, isso ajuda a melhorar o produto.” Não ensine o caminho antes de a pessoa tentar. Se precisar ajudar, anote a ajuda; não registre como conclusão independente.
+
+| Tarefa para ler ao aluno | O que observar |
+| --- | --- |
+| Entre na conta e encontre um conteúdo adequado para começar. | Encontra nivelamento ou sugestão? Entende o nível? |
+| Faça uma lição curta e salve o resultado. | Encontra o exercício sem abrir todo o catálogo? Entende a correção e o salvamento? |
+| Saia de Lições durante outro exercício e volte para continuar. | Retoma sem reiniciar? “Continuar exercício” faz sentido? |
+| Encontre uma lição diferente e volte para estudar. | Descobre “Explorar outras lições”? O catálogo fecha ao escolher? |
+| Revise algumas palavras. | Tenta lembrar antes de revelar e entende a autoavaliação? |
+| Converse por três mensagens sobre uma situação familiar. | Sabe como começar e entende o retorno da IA? |
+| Escolha um vídeo em Nativos e tente estudar uma expressão. | O vídeo roda? Consegue localizar a prática e relacioná-la à frase indicada? |
+
+Se houver tempo, peça que encontre “Como estudar aqui” e explique a diferença entre Prática livre e Desafio. Não exija compra de vidas; as tarefas principais usam prática livre. Se não houver cartões, não conte isso como falha do aluno: registre a condição encontrada.
+
+Para cada tarefa, anote: concluída sem ajuda / com ajuda / não concluída / não tentou; tempo aproximado; ponto de bloqueio; uma frase curta do relato, com autorização. Registre separadamente falhas de rede ou provedores.
+
+## Perguntas após a sessão
+
+1. O que você acha que aprendeu ou praticou? Dê um exemplo.
+2. O que foi mais difícil de encontrar ou entender?
+3. Alguma correção pareceu errada ou confusa? Qual era a dúvida, sem copiar a conversa inteira?
+4. Que atividade você usaria novamente? Por quê?
+5. De 1 (muito difícil) a 5 (muito fácil), como foi usar o site?
+
+## Acompanhamento
+
+- **D1:** observe o retorno no Admin antes de enviar lembretes. Pergunte se voltou e o que motivou ou impediu a volta.
+- **D3:** pergunte qual atividade foi útil e qual dificuldade ainda acontece.
+- **D7:** confira o retorno do dia e pergunte: “O que faria você continuar usando? O que faria você parar? Qual atividade faria falta?”
+
+Registre se cada contato ocorreu antes ou depois do uso. Um retorno provocado por lembrete não deve ser apresentado como retorno espontâneo. Não substitua ausência de resposta por nota zero.
+
+## Registro e decisão
+
+Copie uma ficha de `PILOT-RESPOSTAS.md` por participante. Traga as fichas preenchidas para a análise; por enquanto, todos os resultados estão pendentes.
+
+Priorize primeiro bloqueios (não conseguir entrar, concluir ou salvar, vídeo indisponível, cobrança de XP sem benefício); depois problemas observados em duas ou mais pessoas. Uma correção pedagógica incorreta pode exigir ação mesmo aparecendo uma vez. Cada problema deve ter tela, passos para reproduzir, dispositivo e resultado esperado. Após corrigir, peça ao participante afetado para repetir a tarefa.
 
 ## Medição
 

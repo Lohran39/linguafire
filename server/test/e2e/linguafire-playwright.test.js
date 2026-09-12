@@ -629,7 +629,7 @@ test('Playwright E2E: React app primary flows work', {
     await page.getByRole('button', { name: 'Sair do quiz' }).click();
 
     await page.getByRole('button', { name: 'Lições', exact: true }).click();
-    await page.getByRole('heading', { name: 'Lições rápidas para ganhar XP' }).waitFor({ timeout: 3000 });
+    await page.getByRole('heading', { name: 'Lições', exact: true }).waitFor({ timeout: 3000 });
     // Questions vary daily; exercise both answer formats without assuming their order.
     for (let index = 0; index < 5; index += 1) {
       const typedAnswer = page.getByLabel('Digite a resposta', { exact: true });

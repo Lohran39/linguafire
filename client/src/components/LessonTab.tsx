@@ -6,7 +6,6 @@ import { getMistakeFlashcards, reviewFlashcard, type Flashcard } from '../servic
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   APP_LEVELS,
-  LEVEL_PROFILES,
   englishLevelDistance,
   isRecommendedEnglishLevel,
   normalizeEnglishLevel,
@@ -37,6 +36,12 @@ function dailyQuestionSortKey(questionId: string, seed: string) {
 }
 
 export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
+  const runnerRef = useRef<HTMLDivElement>(null);
+  const catalogRef = useRef<HTMLDetailsElement>(null);
+  function focusExercise() {
+    if (catalogRef.current) catalogRef.current.open = false;
+    requestAnimationFrame(() => { runnerRef.current?.focus({ preventScroll: true }); runnerRef.current?.scrollIntoView({ block: 'start' }); });
+  }
   const recommendedLessons = useMemo(() => sortByEnglishLevel(lessonSets, user.english_level), [user.english_level]);
   const [activeLesson, setActiveLesson] = useActivityState<LessonSet>('lessons', 'activeLesson', recommendedLessons[0]);
   const [learningRun, setLearningRun] = useActivityState('lessons', 'learningRun', () => crypto.randomUUID());
@@ -110,6 +115,7 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
   const [usingHint, setUsingHint] = useState(false);
   const [hintError, setHintError] = useState('');
   const hintKey = `${learningRun}:${activeQuestion.id}`;
+  const hasPracticeInProgress = Boolean(answers.length || isAnswered || typedAnswer.trim() || hintQuestions.some(key => key.startsWith(`${learningRun}:`))) && (!isComplete || !savedResult.includes('salvo'));
   async function revealHint() {
     if (usingHint || hintQuestions.includes(hintKey)) return;
     setUsingHint(true); setHintError('');
@@ -121,7 +127,6 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     finally { setUsingHint(false); }
   }
   const englishLevel = normalizeEnglishLevel(user.english_level);
-  const levelProfile = LEVEL_PROFILES[englishLevel];
   const recommendedLevelLessons = recommendedLessons.filter((lesson) => isRecommendedEnglishLevel(lesson.level, englishLevel));
   const supportLessons = recommendedLessons.filter((lesson) => englishLevelDistance(lesson.level, englishLevel) === 1);
   const freePracticeLessons = recommendedLessons.filter((lesson) => englishLevelDistance(lesson.level, englishLevel) > 1);
@@ -156,6 +161,8 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     setAnswers([]);
     setMissedQuestions([]);
     setSavedResult('');
+    setLifeMessage('');
+    focusExercise();
   }
 
   function changePracticeMode(mode: 'quick' | 'complete') {
@@ -281,9 +288,21 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     <section className="lesson-layout">
       <div className="lesson-sidebar">
         <span className="section-kicker">Trilha de prática</span>
-        <h1>Lições rápidas para ganhar XP</h1>
-        <p className="lead">Seu nível atual é {englishLevel}: {levelProfile.practice}</p>
+        <h1>Lições</h1>
+        <p className="lead">Inglês {englishLevel} · Uma prática de cada vez.</p>
 
+        {nextLesson && (
+          <button className="lesson-next-card" type="button" disabled={savingAnswer} onClick={() => {
+            if (hasPracticeInProgress) focusExercise(); else startLesson(nextLesson);
+          }}>
+            <span>{hasPracticeInProgress ? isComplete ? 'Ver resultado' : 'Continuar exercício' : 'Comece por aqui'}</span>
+            <strong>{hasPracticeInProgress ? activeLesson.title : nextLesson.title}</strong>
+            <small>{hasPracticeInProgress ? `${answers.length}/${currentQuestions.length} respostas registradas` : `Sugestão para seu inglês ${englishLevel}`}</small>
+          </button>
+        )}
+
+        <details ref={catalogRef} className="lesson-catalog">
+          <summary>Explorar outras lições <span>{primaryLessons.length + practiceLessons.length}</span></summary>
         {mistakeNotice && <p role="alert">{mistakeNotice}</p>}
         {mistakeCards.length > 0 && (
           <button className="lesson-next-card" type="button" disabled={savingAnswer} onClick={() => startLesson({
@@ -299,18 +318,6 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
             <span>Revisão personalizada · {mistakeCards.length}</span>
             <strong>Erros da conversa</strong>
             <small>Pratique suas correções e atualize a revisão dos flashcards.</small>
-          </button>
-        )}
-
-        {nextLesson && (
-          <button className="lesson-next-card" type="button" onClick={() => startLesson(nextLesson)}>
-            <span>Comece por aqui</span>
-            <strong>{nextLesson.title}</strong>
-            <small>
-              {completedLessons.has(`lesson-${nextLesson.id}`)
-                ? 'Você já concluiu as principais. Repetir esta lição reforça o conteúdo.'
-                : `Melhor próximo treino para o seu nível ${englishLevel}.`}
-            </small>
           </button>
         )}
 
@@ -358,9 +365,10 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
             </div>
           </>
         )}
+        </details>
       </div>
 
-      <div className="lesson-runner">
+      <div ref={runnerRef} tabIndex={-1} className="lesson-runner" aria-label="Exercício atual">
         <LivesIndicator lives={user.lives} />
         <div className="lesson-mode-switch" role="group" aria-label="Uso de vidas">
           <button type="button" aria-pressed={!challenge} disabled={savingAnswer || isAnswered} onClick={() => { setChallenge(false); setLifeMessage(''); }}>Prática livre</button>

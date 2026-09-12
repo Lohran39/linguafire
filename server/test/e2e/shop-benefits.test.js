@@ -28,8 +28,19 @@ test('shop purchases and lesson hints work on mobile', { skip: process.env.RUN_P
  await booster.getByRole('button',{name:'Já ativo'}).waitFor();assert.equal(user.xp,320);
  await page.screenshot({path:'/tmp/shop-benefits-mobile.png',fullPage:true});
  await page.getByRole('button',{name:'Lições',exact:true}).click();
+ const catalog=page.locator('.lesson-catalog');
+ assert.equal(await catalog.getAttribute('open'),null);
+ assert.equal(await page.locator('.lesson-card:visible').count(),0);
+ await catalog.locator('summary').click();
+ assert.ok(await catalog.locator('.lesson-card:visible').count()>5);
+ await catalog.locator('.lesson-card').first().click();
+ assert.equal(await catalog.getAttribute('open'),null);
+ assert.equal(await page.locator('.lesson-runner').evaluate(el=>el===document.activeElement),true);
+ await page.screenshot({path:'/tmp/lessons-compact-mobile.png',fullPage:true});
  await page.getByRole('button',{name:'Ver explicação · 1 dica(s)',exact:true}).click();
  await page.locator('.lesson-hint p[role="status"]').waitFor();assert.equal(user.has_free_hint,0);
+ await page.getByRole('button',{name:/Continuar exercício/}).click();
+ await page.locator('.lesson-hint p[role="status"]').waitFor();
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.screenshot({path:'/tmp/shop-hint-mobile.png',fullPage:true});
  await page.getByRole('button',{name:'Loja',exact:true}).click();
@@ -46,6 +57,10 @@ test('shop purchases and lesson hints work on mobile', { skip: process.env.RUN_P
    assert.ok(question);await page.locator('.lesson-choices button').nth((question.answer+1)%question.choices.length).click();
  }
  await page.getByText('Sem vidas para desafios',{exact:true}).waitFor();assert.equal(user.lives,0);assert.equal(attempts.size,1);
+ const feedback=await page.locator('.lesson-feedback').innerText();
+ await page.getByRole('button',{name:/Continuar exercício/}).click();
+ assert.equal(await page.locator('.lesson-feedback').innerText(),feedback);
+ assert.equal(attempts.size,1);
  await page.getByRole('button',{name:'Continuar na prática livre',exact:true}).click();
  await page.getByRole('button',{name:'Próxima',exact:true}).click();
  assert.equal(await page.getByRole('button',{name:'Desafio · usa vidas',exact:true}).isEnabled(),false);
