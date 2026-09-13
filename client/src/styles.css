@@ -2485,6 +2485,12 @@ body[data-theme='light'] .placement-layout.result {
   font-size: 0.76rem;
 }
 
+.lyrics-sync-controls { padding: 1rem; border: 1px solid var(--border); border-radius: 16px; }
+.lyrics-sync-controls summary { cursor: pointer; min-height: 44px; align-content: center; font-weight: 700; }
+.lyrics-sync-controls p { margin: .75rem 0; }
+.lyrics-sync-controls small { display: block; color: var(--muted); }
+.lyrics-sync-controls button { min-height: 44px; white-space: normal; }
+.lyrics-sync-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
 .karaoke-panel {
   display: grid;
   gap: 0.45rem;

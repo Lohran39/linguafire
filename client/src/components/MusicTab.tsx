@@ -350,6 +350,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   const [quizCorrect, setQuizCorrect] = useActivityState('music', 'quizCorrect', 0);
   const [quizRewarded, setQuizRewarded] = useActivityState('music', 'quizRewarded', false);
   const [playerSeconds, setPlayerSeconds] = useActivityState('music', 'playerSeconds', 0);
+  const [lyricOffsets, setLyricOffsets] = useActivityState<Record<string, number>>('music', 'lyricOffsets', {});
 
   const quizDialogRef = useRef<HTMLDivElement | null>(null);
   const quizVisible = quiz.length > 0;
@@ -379,11 +380,17 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   const quizDone = quiz.length > 0 && quizIndex >= quiz.length;
   const quizXp = quizCorrect * 10 + (quiz.length > 0 && quizCorrect === quiz.length ? 25 : 0);
   const syncedLyrics = activeSong.lyrics.filter((line) => line.time !== undefined);
+  const lyricOffset = Number.isFinite(lyricOffsets[playbackVideoId]) ? lyricOffsets[playbackVideoId] : 0;
+  const lyricSeconds = playerSeconds - lyricOffset;
   const activeLyricIndex = syncedLyrics.reduce((activeIndex, line, index) => {
-    return Number(line.time) <= playerSeconds + 0.2 ? index : activeIndex;
-  }, 0);
+    return Number(line.time) <= lyricSeconds ? index : activeIndex;
+  }, -1);
   const activeKaraokeLine = syncedLyrics[activeLyricIndex] || null;
   const nextKaraokeLine = syncedLyrics[activeLyricIndex + 1] || null;
+  function adjustLyrics(offset: number) {
+    if (!playbackVideoId || !Number.isFinite(offset)) return;
+    setLyricOffsets(current => ({ ...current, [playbackVideoId]: Math.round(offset * 10) / 10 }));
+  }
 
   useEffect(() => {
     if (activeSong.tags.includes('custom') || activeSong.tags.includes('favorite')) return;
@@ -708,6 +715,21 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
         <YouTubeFrame key={activeSong.key} song={activeSong} onTimeChange={setPlayerSeconds} startSeconds={playerSeconds} onVideoChange={setPlaybackVideoId} />
         <ContentReview key={`${activeSong.key}:${playbackVideoId}`} content={contentIdentity} item={activeCuration} translation={translationLabel} unavailable={curationUnavailable} />
 
+        {syncedLyrics.length > 0 && (
+          <details className="lyrics-sync-controls" key={`sync-${playbackVideoId}`}>
+            <summary>Ajustar legenda</summary>
+            <p>Toque no botão quando ouvir a primeira frase da letra.</p>
+            <button className="secondary-button" type="button" onClick={() => adjustLyrics(playerSeconds - Number(syncedLyrics[0].time))}>A primeira frase começa agora</button>
+            <div className="lyrics-sync-actions">
+              <button className="secondary-button" type="button" onClick={() => adjustLyrics(lyricOffset - 0.5)}>Adiantar 0,5 s</button>
+              <button className="secondary-button" type="button" onClick={() => adjustLyrics(lyricOffset + 0.5)}>Atrasar 0,5 s</button>
+              <button className="secondary-button" type="button" disabled={lyricOffset === 0} onClick={() => adjustLyrics(0)}>Restaurar</button>
+            </div>
+            <p role="status">{lyricOffset === 0 ? 'Sem ajuste.' : `Legenda ${Math.abs(lyricOffset).toLocaleString('pt-BR')} s ${lyricOffset > 0 ? 'mais tarde' : 'mais cedo'}.`}</p>
+            <small>Vale só para este vídeo e fica na sua conta. Se o clipe tiver pausas no meio, prefira uma versão de áudio.</small>
+          </details>
+        )}
+        {syncedLyrics.length > 0 && activeLyricIndex < 0 && <p className="music-status">Aguardando início do canto.</p>}
         {activeKaraokeLine && (
           <section className="karaoke-panel" aria-label="Legenda da música">
             <span>{formatMusicTime(activeKaraokeLine.time)}</span>

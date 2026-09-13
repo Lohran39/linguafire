@@ -23,3 +23,11 @@ Não requer SQL nem apagar caches: vídeos anteriormente salvos são revalidados
 A busca também retorna `No Pole - Don Toliver | Clean Version`. Esse formato era interpretado como artista `No Pole` e faixa `Don Toliver | Clean Version`. A consulta agora testa a identidade direta e invertida, removendo apenas o sufixo de apresentação `| Clean Version`, e exige correspondência exata de faixa e artista no provedor para essa recuperação. Funciona também com os campos invertidos de rascunhos salvos. Remix/live continuam sujeitos às verificações existentes.
 
 Validação: 19 testes de letras aprovados, incluindo a rota com metadados invertidos, rascunho sem título de vídeo e rejeição de outro artista. Consulta real ao LRCLIB confirmou `No Pole` / `Don Toliver`, com sincronismo e 57 linhas LRC. Nenhuma letra foi incorporada ao repositório. Não exige migração SQL; publicar o servidor atualizado.
+
+## Ajuste de legenda por vídeo
+
+“Ajustar legenda” fica recolhido junto ao player. “A primeira frase começa agora” calcula a diferença entre o tempo do vídeo e o primeiro timestamp da letra. “Adiantar 0,5 s”, “Atrasar 0,5 s” e “Restaurar” permitem refinar ou remover o ajuste. Antes do primeiro verso ajustado, a tela mostra “Aguardando início do canto”, sem destacar a primeira frase antecipadamente.
+
+O mapa `music.lyricOffsets`, indexado pelo ID do vídeo realmente em reprodução, usa a sincronização autenticada de atividades existente. Ajustes são pessoais, retomam em outro dispositivo e não alteram a letra compartilhada nem outras versões do vídeo. Não exige SQL novo. Introduções podem ser compensadas por esse deslocamento; pausas adicionais no meio do clipe ainda exigem outra gravação ou futura marcação por trechos.
+
+Validação: build aprovado e teste `server/test/e2e/lyrics-sync.test.js` aprovado com player simulado, cobrindo início, ajuste fino, restauração, persistência entre dispositivos, isolamento por vídeo e larguras de 320, 390 e 768 px. Captura móvel revisada. A publicação permanece pendente do envio ao Git.
