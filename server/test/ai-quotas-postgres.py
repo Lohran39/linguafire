@@ -8,12 +8,19 @@ try:
  subprocess.run(['pg_ctl','-D',str(root/'data'),'-l',str(root/'log'),'-o',f"-h '' -k {root} -p 55443",'-w','start'],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE);started=True
  def sql(text):
   return subprocess.run(['psql','-h',str(root),'-p','55443','-d','postgres','-v','ON_ERROR_STOP=1','-At','-c',text],check=True,capture_output=True,text=True).stdout.strip()
- sql("CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role;CREATE TABLE users(id UUID PRIMARY KEY,plan TEXT DEFAULT 'free',subscription_active INTEGER DEFAULT 0,subscription_expires BIGINT DEFAULT 0,ai_uses_date TEXT DEFAULT '',ai_uses_today INTEGER DEFAULT 0);")
+ sql("CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role;CREATE TABLE users(id UUID PRIMARY KEY,plan TEXT DEFAULT 'free',subscription_active INTEGER DEFAULT 0,subscription_expires BIGINT DEFAULT 0,ai_uses_date TEXT DEFAULT '',ai_uses_today INTEGER DEFAULT 0,ai_daily_limit INTEGER DEFAULT 10);")
  old=str(uuid.uuid4());sql(f"INSERT INTO users(id,plan,subscription_active,subscription_expires) VALUES('{old}','max',1,9999999999999);")
  migration=(Path(__file__).resolve().parents[1]/'migrations/20260912-ai-plan-quotas.sql').read_text();sql(migration);sql(migration)
  def reserve(uid,rid=None):
   rid=rid or str(uuid.uuid4());return rid,json.loads(sql(f"SELECT consume_ai_use_v2('{uid}','{rid}')"))
  assert reserve(old)[1]['limit']==1000;assert reserve(old)[1]['monthlyLimit'] is None
+ before=sql(f"SELECT ai_uses_today||','||ai_uses_month FROM users WHERE id='{old}'")
+ unified=(Path(__file__).resolve().parents[1]/'migrations/20260913-unify-ai-plan-quotas.sql').read_text();sql(unified);sql(unified)
+ assert sql(f"SELECT ai_uses_today||','||ai_uses_month FROM users WHERE id='{old}'")==before
+ assert sql(f"SELECT ai_policy_version||','||ai_daily_limit||','||subscription_active FROM users WHERE id='{old}'")=='2,150,1'
+ assert reserve(old)[1]['limit']==150;assert reserve(old)[1]['monthlyLimit']==3000
+ sql(f"UPDATE users SET ai_policy_version=1 WHERE id='{old}'")
+ assert reserve(old)[1]['limit']==150 # stale webhook metadata cannot restore old limits
  uid=str(uuid.uuid4());sql(f"INSERT INTO users(id,plan,subscription_active,subscription_expires) VALUES('{uid}','pro',1,9999999999999)")
  sql(f"UPDATE users SET ai_month_key=to_char(now() AT TIME ZONE 'UTC','YYYY-MM'),ai_uses_month=999 WHERE id='{uid}'")
  with ThreadPoolExecutor(max_workers=12) as pool: responses=list(pool.map(lambda _:reserve(uid),range(50)))
@@ -44,7 +51,7 @@ try:
  for fn in ['consume_ai_use_v2(uuid,uuid)','finish_ai_use(uuid,boolean)','record_ai_provider_usage(jsonb)']:
   assert sql(f"SELECT has_function_privilege('anon','public.{fn}','EXECUTE')")=='f'
   assert sql(f"SELECT has_function_privilege('service_role','public.{fn}','EXECUTE')")=='t'
- print('PASS: rerunnable migration, legacy plan preserved, 50 concurrent users, atomic monthly/daily caps, per-user rate limit, idempotent refunds, rollover, aggregate costs, RPC permissions')
+ print('PASS: rerunnable migration, old and new plans unified without resetting usage, 50 concurrent users, atomic monthly/daily caps, per-user rate limit, idempotent refunds, rollover, aggregate costs, RPC permissions')
 finally:
  if started:subprocess.run(['pg_ctl','-D',str(root/'data'),'-m','fast','-w','stop'],check=True,stdout=subprocess.DEVNULL)
  shutil.rmtree(root)

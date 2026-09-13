@@ -90,7 +90,6 @@ export function SubscriptionPanel({ user, onProfileRefresh }: { user: UserProfil
         <progress aria-label="Consumo diário de IA" max={usage.limit} value={Math.min(usage.used, usage.limit)} />
         <p>O limite diário renova em {localDate(usage.resetsAt)} ({Intl.DateTimeFormat().resolvedOptions().timeZone}).</p>
         {usage.monthlyLimit != null && <><p><strong>{usage.monthlyUsed ?? 0} de {usage.monthlyLimit} usos neste mês</strong></p><progress aria-label="Consumo mensal de IA" max={usage.monthlyLimit} value={Math.min(usage.monthlyUsed ?? 0,usage.monthlyLimit)} />{usage.monthlyResetsAt && <p>Franquia mensal renova em {localDate(usage.monthlyResetsAt)}. Mês-calendário em UTC, separado da cobrança.</p>}</>}
-        {usage.legacy && <p>Sua assinatura mantém os limites anteriores. Nenhuma redução foi aplicada.</p>}
         <details><summary>Como os usos funcionam</summary><p>Enviar mensagem, formular resposta e analisar erros são usos separados. Pedidos inválidos e falhas devolvidas pelo servidor não descontam usos.</p><p>Ao atingir a franquia, as atividades que não precisam de IA continuam disponíveis.</p></details>
       </div>}
       {status.hasBillingAccount && <p>Consulte cobranças e recibos, atualize o cartão e gerencie Pro ou Max no portal de pagamentos da Stripe.</p>}
