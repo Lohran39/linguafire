@@ -2491,6 +2491,9 @@ body[data-theme='light'] .placement-layout.result {
 .lyrics-sync-controls small { display: block; color: var(--muted); }
 .lyrics-sync-controls button { min-height: 44px; white-space: normal; }
 .lyrics-sync-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+.lyrics-playback-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.lyrics-playback-controls button { min-height: 44px; white-space: normal; }
+.lyrics-playback-controls small { color: var(--muted); }
 .karaoke-panel {
   display: grid;
   gap: 0.45rem;

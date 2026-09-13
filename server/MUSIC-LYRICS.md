@@ -28,6 +28,12 @@ Validação: 19 testes de letras aprovados, incluindo a rota com metadados inver
 
 “Ajustar legenda” fica recolhido junto ao player. “A primeira frase começa agora” calcula a diferença entre o tempo do vídeo e o primeiro timestamp da letra. “Adiantar 0,5 s”, “Atrasar 0,5 s” e “Restaurar” permitem refinar ou remover o ajuste. Antes do primeiro verso ajustado, a tela mostra “Aguardando início do canto”, sem destacar a primeira frase antecipadamente.
 
-O mapa `music.lyricOffsets`, indexado pelo ID do vídeo realmente em reprodução, usa a sincronização autenticada de atividades existente. Ajustes são pessoais, retomam em outro dispositivo e não alteram a letra compartilhada nem outras versões do vídeo. Não exige SQL novo. Introduções podem ser compensadas por esse deslocamento; pausas adicionais no meio do clipe ainda exigem outra gravação ou futura marcação por trechos.
+O mapa `music.lyricOffsets`, indexado pelo ID do vídeo realmente em reprodução, usa a sincronização autenticada de atividades existente. Ajustes são pessoais, retomam em outro dispositivo e não alteram a letra compartilhada nem outras versões do vídeo. Não exige SQL novo.
+
+“Pausar legenda” fica visível junto à legenda e congela tanto a frase do karaokê quanto o destaque na lista, mantendo o vídeo independente. “Retomar legenda” continua do instante pausado e incorpora o tempo decorrido do vídeo ao ajuste salvo. Trocar de música/vídeo ou usar os controles de ajuste encerra a pausa. A pausa em andamento é temporária nesta tela; apenas o ajuste final é salvo na conta. O destaque também funciona para versos no instante zero.
+
+Isso permite compensar manualmente cenas sem canto durante a reprodução. Como ainda existe um único deslocamento por vídeo, voltar para um trecho anterior à pausa pode exigir novo ajuste; sincronismo automático diferente em cada trecho exige uma futura linha do tempo de marcações.
 
 Validação: build aprovado e teste `server/test/e2e/lyrics-sync.test.js` aprovado com player simulado, cobrindo início, ajuste fino, restauração, persistência entre dispositivos, isolamento por vídeo e larguras de 320, 390 e 768 px. Captura móvel revisada. A publicação permanece pendente do envio ao Git.
+
+O teste também cobre congelar a frase enquanto o relógio do vídeo avança, retomar da mesma frase, avançar ao próximo verso depois da retomada e limpar a pausa ao restaurar ou trocar de música. Build e teste de navegador aprovados após adicionar a pausa.

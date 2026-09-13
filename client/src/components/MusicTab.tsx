@@ -351,6 +351,8 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   const [quizRewarded, setQuizRewarded] = useActivityState('music', 'quizRewarded', false);
   const [playerSeconds, setPlayerSeconds] = useActivityState('music', 'playerSeconds', 0);
   const [lyricOffsets, setLyricOffsets] = useActivityState<Record<string, number>>('music', 'lyricOffsets', {});
+  const [lyricPause, setLyricPause] = useState<{ songKey: string; videoId: string; seconds: number } | null>(null);
+  useEffect(() => { setLyricPause(null); }, [activeSong.key, playbackVideoId]);
 
   const quizDialogRef = useRef<HTMLDivElement | null>(null);
   const quizVisible = quiz.length > 0;
@@ -381,7 +383,8 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   const quizXp = quizCorrect * 10 + (quiz.length > 0 && quizCorrect === quiz.length ? 25 : 0);
   const syncedLyrics = activeSong.lyrics.filter((line) => line.time !== undefined);
   const lyricOffset = Number.isFinite(lyricOffsets[playbackVideoId]) ? lyricOffsets[playbackVideoId] : 0;
-  const lyricSeconds = playerSeconds - lyricOffset;
+  const pausedLyrics = lyricPause?.songKey === activeSong.key && lyricPause.videoId === playbackVideoId ? lyricPause : null;
+  const lyricSeconds = pausedLyrics ? pausedLyrics.seconds : playerSeconds - lyricOffset;
   const activeLyricIndex = syncedLyrics.reduce((activeIndex, line, index) => {
     return Number(line.time) <= lyricSeconds ? index : activeIndex;
   }, -1);
@@ -389,7 +392,15 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   const nextKaraokeLine = syncedLyrics[activeLyricIndex + 1] || null;
   function adjustLyrics(offset: number) {
     if (!playbackVideoId || !Number.isFinite(offset)) return;
+    setLyricPause(null);
     setLyricOffsets(current => ({ ...current, [playbackVideoId]: Math.round(offset * 10) / 10 }));
+  }
+  function toggleLyricsPause() {
+    if (pausedLyrics) {
+      adjustLyrics(playerSeconds - pausedLyrics.seconds);
+    } else {
+      setLyricPause({ songKey: activeSong.key, videoId: playbackVideoId, seconds: lyricSeconds });
+    }
   }
 
   useEffect(() => {
@@ -729,6 +740,14 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
             <small>Vale só para este vídeo e fica na sua conta. Se o clipe tiver pausas no meio, prefira uma versão de áudio.</small>
           </details>
         )}
+        {syncedLyrics.length > 0 && (
+          <div className="lyrics-playback-controls">
+            <button className="secondary-button" type="button" aria-pressed={Boolean(pausedLyrics)} onClick={toggleLyricsPause}>
+              {pausedLyrics ? 'Retomar legenda' : 'Pausar legenda'}
+            </button>
+            <small role="status">{pausedLyrics ? 'Legenda pausada. O vídeo continua.' : ''}</small>
+          </div>
+        )}
         {syncedLyrics.length > 0 && activeLyricIndex < 0 && <p className="music-status">Aguardando início do canto.</p>}
         {activeKaraokeLine && (
           <section className="karaoke-panel" aria-label="Legenda da música">
@@ -762,7 +781,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
         {activeSong.lyrics.length ? (
           <div className="lyrics-list">
             {activeSong.lyrics.map((line, index) => (
-              <button className={line.time !== undefined && Math.abs((line.time || 0) - (activeKaraokeLine?.time || -999)) < 0.01 ? 'lyric-card active' : 'lyric-card'} key={`${line.en}-${index}`} type="button" onClick={() => setExpandedLine(index)}>
+              <button className={line.time !== undefined && activeKaraokeLine && Math.abs(line.time - Number(activeKaraokeLine.time)) < 0.01 ? 'lyric-card active' : 'lyric-card'} key={`${line.en}-${index}`} type="button" onClick={() => setExpandedLine(index)}>
                 {line.time !== undefined && <em>{formatMusicTime(line.time)}</em>}
                 {(lyricMode === 'both' || lyricMode === 'en') && <strong>{line.en}</strong>}
                 {(lyricMode === 'both' || lyricMode === 'pt') && <span>{lyricTranslation(line)}</span>}

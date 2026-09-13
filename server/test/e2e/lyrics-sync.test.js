@@ -23,7 +23,7 @@ test('lyrics adjustment waits for vocals, saves per video and resumes on another
       await context.addInitScript(() => {
         window.__musicTime = 0;
         window.YT = { Player: class {
-          constructor(_target, options) { setTimeout(() => options.events.onReady({ target: { getCurrentTime: () => window.__musicTime } }), 0); }
+          constructor(_target, options) { setTimeout(() => options.events.onReady({ target: { getCurrentTime: () => { window.__lastTimeRead = window.__musicTime; return window.__musicTime; } } }), 0); }
           destroy() {}
         } };
       });
@@ -57,11 +57,29 @@ test('lyrics adjustment waits for vocals, saves per video and resumes on another
     await phone.getByText('Aguardando início do canto.', { exact: true }).waitFor();
     await phone.getByRole('button', { name: 'Adiantar 0,5 s', exact: true }).click();
     await phone.locator('.karaoke-panel strong').filter({ hasText: 'First synthetic phrase' }).waitFor();
+    await phone.getByRole('button', { name: 'Pausar legenda', exact: true }).click();
+    assert.equal(await phone.getByRole('button', { name: 'Retomar legenda', exact: true }).getAttribute('aria-pressed'), 'true');
+    await phone.evaluate(() => { window.__musicTime = 50; });
+    await phone.waitForFunction(() => window.__lastTimeRead === 50);
+    assert.equal(await phone.locator('.karaoke-panel strong').textContent(), 'First synthetic phrase');
+    assert.match(await phone.locator('.lyric-card.active').textContent(), /First synthetic phrase/);
+    await phone.getByRole('button', { name: 'Retomar legenda', exact: true }).click();
+    await phone.getByText('Legenda 40 s mais tarde.', { exact: true }).waitFor();
+    assert.equal(await phone.locator('.karaoke-panel strong').textContent(), 'First synthetic phrase');
+    await phone.evaluate(() => { window.__musicTime = 60; });
+    await phone.locator('.karaoke-panel strong').filter({ hasText: 'Second synthetic phrase' }).waitFor();
+    await phone.getByRole('button', { name: 'Pausar legenda', exact: true }).click();
+    await phone.getByRole('button', { name: 'Restaurar', exact: true }).click();
+    assert.equal(await phone.getByRole('button', { name: 'Pausar legenda', exact: true }).getAttribute('aria-pressed'), 'false');
+    await phone.evaluate(() => { window.__musicTime = 30; });
+    await phone.waitForFunction(() => window.__lastTimeRead === 30);
+    await phone.getByRole('button', { name: 'A primeira frase começa agora', exact: true }).click();
     await phone.waitForFunction(() => Object.keys(JSON.parse(localStorage.getItem('linguafire-drafts-v1:sync-test') || '{}')).length === 0);
     assert.equal(entries.music.state.lyricOffsets[song.ytId], 20);
     const desktop = await device();
     await desktop.locator('.lyrics-sync-controls summary').click();
     await desktop.getByText('Legenda 20 s mais tarde.', { exact: true }).waitFor();
+    assert.equal(await desktop.getByRole('button', { name: 'Pausar legenda', exact: true }).getAttribute('aria-pressed'), 'false');
     for (const width of [320, 390, 768]) {
       await desktop.setViewportSize({ width, height: 844 });
       assert.ok(await desktop.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -74,6 +92,11 @@ test('lyrics adjustment waits for vocals, saves per video and resumes on another
     const alternate = await device();
     await alternate.locator('.lyrics-sync-controls summary').click();
     await alternate.getByText('Sem ajuste.', { exact: true }).waitFor();
+    await alternate.getByRole('button', { name: 'Pausar legenda', exact: true }).click();
+    const search = alternate.getByPlaceholder('Ex: stay, adele ou link do YouTube');
+    await search.fill('Stay'); await search.press('Enter');
+    await alternate.getByRole('heading', { name: 'Stay', exact: true }).waitFor();
+    assert.equal(await alternate.getByRole('button', { name: 'Retomar legenda', exact: true }).count(), 0);
     await alternate.screenshot({ path: '/tmp/linguafire-lyrics-sync-mobile.png', fullPage: true });
   } finally { await browser?.close(); server.close(); }
 });
