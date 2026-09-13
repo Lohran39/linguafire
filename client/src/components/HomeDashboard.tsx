@@ -1,6 +1,7 @@
 import { flushLearningEvents } from '../services/learning';
 import { StudyTips } from './StudyTips';
 import { LearningPanel } from './LearningPanel';
+import { FireMark, StudyArtwork } from './StudyArtwork';
 import { useEffect, useMemo, useState } from 'react';
 import { APP_LEVELS, LEVEL_PROFILES, getLevelProgress, normalizeEnglishLevel } from '../data/levels';
 import {
@@ -21,6 +22,8 @@ type HomeDashboardProps = {
   user: UserProfile;
   onProfileRefresh: (user: UserProfile) => void;
   onLoadProfile: () => Promise<UserProfile>;
+  onNavigate: (tab: 'lessons' | 'music' | 'flashcard' | 'conversation' | 'natives' | 'placement') => void;
+  lastStudyTab: string;
 };
 
 function getStreakMessage(streak: number) {
@@ -39,7 +42,7 @@ function formatRank(position: number | null) {
   return `#${position}`;
 }
 
-export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDashboardProps) {
+export function HomeDashboard({ user, onProfileRefresh, onLoadProfile, onNavigate, lastStudyTab }: HomeDashboardProps) {
   const [dailyWord, setDailyWord] = useState<DailyWord | null>(null);
   const [ranking, setRanking] = useState<LeaderboardUser[]>([]);
   const [rank, setRank] = useState<number | null>(null);
@@ -52,6 +55,8 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
   const progress = useMemo(() => getLevelProgress(user.level || 1, user.xp || 0), [user.level, user.xp]);
   const englishLevel = normalizeEnglishLevel(user.english_level);
   const levelProfile = LEVEL_PROFILES[englishLevel];
+  const studyLabels = { lessons: 'Lições', music: 'Música', flashcard: 'Revisão', conversation: 'Conversa', natives: 'Nativos', placement: 'Nivelamento' };
+  const resumeTab = !user.placement_completed ? 'placement' : Object.hasOwn(studyLabels, lastStudyTab) ? lastStudyTab as keyof typeof studyLabels : 'lessons';
   const [streakTitle, streakCopy] = getStreakMessage(user.streak || 0);
   const visibleRanking = ranking.slice(0, 5);
   const userInVisibleRanking = visibleRanking.some((player) => String(player.id || '') === String(user.id));
@@ -116,37 +121,31 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
   return (
     <section className="home-layout" aria-label="Inicio">
       <div className="home-main">
-        <StudyTips key={`${user.id}:${englishLevel}:${user.placement_completed}`} level={englishLevel} assessed={Boolean(user.placement_completed)} />
         <section className="welcome-panel">
-          <p className="kicker">Conta conectada</p>
-          <h1>Olá, {user.name || 'estudante'}</h1>
-          <p className="lead">
-            Sua jornada de aprendizado está pronta: desbrave lições, músicas, flashcards e conversas reais. Acompanhe sua evolução no perfil e aproveite a loja!
-          </p>
+          <p className="home-greeting">Olá, {user.name || 'estudante'}</p>
+          <h1>{user.placement_completed ? 'Continue seu estudo.' : 'Seu inglês começa aqui.'}</h1>
+          <p className="lead">{user.placement_completed ? `${studyLabels[resumeTab]} · Inglês ${englishLevel}. Um passo de cada vez.` : 'Descubra seu nível para receber atividades que combinam com você.'}</p>
+          <button className="primary-button home-continue" type="button" onClick={() => onNavigate(resumeTab)}>{user.placement_completed ? `Continuar: ${studyLabels[resumeTab]}` : 'Descobrir meu nível'} <span aria-hidden="true">→</span></button>
 
           <div className="learning-path-panel">
             <span>{englishLevel}</span>
             <div>
               <strong>Inglês {englishLevel} · {levelProfile.title}</strong>
               <p>{levelProfile.focus}</p>
-              <small>Próximo foco: {levelProfile.next}</small>
             </div>
           </div>
 
-          <div className="level-panel">
-            <div>
-              <strong>
-                Nível de jogo {user.level || 1} - {progress.current.name}
-              </strong>
-              <span>
-                {user.xp || 0}/{progress.nextXp} XP
-              </span>
-            </div>
-            <div className="progress-track" aria-label={`Progresso ${progress.percent}%`}>
-              <div style={{ width: `${progress.percent}%` }} />
-            </div>
+        </section>
+
+        <section className="home-discover" aria-label="Sugestões de estudo">
+          <div className="panel-heading"><h2>Explore no seu ritmo</h2><span>Inglês {englishLevel}</span></div>
+          <div className="home-discover-grid">
+            <button type="button" onClick={() => onNavigate('lessons')}><StudyArtwork scene="lessons" /><strong>Uma lição por vez</strong><span>{levelProfile.focus}</span></button>
+            <button type="button" onClick={() => onNavigate('music')}><span className="home-music-art" aria-hidden="true">♫<i /><i /><i /><i /><i /></span><strong>Aprenda com música</strong><span>Ouça, acompanhe e descubra expressões.</span></button>
+            <button type="button" onClick={() => onNavigate('conversation')}><StudyArtwork scene={englishLevel.startsWith('A') ? 'restaurant' : 'job_interview'} /><strong>Uma conversa real</strong><span>Pratique situações no seu nível.</span></button>
           </div>
         </section>
+        <StudyTips key={`${user.id}:${englishLevel}:${user.placement_completed}`} level={englishLevel} assessed={Boolean(user.placement_completed)} />
 
         <div className="metric-grid">
           <article className="metric-card">
@@ -169,6 +168,11 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
 
         <LearningPanel userId={user.id} />
 
+        <details className="home-extras"><summary><FireMark /> Missões e recompensas</summary>
+        <div className="level-panel">
+          <div><strong>Nível de jogo {user.level || 1} · {progress.current.name}</strong><span>{user.xp || 0}/{progress.nextXp} XP</span></div>
+          <div className="progress-track" aria-label={`Progresso ${progress.percent}%`}><div style={{ width: `${progress.percent}%` }} /></div>
+        </div>
         <section className="streak-panel">
           <div className="streak-number">
             <span>{user.streak || 0}</span>
@@ -242,6 +246,7 @@ export function HomeDashboard({ user, onProfileRefresh, onLoadProfile }: HomeDas
           )}
         </section>
 
+        </details>
         {notice && <div className="form-success">{notice}</div>}
       </div>
 

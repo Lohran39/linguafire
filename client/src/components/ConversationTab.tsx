@@ -1,4 +1,5 @@
 import { useActivityState } from '../hooks/activity-progress';
+import { StudyArtwork } from './StudyArtwork';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   analyzeGrammar,
@@ -221,7 +222,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
         <div className="topic-grid">
           {recommendedTopics.map((topic) => (
             <button className="topic-card" key={topic.id} type="button" onClick={() => startTopic(topic)}>
-              <span>{topic.name.split(' ')[0]}</span>
+              <StudyArtwork scene={topic.id} />
               <strong>{topicLabel(topic)}</strong>
               <small>{topicLevels[topic.id]} · {hints[topic.id]?.[0] || 'Pratique inglês com IA'}</small>
             </button>

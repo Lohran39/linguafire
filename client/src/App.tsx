@@ -324,6 +324,10 @@ function AppHome({
   onLoadProfile: () => Promise<UserProfile>;
 }) {
   const [activeTab, setActiveTab] = useActivityState<AppTab>('navigation', 'activeTab', initialTab);
+  const [lastStudyTab, setLastStudyTab] = useActivityState<AppTab>('navigation', 'lastStudyTab', 'lessons');
+  useEffect(() => {
+    if (['lessons', 'music', 'flashcard', 'conversation', 'natives', 'placement'].includes(activeTab)) setLastStudyTab(activeTab);
+  }, [activeTab, setLastStudyTab]);
   useEffect(() => {
     if (user.role === 'admin') return;
     const record = () => {
@@ -381,7 +385,7 @@ function AppHome({
       <StudyGuide key={`guide-${activeTab}`} tab={activeTab} level={user.english_level || 'A1'} assessed={Boolean(user.placement_completed)} />
       <TabContent key={activeTab} label={appTabs.find(tab => tab.id === activeTab)?.label || activeTab}>
       {activeTab === 'home' && (
-        <HomeDashboard user={user} onLoadProfile={onLoadProfile} onProfileRefresh={onProfileRefresh} />
+        <HomeDashboard user={user} onLoadProfile={onLoadProfile} onProfileRefresh={onProfileRefresh} onNavigate={navigate} lastStudyTab={lastStudyTab} />
       )}
       {activeTab === 'lessons' && (
         <LessonTab user={user} onProfileRefresh={onProfileRefresh} />

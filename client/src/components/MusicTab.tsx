@@ -672,7 +672,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
                 type="button"
                 onClick={() => openSong(song as Song)}
               >
-                <span>{song.thumb}</span>
+                <span className="song-artwork" aria-hidden="true"><img src={`https://i.ytimg.com/vi/${song.ytId}/mqdefault.jpg`} alt="" loading="lazy" width="64" height="64" onError={event => { event.currentTarget.style.display = 'none'; }} /></span>
                 <strong>{song.title}</strong>
                 <small>{song.artist} · {song.focus}</small>
                 {curations.some(item => item.content_key === contentKey({ kind: 'music', title: song.title, artist: song.artist }) && item.video_id === song.ytId && isVerified(item)) && <small className="verified-badge">Verificado</small>}
