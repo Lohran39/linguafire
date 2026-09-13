@@ -1,3 +1,4 @@
+const { SUBSCRIPTION_PLANS } = require('./subscription-state');
 const crypto = require('crypto');
 
 function encodeForm(payload = {}) {
@@ -84,6 +85,11 @@ function createStripeService(env = process.env, fetchImpl = fetch) {
       throw error;
     }
 
+    const price = await stripeRequest(`/prices/${encodeURIComponent(priceId)}`, {}, 'GET');
+    if (!price.active || price.currency !== 'brl' || price.unit_amount !== SUBSCRIPTION_PLANS[normalizedPlan].price * 100 || price.recurring?.interval !== 'month' || price.recurring?.interval_count !== 1) {
+      throw Object.assign(new Error('O preço Stripe não corresponde ao plano mensal anunciado.'), { status: 409 });
+    }
+
     const session = await stripeRequest('/checkout/sessions', {
       mode: 'subscription',
       client_reference_id: user.id,
@@ -95,8 +101,9 @@ function createStripeService(env = process.env, fetchImpl = fetch) {
       'metadata[user_id]': user.id,
       'metadata[plan]': normalizedPlan,
       'subscription_data[metadata][user_id]': user.id,
-      'subscription_data[metadata][plan]': normalizedPlan
-    }, 'POST', `checkout-${user.id}-${normalizedPlan}-${Math.floor(Date.now() / 3600000)}`);
+      'subscription_data[metadata][plan]': normalizedPlan,
+      'subscription_data[metadata][ai_policy_version]': '2'
+    }, 'POST', `checkout-v2-${user.id}-${normalizedPlan}-${Math.floor(Date.now() / 3600000)}`);
 
     return {
       id: session.id,

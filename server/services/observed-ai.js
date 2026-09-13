@@ -5,7 +5,7 @@ function observeAI(call, logger) {
       const result = await call(options);
       logger.info('AI request completed', {
         provider: 'gemini', model: result.providerModel, durationMs: Date.now() - started,
-        inputUnits: result.usage?.promptTokens || 0, outputUnits: result.usage?.completionTokens || 0
+        inputUnits: result.usage?.promptTokens || 0, outputUnits: result.usage?.completionTokens || 0, thinkingUnits: result.usage?.thinkingTokens || 0, cachedUnits: result.usage?.cachedTokens || 0
       });
       return result;
     } catch (error) {

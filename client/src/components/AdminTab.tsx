@@ -1,3 +1,4 @@
+import { AIUsagePanel } from './AIUsagePanel';
 import { CuratorPanel } from './CuratorPanel';
 import { ProductUsagePanel } from './ProductUsagePanel';
 import { FormEvent, useEffect, useState } from 'react';
@@ -93,7 +94,7 @@ export function AdminTab() {
   }
 
   const retention = usage?.retention.find(item => item.day === 7);
-  const sections = [ ['overview', 'Visão geral'], ['students', 'Alunos'], ['content', 'Conteúdos'], ['usage', 'Uso e retorno'] ];
+  const sections = [ ['overview', 'Visão geral'], ['students', 'Alunos'], ['content', 'Conteúdos'], ['usage', 'Uso e retorno'], ['ai', 'IA e operação'] ];
   function studentList(users: AdminUserRow[]) {
     return <div className="admin-students">{users.length ? users.map(user => <details key={user.id} className="admin-student">
       <summary><strong>{user.name || 'Estudante'}</strong><small>{user.placement_completed ? user.english_level || 'Nível não informado' : 'Sem nivelamento'} · {user.xp ?? 0} XP</small></summary>
@@ -104,7 +105,7 @@ export function AdminTab() {
 
   return <section className="admin-layout admin-workspace" aria-label="Painel admin">
     <header className="admin-hero"><div><span className="section-kicker">Admin</span><h1>Painel do LinguaFire</h1><p>Alunos, conteúdos e acompanhamento em um só lugar.</p></div>
-      {section !== 'content' && <button className="secondary-button" onClick={() => void loadSummary()} disabled={isLoading}>{isLoading ? 'Atualizando…' : 'Atualizar painel'}</button>}
+      {section !== 'content' && section !== 'ai' && <button className="secondary-button" onClick={() => void loadSummary()} disabled={isLoading}>{isLoading ? 'Atualizando…' : 'Atualizar painel'}</button>}
     </header>
     <div className="admin-shell">
       <nav className="admin-navigation" aria-label="Seções do Admin">{sections.map(([key, label]) => <button key={key} type="button" aria-current={section === key ? 'page' : undefined} aria-controls={`admin-${key}`} onClick={() => navigate(key)}>{label}</button>)}</nav>
@@ -170,6 +171,7 @@ export function AdminTab() {
               </form>
           </details>
         </div>
+        <div id="admin-ai" hidden={section !== 'ai'}>{section === 'ai' && <AIUsagePanel />}</div>
         <div id="admin-usage" hidden={section !== 'usage'}><ProductUsagePanel data={usage} loading={isLoading} /></div>
       </div>
     </div>

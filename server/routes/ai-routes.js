@@ -1,3 +1,4 @@
+const { validateBody, chatCompletionsSchema } = require('../validation');
 const { buildOpenAIChatResponse } = require('../services/gemini-service');
 
 function setupAIRoutes(app, deps = {}) {
@@ -49,8 +50,8 @@ function setupAIRoutes(app, deps = {}) {
     }
   }
 
-  app.post('/chat/completions', authenticateToken, checkAILimit, handleChatCompletion);
-  app.post('/v1/chat/completions', authenticateToken, checkAILimit, handleChatCompletion);
+  app.post('/chat/completions', authenticateToken, validateBody(chatCompletionsSchema), checkAILimit, handleChatCompletion);
+  app.post('/v1/chat/completions', authenticateToken, validateBody(chatCompletionsSchema), checkAILimit, handleChatCompletion);
 }
 
 module.exports = { setupAIRoutes };

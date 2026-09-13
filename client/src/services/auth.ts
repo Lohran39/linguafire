@@ -21,6 +21,10 @@ export type UserProfile = {
   subscription_expires?: number;
   plan?: 'free' | 'pro' | 'max' | string;
   ai_daily_limit?: number;
+  ai_monthly_limit?: number | null;
+  ai_uses_month?: number;
+  ai_month_resets_at?: string;
+  ai_legacy?: boolean;
   ai_uses_today?: number;
   ai_limit_resets_at?: string;
   favorites?: FavoriteSong[];
@@ -105,7 +109,7 @@ export async function getSession(): Promise<{ userId: string; email: string } | 
 export async function getProfile(): Promise<UserProfile> {
   const data = await parseJson<{ user: UserProfile }>(
     await fetch(`${API_BASE}/profile`, {
-      credentials: 'include'
+      credentials: 'include', signal: AbortSignal.timeout(10000)
     })
   );
 
@@ -164,7 +168,7 @@ export async function deleteAccount(): Promise<void> {
 export type SubscriptionStatus = {
   active: boolean; expires: number; plan: string | null; price: number;
   aiDailyLimit: number; checkoutConfigured: boolean; checkoutIssues?: string[];
-  aiUsage: { used: number; limit: number; remaining: number; resetsAt: string };
+  aiUsage: { used: number; limit: number; remaining: number; resetsAt: string; monthlyUsed?: number; monthlyLimit?: number | null; monthlyRemaining?: number | null; monthlyResetsAt?: string; legacy?: boolean };
   billingStatus: string; managed: boolean; cancelAtPeriodEnd: boolean; cancelAt: number;
   portalAvailable: boolean; hasBillingAccount: boolean; canSubscribe: boolean; syncWarning?: string;
 };

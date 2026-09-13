@@ -31,6 +31,10 @@ function setupProfileRoutes(app, deps = {}) {
           subscription_expires: user.subscription_expires || 0,
           plan: usage.plan,
           ai_daily_limit: usage.limit,
+          ai_monthly_limit: usage.monthlyLimit,
+          ai_uses_month: usage.monthlyUsed,
+          ai_month_resets_at: usage.monthlyResetsAt,
+          ai_legacy: usage.legacy,
           ai_uses_today: usage.used,
           ai_limit_resets_at: usage.resetsAt,
           ai_uses_date: user.ai_uses_date || ''

@@ -50,7 +50,7 @@ test('native coach options request structured output and lower thinking without 
   await service.callGeminiChat({ apiKey: 'test', messages: [] });
   assert.deepEqual(bodies[0].generationConfig, { temperature: 0.3, maxOutputTokens: 2048,
     responseMimeType: 'application/json', responseJsonSchema: responseSchema, thinkingConfig: { thinkingLevel: 'low' } });
-  assert.deepEqual(bodies[1].generationConfig, { temperature: 0.3 });
+  assert.deepEqual(bodies[1].generationConfig, { temperature: 0.3, maxOutputTokens: 1024 });
 });
 
 test('Gemini total deadline also bounds response body reading and stops retries', async () => {
@@ -135,5 +135,5 @@ test('createGeminiService calls generateContent and returns OpenAI-compatible us
     { role: 'user', parts: [{ text: 'Teste' }] }
   ]);
   assert.equal(result.content, 'Resposta ok');
-  assert.deepEqual(result.usage, { promptTokens: 3, completionTokens: 2 });
+  assert.deepEqual(result.usage, { promptTokens: 3, completionTokens: 2, thinkingTokens: 0, cachedTokens: 0, totalTokens: 5 });
 });

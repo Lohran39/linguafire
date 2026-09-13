@@ -122,14 +122,14 @@ function setupConversationRoutes(app, deps = {}) {
   });
 
   // Send message
-  app.post('/api/conversation', authenticateToken, checkAILimit, validateBody(conversationSchema), async (req, res) => {
+  app.post('/api/conversation', authenticateToken, validateBody(conversationSchema), checkAILimit, async (req, res) => {
     const { topicId, message, history = [], englishLevel = 'A1' } = req.validatedBody;
     const topic = CONVERSATION_TOPICS.find(t => t.id === topicId);
     if (!topic) return res.status(400).json({ error: 'Tópico inválido' });
 
     const messages = [
       { role: 'system', content: buildConversationSystemPrompt(topic, englishLevel) },
-      ...history.slice(-10),
+      ...history.filter(item => item.role === 'user' || item.role === 'assistant').slice(-10),
       { role: 'user', content: message }
     ];
 
@@ -147,7 +147,7 @@ function setupConversationRoutes(app, deps = {}) {
     }
   });
 
-  app.post('/api/conversation/formulate', authenticateToken, checkAILimit, validateBody(conversationFormulateSchema), async (req, res) => {
+  app.post('/api/conversation/formulate', authenticateToken, validateBody(conversationFormulateSchema), checkAILimit, async (req, res) => {
     const { topicId, history = [], englishLevel = 'A1' } = req.validatedBody;
     const topic = CONVERSATION_TOPICS.find(t => t.id === topicId);
     if (!topic) return res.status(400).json({ error: 'Tópico inválido' });
@@ -168,7 +168,7 @@ function setupConversationRoutes(app, deps = {}) {
           'If the last message or current conversation is off-topic, formulate a sentence that redirects back to the selected scenario.'
         ].join(' ')
       },
-      ...history.slice(-8),
+      ...history.filter(item => item.role === 'user' || item.role === 'assistant').slice(-8),
       {
         role: 'user',
         content: latestAssistantMessage
@@ -206,7 +206,7 @@ function setupGrammarRoutes(app, deps = {}) {
   } = deps;
 
   // Analyze conversation
-  app.post('/api/grammar/analyze', authenticateToken, checkAILimit, validateBody(grammarAnalyzeSchema), async (req, res) => {
+  app.post('/api/grammar/analyze', authenticateToken, validateBody(grammarAnalyzeSchema), checkAILimit, async (req, res) => {
     const { conversationHistory, topicId } = req.validatedBody;
 
     const conversationText = conversationHistory

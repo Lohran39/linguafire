@@ -9,7 +9,7 @@ const { createGeminiService } = require('../services/gemini-service');
 async function main() {
   if (process.env.AI_EVAL_LIVE !== '1') throw new Error('Set AI_EVAL_LIVE=1 to run 30 synthetic cases; retries may add requests.');
   if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY required');
-  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+  const model = process.env.AI_EVAL_MODEL || process.env.GEMINI_MODEL || 'gemini-3.6-flash';
   const { callGeminiChat } = createGeminiService({ geminiModel: model, geminiBaseUrl: process.env.GEMINI_BASE_URL });
   const results = [];
   for (const item of suite) {
@@ -36,4 +36,4 @@ async function main() {
   console.log(JSON.stringify({ ...report, results: undefined }));
   if (report.automaticPassed !== suite.length) process.exitCode = 1;
 }
-main().catch(() => { console.error('AI evaluation failed. Check opt-in, credentials and provider configuration.'); process.exitCode = 1; });
+main().catch(() => { fs.writeFileSync(process.env.AI_EVAL_REPORT || '/tmp/linguafire-ai-eval.json', JSON.stringify({status:'configuration_blocked',completed:0,expected:suite.length,pedagogicalStatus:'not_evaluated',createdAt:new Date().toISOString()},null,2)); console.error('AI evaluation failed. Check opt-in, credentials and provider configuration.'); process.exitCode = 1; });

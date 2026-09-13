@@ -251,19 +251,7 @@ async function authenticateToken(req, res, next) {
 }
 
 // ============ AI USAGE LIMIT ============
-async function checkAILimit(req, res, next) {
-  try {
-    const { data, error } = await supabase.rpc('consume_ai_use', { p_user_id: req.user.id });
-    if (error || !data?.[0]) return res.status(503).json({ error: 'Não foi possível conferir seu limite de IA. Tente novamente.' });
-    const usage = data[0];
-    if (!usage.allowed) return res.status(403).json({
-      error: 'limit_reached', message: 'Limite diário de IA atingido', uses: usage.uses,
-      limit: usage.daily_limit, plan: usage.plan, resetsAt: usage.resets_at, upgradeUrl: '/?billing=return'
-    });
-    req.aiUsage = { uses: usage.uses, limit: usage.daily_limit, resetsAt: usage.resets_at };
-    next();
-  } catch { return res.status(503).json({ error: 'Não foi possível conferir seu limite de IA.' }); }
-}
+const checkAILimit = require('./middleware/ai-quota').createAIQuota({ supabase, logger });
 
 // ============ HELPER FUNCTIONS ============
 function parseJsonField(value, fallback = []) {
@@ -279,13 +267,20 @@ function getBearerToken(req) {
 }
 
 // ============ AI SERVICES ============
-const { callGeminiChat: rawGeminiChat } = createGeminiService({
-  geminiBaseUrl: GEMINI_BASE_URL,
-  geminiModel: GEMINI_MODEL,
-  openaiModelAlias: OPENAI_MODEL_ALIAS,
-  proxyTimeoutMs: PROXY_TIMEOUT_MS
-});
-const callGeminiChat = require('./services/observed-ai').observeAI(rawGeminiChat, logger);
+function makeObservedAI(model) {
+  const { callGeminiChat: raw } = createGeminiService({
+    geminiBaseUrl: GEMINI_BASE_URL, geminiModel: model, openaiModelAlias: model, proxyTimeoutMs: PROXY_TIMEOUT_MS,
+    onAttempt: async attempt => {
+      const event = require('./services/ai-policy').usageEvent(attempt);
+      const { error } = await supabase.rpc('record_ai_provider_usage', { p_event: event }).abortSignal(AbortSignal.timeout(1500));
+      if (error) logger.error('AI usage persistence failed', { code: 'ai_usage_write_failed' });
+    }
+  });
+  return require('./services/observed-ai').observeAI(raw, logger);
+}
+const callGeminiChat = makeObservedAI(GEMINI_MODEL);
+// Opt in only after comparing real-provider pedagogical evaluations.
+const conversationAI = process.env.AI_CONVERSATION_MODEL ? makeObservedAI(process.env.AI_CONVERSATION_MODEL) : callGeminiChat;
 
 const agentTools = createAgentTools({
   workspaceRoot: WORKSPACE_ROOT,
@@ -363,12 +358,12 @@ setupFlashcardRoutes(app, {
 
 // Conversation routes
 setupConversationRoutes(app, {
-  authenticateToken, checkAILimit, callGeminiChat, OPENAI_MODEL_ALIAS, AI_API_KEY: GEMINI_API_KEY
+  authenticateToken, checkAILimit, callGeminiChat: conversationAI, OPENAI_MODEL_ALIAS, AI_API_KEY: GEMINI_API_KEY
 });
 
 // Grammar routes
 setupGrammarRoutes(app, {
-  authenticateToken, checkAILimit, supabaseAddGrammarError, supabaseGetGrammarErrors, callGeminiChat, OPENAI_MODEL_ALIAS, AI_API_KEY: GEMINI_API_KEY, supabase
+  authenticateToken, checkAILimit, supabaseAddGrammarError, supabaseGetGrammarErrors, callGeminiChat: conversationAI, OPENAI_MODEL_ALIAS, AI_API_KEY: GEMINI_API_KEY, supabase
 });
 
 // Push routes
@@ -486,6 +481,16 @@ app.use((req, res) => {
 // ============ START SERVER ============
 if (require.main === module) {
   Promise.resolve(redisSessions?.connect()).then(() => app.listen(PORT, HOST, () => {
+    if (IS_PRODUCTION) {
+      const cleanup = async () => {
+        try {
+          const { error } = await supabase.rpc('cleanup_ai_usage').abortSignal(AbortSignal.timeout(30000));
+          if (error) throw error;
+        } catch { logger.error('AI usage cleanup failed', { code: 'ai_cleanup_failed' }); }
+      };
+      void cleanup();
+      setInterval(() => void cleanup(), 86400000).unref();
+    }
     logger.info('Servidor iniciado', {
       port: PORT,
       host: HOST,

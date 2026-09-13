@@ -35,6 +35,7 @@ export function SubscriptionPanel({ user, onProfileRefresh }: { user: UserProfil
       update({ ...profile, subscription_active: next.active, subscription_expires: next.expires,
         plan: next.plan || 'free', ai_daily_limit: next.aiDailyLimit,
         ai_uses_today: next.aiUsage?.used ?? profile.ai_uses_today,
+        ai_monthly_limit: next.aiUsage?.monthlyLimit, ai_uses_month: next.aiUsage?.monthlyUsed, ai_month_resets_at: next.aiUsage?.monthlyResetsAt, ai_legacy: next.aiUsage?.legacy,
         ai_limit_resets_at: next.aiUsage?.resetsAt });
     } catch (cause) {
       if (mounted.current) setError(cause instanceof Error ? cause.message : 'Não foi possível consultar sua assinatura.');
@@ -84,10 +85,13 @@ export function SubscriptionPanel({ user, onProfileRefresh }: { user: UserProfil
         {['past_due', 'unpaid', 'incomplete'].includes(status.billingStatus) && <p>Atualize o pagamento no portal para recuperar os benefícios do plano.</p>}
       </div>
       {usage && <div className="subscription-usage">
-        <h3>Seu uso de IA hoje</h3>
+        <h3>Seu uso de IA</h3>
         <p><strong>{usage.used} de {usage.limit} usos</strong> · {usage.remaining} disponíveis</p>
         <progress aria-label="Consumo diário de IA" max={usage.limit} value={Math.min(usage.used, usage.limit)} />
         <p>O limite diário renova em {localDate(usage.resetsAt)} ({Intl.DateTimeFormat().resolvedOptions().timeZone}).</p>
+        {usage.monthlyLimit != null && <><p><strong>{usage.monthlyUsed ?? 0} de {usage.monthlyLimit} usos neste mês</strong></p><progress aria-label="Consumo mensal de IA" max={usage.monthlyLimit} value={Math.min(usage.monthlyUsed ?? 0,usage.monthlyLimit)} />{usage.monthlyResetsAt && <p>Franquia mensal renova em {localDate(usage.monthlyResetsAt)}. Mês-calendário em UTC, separado da cobrança.</p>}</>}
+        {usage.legacy && <p>Sua assinatura mantém os limites anteriores. Nenhuma redução foi aplicada.</p>}
+        <details><summary>Como os usos funcionam</summary><p>Enviar mensagem, formular resposta e analisar erros são usos separados. Pedidos inválidos e falhas devolvidas pelo servidor não descontam usos.</p><p>Ao atingir a franquia, as atividades que não precisam de IA continuam disponíveis.</p></details>
       </div>}
       {status.hasBillingAccount && <p>Consulte cobranças e recibos, atualize o cartão e gerencie Pro ou Max no portal de pagamentos da Stripe.</p>}
       <div className="profile-actions">
@@ -97,7 +101,7 @@ export function SubscriptionPanel({ user, onProfileRefresh }: { user: UserProfil
           <button className="secondary-button" disabled={busy || loading || Boolean(error)} onClick={() => void manage('max')}>Ativar Max</button>
         </>}
       </div>
-      {status.canSubscribe && <p>Pro: R$45/mês · 300 usos de IA/dia | Max: R$85/mês · 1000 usos de IA/dia</p>}
+      {status.canSubscribe && <p>Pro: R$45/mês · 1.000 usos/mês, até 50/dia. Max: R$85/mês · 3.000 usos/mês, até 150/dia. O limite diário faz parte da franquia mensal.</p>}
       {status.hasBillingAccount && !status.portalAvailable && <p role="status">A gestão de pagamentos está temporariamente indisponível.</p>}
       {!status.active && !status.checkoutConfigured && <p role="status">Assinaturas temporariamente indisponíveis.</p>}
       {user.role === 'admin' && status.checkoutIssues?.length ? <p className="form-error">{status.checkoutIssues.join(' ')}</p> : null}

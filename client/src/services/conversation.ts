@@ -47,7 +47,7 @@ export async function sendConversationMessage(
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         signal: controller.signal,
-        body: JSON.stringify({ topicId, message, history, englishLevel })
+        body: JSON.stringify({ topicId, message, history: history.slice(-10), englishLevel })
       })
     );
 
@@ -77,7 +77,7 @@ export async function formulateConversationResponse(
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         signal: controller.signal,
-        body: JSON.stringify({ topicId, history, englishLevel })
+        body: JSON.stringify({ topicId, history: history.slice(-8), englishLevel })
       })
     );
 
@@ -106,7 +106,7 @@ export async function analyzeGrammar(
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         signal: controller.signal,
-        body: JSON.stringify({ topicId, conversationHistory })
+        body: JSON.stringify({ topicId, conversationHistory: conversationHistory.filter(item => item.role === 'user').slice(-10) })
       })
     );
 

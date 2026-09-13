@@ -13,6 +13,17 @@ function setupProductUsageRoutes(app, { authenticateToken, supabaseGetUserById, 
       return res.sendStatus(204);
     } catch { return res.status(503).json({ error: 'Métricas indisponíveis' }); }
   });
+  app.get('/api/admin/ai-usage', authenticateToken, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      const user = await supabaseGetUserById(req.user.id);
+      if (user?.role !== 'admin') return res.sendStatus(403);
+      const since = new Date(); since.setUTCHours(0,0,0,0); since.setUTCDate(since.getUTCDate()-29);
+      const { data, error } = await supabase.from('ai_provider_daily').select('*').gte('day', since.toISOString().slice(0,10)).order('day', { ascending:false }).limit(1000);
+      if (error) throw error;
+      return res.json({ rows:data, since:since.toISOString(), limited:data.length===1000 });
+    } catch { return res.status(503).json({ error:'Consumo de IA indisponível. Confira a migração do banco.' }); }
+  });
   app.get('/api/admin/product-usage', authenticateToken, async (req, res) => {
     res.set('Cache-Control', 'no-store');
     try {

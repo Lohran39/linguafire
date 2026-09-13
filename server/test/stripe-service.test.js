@@ -60,3 +60,16 @@ test('Stripe signatures require original body, valid HMAC and recent timestamp; 
   assert.throws(() => stripe.verifyWebhook(Buffer.from('{}'), sign(now)));
   assert.throws(() => stripe.verifyWebhook(body.toString(), sign(now)));
 });
+
+test('new checkout preserves advertised monthly price and marks quota policy v2',async()=>{
+ const requests=[];let amount=4500;
+ const stripe=createStripeService({STRIPE_SECRET_KEY:'sk_test_example',STRIPE_PRO_PRICE_ID:'price_pro',STRIPE_MAX_PRICE_ID:'price_max'},async(url,options)=>{
+  requests.push({url,options});return Response.json(url.includes('/prices/')?{active:true,currency:'brl',unit_amount:amount,recurring:{interval:'month',interval_count:1}}:{id:'cs_test',url:'https://checkout.stripe.com/test'});
+ });
+ await stripe.createCheckoutSession({id:'u1',email:'example@example.com'},'pro');
+ const form=new URLSearchParams(requests[1].options.body);
+ assert.equal(form.get('subscription_data[metadata][ai_policy_version]'),'2');
+ assert.equal(form.get('line_items[0][price]'),'price_pro');
+ amount=8500;await assert.rejects(stripe.createCheckoutSession({id:'u1'},'pro'),{status:409});
+ assert.equal(requests.filter(r=>r.url.includes('/checkout/sessions')).length,1);
+});

@@ -32,7 +32,7 @@ test('mobile billing shows usage, handles portal failures and reconciles a retur
   const origin = `http://127.0.0.1:${server.address().port}`;
   try {
     await page.goto(`${origin}/?billing=return`);
-    await page.getByRole('heading', { name: 'Seu uso de IA hoje' }).waitFor();
+    await page.getByRole('heading', { name: 'Seu uso de IA' }).waitFor();
     await page.getByText('7 de 10 usos', { exact: true }).waitFor();
     assert.ok(await page.getByText('3 disponíveis', { exact: false }).isVisible());
     assert.ok(await page.getByText('21:00 (America/Sao_Paulo)', { exact: false }).isVisible());

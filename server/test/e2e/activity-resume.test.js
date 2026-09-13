@@ -61,7 +61,7 @@ test('activities resume across isolated devices; mobile navigation and keyboard 
     return page;
   }
   async function synced(page) {
-    await page.waitForFunction(() => !document.querySelector('.activity-sync'));
+    await page.waitForFunction(() => Object.keys(JSON.parse(localStorage.getItem('linguafire-drafts-v1:resume-user') || '{}')).length === 0);
   }
   try {
     const phone = await device({ width: 390, height: 844 });
@@ -101,9 +101,13 @@ test('activities resume across isolated devices; mobile navigation and keyboard 
     await desktop.locator('.placement-count').waitFor();
     assert.match(await desktop.locator('.placement-count').textContent(), /2\//);
     await desktop.getByRole('button', { name: 'Nativos', exact: true }).click();
+    await desktop.locator('.native-practice-disclosure > summary').click();
+    await desktop.getByRole('button', { name: 'Conversa com IA', exact: true }).click();
     await desktop.locator('#native-answer').fill('I would like a coffee, please.');
     await synced(desktop);
     await phone.reload();
+    await phone.locator('.native-practice-disclosure > summary').click();
+    await phone.getByRole('button', { name: 'Conversa com IA', exact: true }).click();
     await phone.locator('#native-answer').waitFor();
     assert.equal(await phone.locator('#native-answer').inputValue(), 'I would like a coffee, please.');
     await desktop.getByRole('button', { name: /^M[uú]sica$/, exact: true }).click();

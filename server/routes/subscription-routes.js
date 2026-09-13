@@ -88,7 +88,7 @@ function setupSubscriptionRoutes(app, deps = {}) {
       }
       if (!demoEnabled) return res.status(501).json({ error: 'Checkout de pagamento ainda não configurado.' });
       const plan = req.validatedBody.plan, config = SUBSCRIPTION_PLANS[plan], expires = Date.now() + 30 * 86400000;
-      await save(user.id, { subscription_active: 1, subscription_expires: expires, plan, ai_daily_limit: config.aiDailyLimit });
+      await save(user.id, { subscription_active: 1, subscription_expires: expires, plan, ai_policy_version: 2, ai_daily_limit: config.aiDailyLimit });
       return res.json({ success: true, subscription: { active: true, expires, plan, price: config.price, aiDailyLimit: config.aiDailyLimit } });
     } catch (error) {
       logger.error?.('Subscription checkout failed', { status: error.status || 500 });

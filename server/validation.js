@@ -312,7 +312,7 @@ const chatCompletionsSchema = objectSchema((data, output, issues) => {
   optional(data, 'model', stringValidator(), output, issues);
   required(data, 'messages', arrayValidator(messageValidator, { min: 1, message: 'Messages obrigatorio' }), output, issues, 'Messages obrigatorio');
   optional(data, 'temperature', numberValidator({ min: 0, max: 2 }), output, issues);
-  optional(data, 'max_tokens', numberValidator({ int: true, min: 1, max: 32000 }), output, issues);
+  optional(data, 'max_tokens', numberValidator({ int: true, min: 1, max: 2048 }), output, issues);
   optional(data, 'top_p', numberValidator({ min: 0, max: 1 }), output, issues);
   optional(data, 'stream', booleanValidator, output, issues);
   optional(data, 'stop', unionValidator([

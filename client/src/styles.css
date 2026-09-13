@@ -5293,3 +5293,5 @@ body:has(.study-guide-dialog[open]) { overflow: hidden; }
 @media (max-width: 600px) {
   .admin-workspace .admin-hero > button { width: 100%; }
 }
+
+.admin-ai-card { overflow-wrap: anywhere; margin-top: 1rem; }

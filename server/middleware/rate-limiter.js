@@ -1,13 +1,10 @@
+// Authenticated AI calls use the atomic per-user limiter in consume_ai_use_v2.
 const DEFAULT_RATE_LIMITS = {
   '/api/login': 10,
   '/api/register': 5,
   '/api/change-password': 5,
   '/api/auth/forgot-password': 3,
   '/api/auth/reset-password': 5,
-  '/api/conversation': 30,
-  '/api/grammar/analyze': 20,
-  '/chat/completions': 30,
-  '/v1/chat/completions': 30,
   '/v1/agent/run': 5,
   '/api/lyrics/lrclib/get': 30,
   '/api/lyrics/lrclib/search': 20,

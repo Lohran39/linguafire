@@ -1,3 +1,4 @@
+const { MAX_PROMPT_BYTES, MAX_OUTPUT_TOKENS } = require('./ai-policy');
 const { setTimeout: delay } = require('node:timers/promises');
 
 function normalizeMessageContent(content = '') {
@@ -81,7 +82,8 @@ function createGeminiService(config = {}) {
     geminiModel = 'gemini-3.6-flash',
     openaiModelAlias = geminiModel,
     proxyTimeoutMs = 60000,
-    fetchImpl = fetch
+    fetchImpl = fetch,
+    onAttempt = async () => {}
   } = config;
 
   const configuredModel = geminiModel || 'gemini-3.6-flash';
@@ -92,9 +94,16 @@ function createGeminiService(config = {}) {
     let lastError = null;
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
+      const started = Date.now();
+      const model = attempt > 0 && fallbackModel ? fallbackModel : payload.model || configuredModel;
+      let recorded = false;
+      const record = async event => {
+        if (recorded) return;
+        recorded = true;
+        try { await onAttempt({ model, durationMs: Date.now()-started, ...event }); } catch { /* reporting must not replay a paid request */ }
+      };
       try {
         signal?.throwIfAborted();
-        const model = attempt > 0 && fallbackModel ? fallbackModel : payload.model || configuredModel;
         const url = `${baseUrl}/v1beta/${normalizeGeminiModel(model)}:generateContent`;
         const generationConfig = { ...payload.body.generationConfig };
         if (lowLatency && /gemini-3[.-].*flash/i.test(model)) {
@@ -113,6 +122,8 @@ function createGeminiService(config = {}) {
           signal: signal ? AbortSignal.any([signal, attemptSignal]) : attemptSignal
         });
         const rawBody = await response.text();
+        let parsed; try { parsed = JSON.parse(rawBody); } catch {}
+        await record({ metadata: parsed?.usageMetadata, failed: response.status >= 400 || !pickTextFromGemini(parsed || {}) || parsed?.candidates?.[0]?.finishReason === 'MAX_TOKENS' });
 
         if (response.status >= 500 && attempt === 0) {
           await delay(500, undefined, { signal });
@@ -121,6 +132,7 @@ function createGeminiService(config = {}) {
 
         return { response, rawBody, providerModel: model };
       } catch (error) {
+        await record({ failed: true });
         if (signal?.aborted) throw signal.reason;
         lastError = error;
         if (attempt === 0) {
@@ -141,6 +153,8 @@ function createGeminiService(config = {}) {
       throw err;
     }
 
+    if (Buffer.byteLength(JSON.stringify(messages || []), 'utf8') > MAX_PROMPT_BYTES) throw Object.assign(new Error('Texto excede o limite desta atividade.'), { status: 400 });
+    if (maxTokens != null && (!Number.isInteger(maxTokens) || maxTokens < 1 || maxTokens > MAX_OUTPUT_TOKENS)) throw Object.assign(new Error('Limite de resposta inválido.'), { status: 400 });
     const { contents, systemInstruction } = asGeminiContents(messages);
     const body = {
       contents: contents.length ? contents : [{ role: 'user', parts: [{ text: '' }] }],
@@ -148,7 +162,7 @@ function createGeminiService(config = {}) {
     };
 
     if (systemInstruction) body.systemInstruction = systemInstruction;
-    if (maxTokens != null) body.generationConfig.maxOutputTokens = maxTokens;
+    body.generationConfig.maxOutputTokens = maxTokens ?? 1024;
     if (topP != null) body.generationConfig.topP = topP;
     if (responseSchema) {
       body.generationConfig.responseMimeType = 'application/json';
@@ -218,7 +232,10 @@ function createGeminiService(config = {}) {
       content,
       usage: {
         promptTokens: Number(usage.promptTokenCount || 0),
-        completionTokens: Number(usage.candidatesTokenCount || 0)
+        completionTokens: Number(usage.candidatesTokenCount || 0),
+        thinkingTokens: Number(usage.thoughtsTokenCount || 0),
+        cachedTokens: Number(usage.cachedContentTokenCount || 0),
+        totalTokens: Number(usage.totalTokenCount ?? (Number(usage.promptTokenCount || 0) + Number(usage.candidatesTokenCount || 0) + Number(usage.thoughtsTokenCount || 0)))
       },
       raw: responseJson
     };

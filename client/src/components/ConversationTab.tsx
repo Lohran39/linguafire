@@ -9,7 +9,7 @@ import {
   type ConversationTopic,
   type GrammarError
 } from '../services/conversation';
-import type { UserProfile } from '../services/auth';
+import { getProfile, type UserProfile } from '../services/auth';
 import { englishLevelIndex, normalizeEnglishLevel } from '../data/levels';
 
 type ConversationTabProps = {
@@ -34,7 +34,7 @@ const topicLevels: Record<string, string> = {
 };
 
 const contextLockMessage = 'This practice is locked because you kept leaving the scenario. Start a new situation to continue.';
-const PLAN_AI_LIMITS: Record<string, number> = { free: 10, pro: 300, max: 1000 };
+const PLAN_AI_LIMITS: Record<string, number> = { free: 10, pro: 50, max: 150 };
 
 function sortTopicsForLevel(topics: ConversationTopic[], userLevel: string) {
   return [...topics].sort((a, b) => {
@@ -55,6 +55,8 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
   const [input, setInput] = useActivityState('conversation', 'input', '');
   const [isSending, setIsSending] = useState(false);
   const [isFormulating, setIsFormulating] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const operationBusy = useRef(false);
   const [notice, setNotice] = useState('');
   const [lastFailedMessage, setLastFailedMessage] = useActivityState('conversation', 'lastFailedMessage', '');
   const [isContextLocked, setIsContextLocked] = useActivityState('conversation', 'isContextLocked', false);
@@ -64,7 +66,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
   const recommendedTopics = useMemo(() => sortTopicsForLevel(topics, englishLevel), [topics, englishLevel]);
 
   const userPlan = String(user.plan || (user.subscription_active ? 'pro' : 'free')).toLowerCase();
-  const aiLimit = Math.max(PLAN_AI_LIMITS[userPlan] || PLAN_AI_LIMITS.free, Number(user.ai_daily_limit || 0));
+  const aiLimit = Number(user.ai_daily_limit ?? PLAN_AI_LIMITS[userPlan] ?? PLAN_AI_LIMITS.free);
   const aiRemaining = useMemo(() => {
     return Math.max(0, aiLimit - Number(user.ai_uses_today || 0));
   }, [aiLimit, user.ai_uses_today]);
@@ -105,10 +107,16 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
     ]);
   }
 
+  async function refreshUsage() {
+    try { onProfileRefresh(await getProfile()); } catch { /* the next profile refresh reconciles usage */ }
+  }
+  const quotaText = `${userPlan.toUpperCase()} · ${aiRemaining}/${aiLimit} usos hoje${user.ai_monthly_limit != null ? ` · ${Math.max(0,user.ai_monthly_limit-Number(user.ai_uses_month || 0))}/${user.ai_monthly_limit} neste mês` : ''}`;
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = input.trim();
-    if (!trimmed || !activeTopic || isSending || isContextLocked) return;
+    if (!trimmed || !activeTopic || operationBusy.current || isContextLocked) return;
+    operationBusy.current = true;
 
     const nextMessages: ConversationMessage[] = [...messages, { role: 'user', content: trimmed }];
     setMessages(nextMessages);
@@ -125,7 +133,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
         setIsContextLocked(true);
         setNotice('Essa prática foi bloqueada por sair do contexto. Escolha outro cenário para continuar.');
       }
-      onProfileRefresh({ ...user, ai_uses_today: Number(user.ai_uses_today || 0) + 1 });
+
     } catch (error) {
       setLastFailedMessage(trimmed);
       setNotice(error instanceof Error ? error.message : 'Erro na conversa.');
@@ -134,6 +142,8 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
         { role: 'assistant', content: 'Não consegui responder agora. Você pode tentar novamente sem perder a conversa.' }
       ]);
     } finally {
+      await refreshUsage();
+      operationBusy.current = false;
       setIsSending(false);
     }
   }
@@ -145,36 +155,37 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
   }
 
   async function formulateResponse() {
-    if (!activeTopic || isSending || isFormulating || isContextLocked) return;
+    if (!activeTopic || operationBusy.current || isContextLocked) return;
+    operationBusy.current = true;
 
     try {
       setIsFormulating(true);
       setNotice('');
       const suggestion = await formulateConversationResponse(activeTopic.id, messages, englishLevel);
       setInput(suggestion);
-      onProfileRefresh({ ...user, ai_uses_today: Number(user.ai_uses_today || 0) + 1 });
+
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não foi possível formular a resposta.');
     } finally {
+      await refreshUsage();
+      operationBusy.current = false;
       setIsFormulating(false);
     }
   }
 
   async function closeConversation() {
-    if (activeTopic && messages.filter((message) => message.role === 'user').length > 0) {
-      try {
-        const errors = await analyzeGrammar(activeTopic.id, messages);
-        setGrammarErrors(errors);
-        onProfileRefresh({ ...user, ai_uses_today: Number(user.ai_uses_today || 0) + 1 });
-      } catch {
-        setNotice('Não foi possível analisar e salvar os erros. Tente encerrar novamente.');
-        return;
+    if (operationBusy.current) return;
+    operationBusy.current = true; setIsAnalyzing(true);
+    try {
+      if (activeTopic && messages.some(message => message.role === 'user')) {
+        setGrammarErrors(await analyzeGrammar(activeTopic.id, messages));
       }
+      setActiveTopic(null); setMessages([]); setInput('');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Não foi possível analisar os erros. Tente novamente.');
+    } finally {
+      await refreshUsage(); operationBusy.current = false; setIsAnalyzing(false);
     }
-
-    setActiveTopic(null);
-    setMessages([]);
-    setInput('');
   }
 
   if (!activeTopic) {
@@ -187,7 +198,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
             Contextos e respostas ajustados para {englishLevel}. A IA conduz a conversa e pode analisar erros gramaticais ao final.
           </p>
           <div className={aiRemaining <= 3 ? 'ai-counter warning' : 'ai-counter'}>
-            {`${userPlan.toUpperCase()} · ${aiRemaining}/${aiLimit} usos de IA hoje`}
+            {quotaText}
           </div>
         </header>
 
@@ -227,11 +238,12 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
           <p className="kicker">{activeTopic.name}</p>
           <h1>{topicLabel(activeTopic)}</h1>
         </div>
-        <button className="secondary-button" type="button" onClick={closeConversation}>
+        <button className="secondary-button" type="button" disabled={isSending || isFormulating || isAnalyzing} onClick={closeConversation}>
           Fechar e analisar
         </button>
       </header>
 
+      <details><summary>Opções da conversa</summary><button type="button" className="secondary-button" disabled={isSending || isFormulating || isAnalyzing} onClick={() => { setActiveTopic(null); setMessages([]); setInput(''); setNotice('Conversa encerrada sem análise e sem gastar outro uso de IA.'); }}>Sair sem analisar</button></details>
       <div className="hint-strip">{hints[activeTopic.id]?.[messages.length % hints[activeTopic.id].length]}</div>
 
       {(notice || (lastFailedMessage && !isSending)) && (
@@ -254,6 +266,7 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
         {isSending && <article className="message assistant">Digitando...</article>}
       </div>
 
+      <p className="admin-note">{quotaText}. Cada envio, sugestão e análise consome 1 uso de IA. A análise considera suas últimas 10 mensagens.</p>
       <form className="conversation-form" onSubmit={handleSubmit}>
         <input
           className="field"
@@ -264,10 +277,10 @@ export function ConversationTab({ user, onProfileRefresh }: ConversationTabProps
           value={input}
           onChange={(event) => setInput(event.target.value)}
         />
-        <button className="primary-button" disabled={isSending || isContextLocked || !input.trim()} type="submit">
+        <button className="primary-button" disabled={isSending || isFormulating || isAnalyzing || isContextLocked || !input.trim()} type="submit">
           Enviar
         </button>
-        <button className="secondary-button" disabled={isSending || isFormulating || isContextLocked} type="button" onClick={formulateResponse}>
+        <button className="secondary-button" disabled={isSending || isFormulating || isAnalyzing || isContextLocked} type="button" onClick={formulateResponse}>
           {isFormulating ? 'Formulando...' : 'Formular resposta'}
         </button>
       </form>
