@@ -45,6 +45,7 @@ test('login endpoint returns stored profile arrays and shop bonuses', async () =
       name: 'Stored User',
       email: 'stored@example.com',
       password: hashedPassword,
+      email_verified: 1,
       level: 4,
       xp: 900,
       streak: 6,
@@ -170,7 +171,7 @@ test('login endpoint blocks password users that have not confirmed email', async
   }
 });
 
-test('email verification link verifies user and creates session cookie', async () => {
+test('email verification requires explicit activation and sets the inbox owner password without a session', async () => {
   const app = express();
   app.use(express.json());
   let verifiedUserId = null;
@@ -184,9 +185,12 @@ test('email verification link verifies user and creates session cookie', async (
       id: 'user-1',
       name: 'Verify User',
       email: 'verify@example.com',
+      email_verified: 0,
       email_verification_expires: Date.now() + 1000
     }) : null,
-    supabaseVerifyUserEmail: async (id) => {
+    supabaseVerifyUserEmail: async (id, token, password) => {
+      assert.equal(token, 'verify-token');
+      assert.ok(await bcrypt.compare('owner-secret123', password));
       verifiedUserId = id;
       return { data: { id }, error: null };
     },
@@ -198,13 +202,13 @@ test('email verification link verifies user and creates session cookie', async (
 
   const { server, baseUrl } = await startTestServer(app);
   try {
-    const response = await fetch(`${baseUrl}/api/auth/verify-email?token=verify-token`, {
-      redirect: 'manual'
+    const response = await fetch(`${baseUrl}/api/auth/verify-email`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: 'verify-token', newPassword: 'owner-secret123' })
     });
 
-    assert.equal(response.status, 302);
-    assert.equal(response.headers.get('location'), 'https://linguafire.test/?auth=email_verified&placement=1');
-    assert.match(response.headers.get('set-cookie') || '', /linguafire_token=/);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('set-cookie'), null);
     assert.equal(verifiedUserId, 'user-1');
     assert.deepEqual(welcomeEmail, { email: 'verify@example.com', name: 'Verify User' });
   } finally {

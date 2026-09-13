@@ -1,6 +1,7 @@
 import { ContentReview } from './ContentReview';
 import { contentKey, getCurations, isVerified, type CurationItem } from '../services/curation';
 import { recordLearning } from '../services/learning';
+import { loadYouTubeApi } from '../services/youtube-api';
 import { useActivityState } from '../hooks/activity-progress';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { findSong, getSongByKey, SONGS, SUGGESTIONS, type LyricLine, type Song } from '../data/music';
@@ -131,10 +132,14 @@ function formatMusicTime(value?: number) {
 
 function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { song: Song; onTimeChange: (seconds: number) => void; startSeconds: number; onVideoChange: (id: string) => void }) {
   const resumeAt = useRef(startSeconds);
+  resumeAt.current = startSeconds;
+  const frameHost = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerInstanceRef = useRef<{ destroy?: () => void } | null>(null);
   const [embedFailed, setEmbedFailed] = useState(false);
   const [embedLoaded, setEmbedLoaded] = useState(false);
+  const [timingUnavailable, setTimingUnavailable] = useState(false);
+  const [errorReason, setErrorReason] = useState('');
   const [embedHost, setEmbedHost] = useState<'youtube' | 'nocookie'>('youtube');
   const [reloadToken, setReloadToken] = useState(0);
   const candidateIds = useMemo(() => {
@@ -176,6 +181,7 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
     // Network/API failures do not mean the video itself is unavailable.
     if (['youtube_100', 'youtube_101', 'youtube_150'].includes(reason)) reportCurrentVideo('bad', reason);
     setEmbedLoaded(false);
+    setErrorReason(reason);
 
     if (candidateIndex + 1 < candidateIds.length) {
       setEmbedFailed(false);
@@ -197,6 +203,19 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
   useEffect(() => {
     let intervalId: number | undefined;
     let cancelled = false;
+    setTimingUnavailable(false);
+    // YT.Player.destroy removes its iframe. Keep that DOM outside React's
+    // children so retry, tab changes and StrictMode always get a fresh frame.
+    const frame = document.createElement('iframe');
+    frame.className = 'youtube-player';
+    frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    frame.allowFullscreen = true;
+    frame.referrerPolicy = 'strict-origin-when-cross-origin';
+    frame.title = `${song.title} - ${song.artist}`;
+    frame.src = embedUrl;
+    frame.onload = () => { if (!cancelled) setEmbedLoaded(true); };
+    frameHost.current?.replaceChildren(frame);
+    iframeRef.current = frame;
 
     function startPlayer() {
       if (cancelled || !iframeRef.current || !window.YT?.Player) return;
@@ -223,49 +242,23 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
       });
     }
 
-    if (window.YT?.Player) {
-      startPlayer();
-    } else {
-      const previousReady = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => {
-        previousReady?.();
-        startPlayer();
-      };
-
-      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
-        const script = document.createElement('script');
-        script.src = 'https://www.youtube.com/iframe_api';
-        script.async = true;
-        script.onerror = () => {
-          script.remove();
-          // The plain iframe remains usable when Safari or an in-app browser
-          // blocks the optional JavaScript API used to sync lyric timing.
-        };
-        document.body.appendChild(script);
-      }
-    }
+    void loadYouTubeApi().then(() => { if (!cancelled) startPlayer(); }).catch(() => {
+      if (!cancelled) { setTimingUnavailable(true); setEmbedLoaded(true); }
+    });
 
     return () => {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
       playerInstanceRef.current?.destroy?.();
       playerInstanceRef.current = null;
+      frame.remove();
+      iframeRef.current = null;
     };
   }, [currentVideoId, failCurrentVideo, onTimeChange, playerKey, reportCurrentVideo]);
 
-  return (
+  return (<>
     <section className={`video-frame music-embed${embedFailed ? ' has-video-error' : ''}`} aria-label={`Vídeo de ${song.title}`}>
-      <iframe
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowFullScreen
-        className="youtube-player"
-        key={playerKey}
-        onLoad={() => setEmbedLoaded(true)}
-        ref={iframeRef}
-        referrerPolicy="strict-origin-when-cross-origin"
-        src={embedUrl}
-        title={`${song.title} - ${song.artist}`}
-      />
+      <div className="youtube-frame-host" ref={frameHost} />
       {!embedLoaded && !embedFailed && (
         <div className="video-loading">
           <img src={thumbUrl} alt="" loading="lazy" />
@@ -277,8 +270,8 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
         <div className="video-fallback">
           <img src={thumbUrl} alt="" loading="lazy" />
           <div>
-            <strong>Não consegui carregar o player agora.</strong>
-            <span>Tente novamente. Se abriu pelo WhatsApp, tente abrir esta página no Safari ou Chrome.</span>
+            <strong>{['youtube_100', 'youtube_101', 'youtube_150'].includes(errorReason) ? 'Este vídeo não permite reprodução aqui.' : 'Não foi possível iniciar este vídeo.'}</strong>
+            <span>{errorReason === 'youtube_153' ? 'O YouTube não reconheceu a página. Tente novamente ou abra no navegador.' : 'Tente recarregar. Se o bloqueio continuar, abra no YouTube e acompanhe a letra aqui.'}</span>
             <button
               type="button"
               onClick={() => {
@@ -296,7 +289,8 @@ function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { son
         </div>
       )}
     </section>
-  );
+    {timingUnavailable && <p className="music-status" role="status">Toque no vídeo para reproduzir. O destaque automático da letra está indisponível neste navegador.</p>}
+  </>);
 }
 
 export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {

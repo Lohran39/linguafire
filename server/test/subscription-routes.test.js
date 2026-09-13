@@ -179,7 +179,7 @@ test('Stripe webhook activates subscription only with valid signature', async ()
     assert.equal(updates[0].id, 'user-1');
     assert.equal(updates[0].update.subscription_active, 1);
     assert.equal(updates[0].update.plan, 'max');
-    assert.equal(updates[0].update.ai_daily_limit, 1000);
+    assert.equal(updates[0].update.ai_daily_limit, 150);
     assert.equal(updates[0].update.stripe_customer_id, 'cus_123');
     assert.equal(updates[0].update.stripe_subscription_id, 'sub_123');
   } finally {
@@ -230,7 +230,7 @@ test('portal plan changes use the actual price, include usage, and prevent dupli
     assert.equal(response.headers.get('cache-control'), 'no-store');
     const state = await response.json();
     assert.equal(state.plan, 'max');
-    assert.equal(state.aiUsage.limit, 1000);
+    assert.equal(state.aiUsage.limit, 150);
     assert.equal(state.canSubscribe, false);
     assert.equal((await request('create', { plan: 'pro' })).status, 409);
   });
@@ -242,7 +242,7 @@ test('canceling renewal retains paid access until the Stripe period ends', async
     assert.equal(result.subscription.active, true);
     assert.equal(result.subscription.cancelAtPeriodEnd, true);
     assert.equal(result.subscription.expires, remote.items.data[0].current_period_end * 1000);
-    assert.equal(result.subscription.aiDailyLimit, 1000);
+    assert.equal(result.subscription.aiDailyLimit, 150);
   });
 });
 

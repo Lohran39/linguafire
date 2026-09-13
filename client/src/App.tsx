@@ -10,6 +10,8 @@ import {
   loginWithGoogle,
   logout,
   register,
+  resendVerification,
+  confirmEmail,
   requestPasswordReset,
   resetPassword,
   type UserProfile
@@ -24,7 +26,7 @@ const ShopTab = lazy(() => import('./components/ShopTab').then(module => ({ defa
 const PlacementTab = lazy(() => import('./components/PlacementTab').then(module => ({ default: module.PlacementTab })));
 const LessonTab = lazy(() => import('./components/LessonTab').then(module => ({ default: module.LessonTab })));
 
-type Screen = 'splash' | 'login' | 'register' | 'forgot' | 'reset' | 'app';
+type Screen = 'splash' | 'login' | 'register' | 'forgot' | 'reset' | 'verify' | 'app';
 type AppTab = 'home' | 'lessons' | 'music' | 'flashcard' | 'conversation' | 'natives' | 'shop' | 'placement' | 'profile' | 'admin';
 
 const highlights = [
@@ -36,12 +38,14 @@ const highlights = [
 
 function AuthForm({
   mode,
+  notice = '',
   onAuthenticated,
   onBack,
   onForgot,
   onSwitch
 }: {
   mode: 'login' | 'register';
+  notice?: string;
   onAuthenticated: (user: UserProfile, openPlacement?: boolean) => void;
   onBack: () => void;
   onForgot: () => void;
@@ -54,6 +58,26 @@ function AuthForm({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!cooldown) return;
+    const timer = window.setTimeout(() => setCooldown(value => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [cooldown]);
+
+  async function handleResend() {
+    if (!email.trim()) { setError('Digite seu e-mail para reenviar a confirmação.'); return; }
+    setError(''); setMessage(''); setIsSubmitting(true);
+    try {
+      const result = await resendVerification(email.trim());
+      setMessage(result.message); setCooldown(60);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível reenviar. Tente novamente.');
+    } finally { setIsSubmitting(false); }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -81,7 +105,7 @@ function AuthForm({
         : await register(name.trim(), email.trim(), password);
       if ('requiresEmailVerification' in user) {
         if (user.user && !user.requiresEmailVerification) onAuthenticated(user.user, true);
-        else setError(user.message);
+        else { setPending(true); setMessage(''); setPassword(''); setConfirmPassword(''); setCooldown(60); }
       } else onAuthenticated(user, false);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Erro ao autenticar.');
@@ -89,6 +113,24 @@ function AuthForm({
       setIsSubmitting(false);
     }
   }
+
+  if (pending) return (
+    <main className="auth-screen">
+      <section className="auth-panel confirmation-panel" aria-labelledby="confirmation-title">
+        <div className="brand-mark">LF</div>
+        <h1 id="confirmation-title">Confira seu e-mail</h1>
+        <p>Abra o link enviado para <strong style={{ overflowWrap: 'anywhere' }}>{email}</strong>. Ele vale por 24 horas.</p>
+        <p>Confira também o spam. Seu acesso será liberado depois da confirmação.</p>
+        {message && <p role="status">{message}</p>}
+        {error && <div className="form-error" role="alert">{error}</div>}
+        <button className="primary-button" disabled={isSubmitting || cooldown > 0} onClick={handleResend}>
+          {cooldown ? `Reenviar em ${cooldown}s` : 'Reenviar confirmação'}
+        </button>
+        <button className="secondary-button" onClick={() => { setPending(false); setMessage(''); onSwitch(); }}>Já confirmei, entrar</button>
+        <button className="text-button" onClick={() => { setPending(false); setMessage(''); }}>Corrigir e-mail</button>
+      </section>
+    </main>
+  );
 
   return (
     <main className="auth-screen">
@@ -137,7 +179,9 @@ function AuthForm({
           />
         )}
 
-        {error && <div className="form-error">{error}</div>}
+        {notice && <p className="auth-message" role="status">{notice}</p>}
+        {message && <p className="auth-message" role="status">{message}</p>}
+        {error && <div className="form-error" role="alert">{error}</div>}
 
         <button className="primary-button" type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Aguarde...' : isLogin ? 'Entrar' : 'Criar conta'}
@@ -147,6 +191,9 @@ function AuthForm({
             Esqueci minha senha
           </button>
         )}
+        {isLogin && <button className="text-button" type="button" disabled={isSubmitting || cooldown > 0} onClick={handleResend}>
+          {cooldown ? `Reenviar em ${cooldown}s` : 'Reenviar confirmação de e-mail'}
+        </button>}
         <button className="google-button" type="button" onClick={() => loginWithGoogle('login')}>
           <img src="/assets/google-g.svg" alt="" aria-hidden="true" />
           {isLogin ? 'Entrar com Google' : 'Criar conta com Google'}
@@ -227,7 +274,7 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
   );
 }
 
-function ResetPasswordForm({ token, onDone }: { token: string; onDone: () => void }) {
+function ResetPasswordForm({ token, onDone, verifying = false }: { token: string; onDone: () => void; verifying?: boolean }) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -254,7 +301,8 @@ function ResetPasswordForm({ token, onDone }: { token: string; onDone: () => voi
 
     try {
       setIsSubmitting(true);
-      await resetPassword(token, password);
+      if (verifying) await confirmEmail(token, password);
+      else await resetPassword(token, password);
       window.history.replaceState({}, '', '/');
       onDone();
     } catch (submitError) {
@@ -268,10 +316,10 @@ function ResetPasswordForm({ token, onDone }: { token: string; onDone: () => voi
     <main className="auth-screen">
       <div className="orb orb-one" />
       <div className="orb orb-two" />
-      <form className="auth-panel" aria-label="Nova senha" onSubmit={handleSubmit}>
+      <form className={verifying ? 'auth-panel confirmation-panel' : 'auth-panel'} aria-label="Nova senha" onSubmit={handleSubmit}>
         <div className="brand-mark">LF</div>
-        <h1>LinguaFire</h1>
-        <p>Nova senha</p>
+        <h1>{verifying ? 'Confirmar e-mail' : 'LinguaFire'}</h1>
+        <p>{verifying ? 'Confirme seu e-mail e defina sua senha de acesso. Pode usar a mesma do cadastro.' : 'Nova senha'}</p>
         <input
           className="field"
           type="password"
@@ -290,8 +338,9 @@ function ResetPasswordForm({ token, onDone }: { token: string; onDone: () => voi
         />
         {error && <div className="form-error">{error}</div>}
         <button className="primary-button" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Alterando...' : 'Alterar senha'}
+          {isSubmitting ? 'Aguarde...' : verifying ? 'Confirmar e-mail e senha' : 'Alterar senha'}
         </button>
+        {verifying && <button className="text-button" type="button" onClick={() => { window.history.replaceState({}, '', '/'); onDone(); }}>Voltar ao login ou reenviar link</button>}
       </form>
     </main>
   );
@@ -421,11 +470,26 @@ export function App() {
   const [authNotice, setAuthNotice] = useState('');
 
   useEffect(() => {
+    function openConfirmation() {
+      const token = new URLSearchParams(window.location.hash.slice(1)).get('confirm-email');
+      if (token) { setResetToken(token); setScreen('verify'); }
+    }
+    window.addEventListener('hashchange', openConfirmation);
+    return () => window.removeEventListener('hashchange', openConfirmation);
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
 
     async function boot() {
       try {
         const params = new URLSearchParams(window.location.search);
+        const confirmationToken = new URLSearchParams(window.location.hash.slice(1)).get('confirm-email');
+        if (confirmationToken) {
+          setResetToken(confirmationToken);
+          setScreen('verify');
+          return;
+        }
         const token = params.get('token') || '';
         const isResetRoute = window.location.pathname.replace(/\/+$/, '').endsWith('/reset-password');
         if (token && isResetRoute) {
@@ -435,7 +499,17 @@ export function App() {
         }
 
         const authError = params.get('error') || '';
-        if (authError === 'google_oauth_not_configured') {
+        const confirmationMessages: Record<string, string> = {
+          email_verification_invalid: 'Link inválido ou já utilizado. Entre ou solicite uma nova confirmação.',
+          email_verification_expired: 'O link expirou. Digite seu e-mail e solicite uma nova confirmação.',
+          email_verification_failed: 'Não foi possível confirmar. Tente entrar ou solicite um novo link.',
+          email_confirmation_required: 'Confirme seu e-mail antes de entrar. Se não criou esta conta, redefina sua senha também.'
+        };
+        if (confirmationMessages[authError] || params.get('auth') === 'email_verified') {
+          setAuthNotice(confirmationMessages[authError] || 'E-mail confirmado! Entre com sua senha para começar.');
+          setScreen('login');
+          window.history.replaceState({}, '', '/');
+        } else if (authError === 'google_oauth_not_configured') {
           setAuthNotice('Login com Google ainda nao esta configurado.');
           window.history.replaceState({}, '', '/');
         } else if (authError === 'auth_failed') {
@@ -525,10 +599,15 @@ export function App() {
     return <ResetPasswordForm token={resetToken} onDone={() => setScreen('login')} />;
   }
 
+  if (screen === 'verify') {
+    return <ResetPasswordForm verifying token={resetToken} onDone={() => { setAuthNotice('Entre com sua senha. Se o link expirou, solicite uma nova confirmação.'); setScreen('login'); }} />;
+  }
+
   if (screen === 'login') {
     return (
       <AuthForm
         mode="login"
+        notice={authNotice}
         onAuthenticated={handleAuthenticated}
         onBack={() => setScreen('splash')}
         onForgot={() => setScreen('forgot')}

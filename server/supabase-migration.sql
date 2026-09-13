@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   has_free_hint INTEGER DEFAULT 0,
   password_reset_token TEXT DEFAULT '',
   password_reset_expires BIGINT DEFAULT 0,
-  email_verified INTEGER DEFAULT 1,
+  email_verified INTEGER DEFAULT 0,
+  auth_version BIGINT NOT NULL DEFAULT 0,
   email_verified_at BIGINT DEFAULT 0,
   email_verification_token TEXT DEFAULT '',
   email_verification_expires BIGINT DEFAULT 0,
@@ -71,7 +72,8 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS streak_freeze_active INTEGER D
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS has_free_hint INTEGER DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_reset_token TEXT DEFAULT '';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_reset_expires BIGINT DEFAULT 0;
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verified INTEGER DEFAULT 1;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verified INTEGER DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS auth_version BIGINT NOT NULL DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verified_at BIGINT DEFAULT 0;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verification_token TEXT DEFAULT '';
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verification_expires BIGINT DEFAULT 0;

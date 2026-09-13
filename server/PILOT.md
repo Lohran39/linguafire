@@ -18,6 +18,7 @@ D0 é a primeira sessão (15–20 minutos). Acompanhe D1, D3 e D7; D7 significa 
 2. Abrir o site em uma conta de aluno comum e concluir uma lição; contas Admin não entram nas métricas de uso.
 3. Conferir o painel Admin → Retorno dos alunos e uso. Anotar a versão testada e as datas de início e fim.
 4. Fazer uma sessão interna para verificar login, Lições, Revisão e reprodução de um vídeo. Se o vídeo falhar, registrar como problema conhecido.
+5. Publicar a migração de confirmação de e-mail e testar o recebimento com o responsável. Não começar convites enquanto o cadastro estiver bloqueado ou o envio não tiver sido validado.
 
 ## Convite pronto para copiar
 
@@ -32,12 +33,14 @@ Diga: “Vou observar como você usa o site. Pense em voz alta. Se algo ficar co
 | Tarefa para ler ao aluno | O que observar |
 | --- | --- |
 | Entre na conta e encontre um conteúdo adequado para começar. | Encontra nivelamento ou sugestão? Entende o nível? |
+| Crie sua conta e confirme pelo e-mail recebido. | Encontra o e-mail, entende a definição da senha e consegue entrar? Testar em uma conta nova de cada participante. |
 | Faça uma lição curta e salve o resultado. | Encontra o exercício sem abrir todo o catálogo? Entende a correção e o salvamento? |
 | Saia de Lições durante outro exercício e volte para continuar. | Retoma sem reiniciar? “Continuar exercício” faz sentido? |
 | Encontre uma lição diferente e volte para estudar. | Descobre “Explorar outras lições”? O catálogo fecha ao escolher? |
 | Revise algumas palavras. | Tenta lembrar antes de revelar e entende a autoavaliação? |
 | Converse por três mensagens sobre uma situação familiar. | Sabe como começar e entende o retorno da IA? |
 | Escolha um vídeo em Nativos e tente estudar uma expressão. | O vídeo roda? Consegue localizar a prática e relacioná-la à frase indicada? |
+| Abra uma música, acompanhe a letra e pause apenas a legenda. | Vídeo toca no celular? A letra continua da frase pausada? Introdução precisa de ajuste? |
 
 Se houver tempo, peça que encontre “Como estudar aqui” e explique a diferença entre Prática livre e Desafio. Não exija compra de vidas; as tarefas principais usam prática livre. Se não houver cartões, não conte isso como falha do aluno: registre a condição encontrada.
 
@@ -75,7 +78,7 @@ Compare contagens absolutas junto das taxas. Uma amostra de 5–10 pessoas serve
 
 ## Revisão pedagógica
 
-A suíte contém 30 casos sintéticos: 20 nos cinco cenários e 10 para dialeto, ambiguidade, elipses, gírias e preservação de sentido, nos níveis A1, A2, B1 e C1. B2 e conversas com múltiplos turnos ainda precisam de cobertura específica. Rode a partir de `server`: `AI_EVAL_LIVE=1 npm run eval:ai`. A chave fica no ambiente ou no `.env`; nunca inclua credenciais no relatório. São até 30 casos, com possíveis requisições adicionais pelas tentativas do provedor.
+A suíte contém 36 casos sintéticos: 20 nos cinco cenários, 10 para dialeto, ambiguidade, elipses, gírias e preservação de sentido e 6 adicionais com B2/C2 e histórico de conversa. Rode a partir de `server`: `AI_EVAL_LIVE=1 npm run eval:ai`. A chave fica no ambiente ou no `.env`; nunca inclua credenciais no relatório. São até 36 casos, com possíveis requisições adicionais pelas tentativas do provedor.
 
 O resultado padrão fica em `/tmp/linguafire-ai-eval.json` (configure `AI_EVAL_REPORT` para outro caminho). `automaticPassed` representa apenas checagens heurísticas; `pedagogicalStatus: pending_review` exige leitura das respostas. `completed` conta respostas recebidas, `attempted` inclui erros do provedor e `notRun` conta os casos restantes. A primeira falha do provedor interrompe a rodada para evitar consumo inútil.
 

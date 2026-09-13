@@ -93,6 +93,22 @@ export async function register(name: string, email: string, password: string): P
   return data;
 }
 
+export async function resendVerification(email: string): Promise<{ message: string }> {
+  return parseJson<{ message: string }>(await fetch(`${API_BASE}/auth/resend-verification`, {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(20000),
+    body: JSON.stringify({ email })
+  }));
+}
+
+export async function confirmEmail(token: string, newPassword: string): Promise<{ message: string }> {
+  return parseJson<{ message: string }>(await fetch(`${API_BASE}/auth/verify-email`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(20000), body: JSON.stringify({ token, newPassword })
+  }));
+}
+
 export async function getSession(): Promise<{ userId: string; email: string } | null> {
   const response = await fetch(`${API_BASE}/auth/session`, { credentials: 'include' });
 

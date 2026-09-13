@@ -17,6 +17,7 @@ const { createMonitoringService } = require('./services/monitoring-service');
 const { createStripeService } = require('./services/stripe-service');
 const { createPushService } = require('./services/push-service');
 const { createRateLimiter } = require('./middleware/rate-limiter');
+const { isVerified, sessionIsCurrent } = require('./utils/auth-security');
 const { createRequestLogger } = require('./middleware/request-logger');
 const { logger } = require('./logger');
 
@@ -124,7 +125,7 @@ const {
   supabaseSyncSubscription,
   supabaseGetUserByEmail, supabaseGetUserById, supabaseFindUserByGoogleOrEmail, supabaseCreateUser, supabaseUpdateUser, supabaseCompareUpdateUser, supabaseRecordChallengeAnswer,
   supabaseUpdateGoogleLink, supabaseSetPasswordResetToken, supabaseGetUserByResetToken, supabaseResetPassword,
-  supabaseGetUserByEmailVerificationToken, supabaseSetEmailVerificationToken, supabaseVerifyUserEmail,
+  supabaseGetUserByEmailVerificationToken, supabaseSetEmailVerificationToken, supabaseVerifyUserEmail, supabaseRestoreEmailVerificationToken,
   supabaseGetPushSubscription, supabaseGetAllPushSubscriptions, supabaseSavePushSubscription, supabaseDeletePushSubscription,
   supabaseGetUserRewards, supabaseAwardReward,
   supabaseGetGrammarErrors, supabaseAddGrammarError,
@@ -215,7 +216,7 @@ app.use('/legacy', express.static(LEGACY_FRONTEND_DIR));
 app.use(express.static(ACTIVE_FRONTEND_DIR));
 app.use(express.static(LEGACY_FRONTEND_DIR, { index: false }));
 
-app.use(createRateLimiter());
+app.use(createRateLimiter({ redis: redisSessions?.client, requireRedis: IS_PRODUCTION }));
 
 // ============ AUTH UTILS ============
 const { getCookieToken, setAuthCookie, clearAuthCookie } = require('./utils/auth');
@@ -234,11 +235,11 @@ async function authenticateToken(req, res, next) {
   try {
     const user = require('jsonwebtoken').verify(token, JWT_SECRET);
     const storedUser = await supabaseGetUserById(user.id);
-    if (!storedUser) {
+    if (!storedUser || !sessionIsCurrent(user, storedUser)) {
       clearAuthCookie(res);
       return res.status(401).json({ error: 'Token inválido' });
     }
-    if (Number(storedUser.email_verified ?? 1) === 0) {
+    if (!isVerified(storedUser)) {
       clearAuthCookie(res);
       return res.status(403).json({ error: 'Confirme seu email antes de entrar.' });
     }
@@ -309,7 +310,7 @@ const { setupMiscRoutes } = require('./routes/misc-routes');
 setupAuthRoutes(app, {
   supabaseGetUserByEmail, supabaseGetUserById, supabaseCreateUser, supabaseGetUserByResetToken,
   supabaseSetPasswordResetToken, supabaseResetPassword,
-  supabaseGetUserByEmailVerificationToken, supabaseSetEmailVerificationToken, supabaseVerifyUserEmail,
+  supabaseGetUserByEmailVerificationToken, supabaseSetEmailVerificationToken, supabaseVerifyUserEmail, supabaseRestoreEmailVerificationToken,
   JWT_SECRET, BASE_URL, IS_PRODUCTION,
   sendPasswordResetEmail, sendEmailVerificationEmail, sendWelcomeEmail, isPasswordResetEmailConfigured,
   isTransactionalEmailConfigured, logger, supabase, parseJsonField

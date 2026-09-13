@@ -37,3 +37,15 @@ Isso permite compensar manualmente cenas sem canto durante a reprodução. Como 
 Validação: build aprovado e teste `server/test/e2e/lyrics-sync.test.js` aprovado com player simulado, cobrindo início, ajuste fino, restauração, persistência entre dispositivos, isolamento por vídeo e larguras de 320, 390 e 768 px. Captura móvel revisada. A publicação permanece pendente do envio ao Git.
 
 O teste também cobre congelar a frase enquanto o relógio do vídeo avança, retomar da mesma frase, avançar ao próximo verso depois da retomada e limpar a pausa ao restaurar ou trocar de música. Build e teste de navegador aprovados após adicionar a pausa.
+
+## Recuperação do player — 13/09/2026
+
+O iframe agora é criado em um contêiner controlado pelo ciclo de vida do player. A API do YouTube remove seu iframe em `destroy()`; o React não deve tentar reutilizar esse mesmo nó ao recarregar ou trocar de aba. Cada tentativa recebe um iframe novo. O carregador da API é compartilhado, limpa callbacks e tem prazo de 12 segundos. Se a API de sincronismo for bloqueada, o iframe comum continua disponível para toque e reprodução; a tela avisa que o destaque automático está indisponível.
+
+Erros de incorporação e identificação da página têm mensagens diferentes; somente erros que indicam vídeo indisponível/bloqueado são enviados como falha do conteúdo. O botão de recarregar mantém a alternativa de host já existente.
+
+Fonte técnica: https://developers.google.com/youtube/iframe_api_reference (ciclo de vida e códigos de erro). Isso não remove restrições de reprodução impostas pelo YouTube ou pelo dono do vídeo.
+
+Validação: build aprovado; testes de navegador `lyrics-sync`, `full-music-lyrics` e `video-recovery` aprovados. O último simula a remoção real do iframe por `destroy()`, uma falha 153, recarga e toque no iframe quando a API está bloqueada. A simulação usa navegador com viewport móvel; não equivale a reprodução de vídeos reais no Safari de um iPhone.
+
+Consulta ao site publicado em 13/09/2026: Stay retornou 44 linhas LRC, Shape of You 93 e No Pole 57, todas com sucesso. Nenhuma letra foi copiada para o repositório. A nova correção do ciclo de vida ainda aguarda publicação.

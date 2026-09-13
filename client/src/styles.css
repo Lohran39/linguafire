@@ -373,6 +373,27 @@ h1 {
   white-space: nowrap;
 }
 
+.auth-panel.confirmation-panel h1 {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  margin: 0 0 1rem;
+}
+
+.auth-panel.confirmation-panel p,
+.auth-panel p.auth-message {
+  font-size: .95rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.5;
+}
+
 .kicker,
 .auth-panel p {
   margin-top: 0;

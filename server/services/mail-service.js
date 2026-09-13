@@ -100,6 +100,7 @@ function createEmailVerificationMessage(to, verifyUrl, name = '') {
       '',
       'Para ativar sua conta no LinguaFire, confirme que este email é seu.',
       `Confirme acessando este link: ${verifyUrl}`,
+      'O link vale por 24 horas. Na página, defina sua senha para concluir a confirmação.',
       '',
       'Se você não criou uma conta, ignore este email.'
     ].join('\n'),
@@ -108,6 +109,7 @@ function createEmailVerificationMessage(to, verifyUrl, name = '') {
         <h2>Confirme seu email no LinguaFire</h2>
         <p>Olá, ${safeHtmlName}.</p>
         <p>Para ativar sua conta, confirme que este email é seu.</p>
+        <p>O link vale por 24 horas. Na página, defina sua senha para concluir a confirmação.</p>
         <p><a href="${verifyUrl}" style="display:inline-block;padding:12px 18px;background:#ff6a00;color:#fff;text-decoration:none;border-radius:10px;font-weight:700">Confirmar email</a></p>
         <p>Se você não criou uma conta, ignore este email.</p>
       </div>

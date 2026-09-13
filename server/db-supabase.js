@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const { hashToken } = require('./utils/auth-security');
 
 const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
 const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
@@ -85,9 +86,9 @@ async function supabaseCreateUser(userData) {
       has_free_hint: userData.has_free_hint ?? 0,
       password_reset_token: userData.password_reset_token ?? '',
       password_reset_expires: userData.password_reset_expires ?? 0,
-      email_verified: userData.email_verified ?? 1,
+      email_verified: userData.email_verified ?? 0,
       email_verified_at: userData.email_verified_at ?? 0,
-      email_verification_token: userData.email_verification_token ?? '',
+      email_verification_token: userData.email_verification_token ? hashToken(userData.email_verification_token) : '',
       email_verification_expires: userData.email_verification_expires ?? 0
     }])
     .select()
@@ -108,7 +109,7 @@ async function supabaseUpdateGoogleLink(id, googleId) {
 
 async function supabaseSetPasswordResetToken(id, token, expiresAt) {
   return supabaseUpdateUser(id, {
-    password_reset_token: token,
+    password_reset_token: hashToken(token),
     password_reset_expires: expiresAt
   });
 }
@@ -117,26 +118,29 @@ async function supabaseGetUserByResetToken(token) {
   const { data, error } = await supabase
     .from('users')
     .select('*')
-    .eq('password_reset_token', token)
+    .eq('password_reset_token', hashToken(token))
     .limit(1)
     .maybeSingle();
   if (error) return null;
   return data || null;
 }
 
-async function supabaseResetPassword(id, hashedPassword) {
-  return supabaseUpdateUser(id, {
+async function supabaseResetPassword(id, hashedPassword, token) {
+  const { data, error } = await supabase.from('users').update({
     password: hashedPassword,
+    auth_version: Date.now(),
     password_reset_token: '',
     password_reset_expires: 0
-  });
+  }).eq('id', id).eq('password_reset_token', hashToken(token))
+    .gt('password_reset_expires', Date.now()).select('id').maybeSingle();
+  return { data, error: error?.message || (!data ? 'Token inválido ou expirado' : null) };
 }
 
 async function supabaseGetUserByEmailVerificationToken(token) {
   const { data, error } = await supabase
     .from('users')
     .select('*')
-    .eq('email_verification_token', token)
+    .eq('email_verification_token', hashToken(token))
     .limit(1)
     .maybeSingle();
   if (error) return null;
@@ -144,21 +148,34 @@ async function supabaseGetUserByEmailVerificationToken(token) {
 }
 
 async function supabaseSetEmailVerificationToken(id, token, expiresAt) {
-  return supabaseUpdateUser(id, {
-    email_verified: 0,
-    email_verified_at: 0,
-    email_verification_token: token,
+  const { data, error } = await supabase.from('users').update({
+    email_verification_token: hashToken(token),
     email_verification_expires: expiresAt
-  });
+  }).eq('id', id).eq('email_verified', 0).select('id').maybeSingle();
+  return { data, error: error?.message || (!data ? 'Conta não está pendente' : null) };
 }
 
-async function supabaseVerifyUserEmail(id) {
-  return supabaseUpdateUser(id, {
+async function supabaseRestoreEmailVerificationToken(id, failedToken, previous) {
+  return supabase.from('users').update({
+    email_verification_token: previous.email_verification_token || '',
+    email_verification_expires: previous.email_verification_expires || 0
+  }).eq('id', id).eq('email_verified', 0).eq('email_verification_token', hashToken(failedToken));
+}
+
+async function supabaseVerifyUserEmail(id, token, password) {
+  const { data, error } = await supabase.from('users').update({
     email_verified: 1,
+    password,
+    auth_version: Date.now(),
+    password_reset_token: '',
+    password_reset_expires: 0,
     email_verified_at: Date.now(),
     email_verification_token: '',
     email_verification_expires: 0
-  });
+  }).eq('id', id).eq('email_verified', 0)
+    .eq('email_verification_token', hashToken(token))
+    .gt('email_verification_expires', Date.now()).select('id').maybeSingle();
+  return { data, error: error?.message || (!data ? 'Token inválido ou expirado' : null) };
 }
 
 async function supabaseUpdateUser(id, updates) {
@@ -537,6 +554,7 @@ module.exports = {
   supabaseResetPassword,
   supabaseGetUserByEmailVerificationToken,
   supabaseSetEmailVerificationToken,
+  supabaseRestoreEmailVerificationToken,
   supabaseVerifyUserEmail,
   supabaseUpdateUserXP,
   supabaseGetDailyProgress,

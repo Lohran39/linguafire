@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { isVerified, sessionIsCurrent, sessionClaims } = require('../utils/auth-security');
 
 function isGoogleOAuthConfigured(env = process.env) {
   const clientId = env.GOOGLE_CLIENT_ID;
@@ -70,8 +72,10 @@ function setupGoogleAuthRoutes(app, deps = {}) {
       clientSecret: env.GOOGLE_CLIENT_SECRET,
       callbackURL: `${baseUrl}/auth/google/callback`
     }, (_req, _accessToken, _refreshToken, profile, done) => {
+      const email = profile.emails?.find((entry) => entry.verified === true);
+      if (!email) return done(null, false);
       done(null, {
-        email: profile.emails[0].value,
+        email: email.value,
         name: profile.displayName,
         googleId: profile.id
       });
@@ -82,7 +86,8 @@ function setupGoogleAuthRoutes(app, deps = {}) {
     if (!configured()) return res.redirect('/?error=google_oauth_not_configured');
 
     const mode = req.query.mode === 'link' ? 'link' : 'login';
-    const state = encodeOAuthState({ mode });
+    const state = encodeOAuthState({ mode, nonce: crypto.randomBytes(32).toString('hex') });
+    req.session.googleOAuthState = { value: state, expires: Date.now() + 10 * 60000 };
     return passport.authenticate('google', {
       scope: ['profile', 'email'],
       prompt: 'select_account',
@@ -92,6 +97,11 @@ function setupGoogleAuthRoutes(app, deps = {}) {
 
   app.get('/auth/google/callback', (req, res, next) => {
     if (!configured()) return res.redirect('/?error=google_oauth_not_configured');
+    const expected = req.session?.googleOAuthState;
+    if (!expected || expected.expires < Date.now() || expected.value !== req.query.state) {
+      return redirectWithBaseUrl(res, baseUrl, { error: 'auth_failed' });
+    }
+    delete req.session.googleOAuthState;
     return next();
   }, passport.authenticate('google', { failureRedirect: '/?error=auth_failed' }), async (req, res) => {
     const googleUser = req.user;
@@ -111,7 +121,7 @@ function setupGoogleAuthRoutes(app, deps = {}) {
         if (!authUser) return redirectWithBaseUrl(res, baseUrl, { error: 'google_link_failed' });
 
         const currentUser = await supabaseGetUserById(authUser.id);
-        if (!currentUser) return redirectWithBaseUrl(res, baseUrl, { error: 'google_link_failed' });
+        if (!isVerified(currentUser) || !sessionIsCurrent(authUser, currentUser)) return redirectWithBaseUrl(res, baseUrl, { error: 'google_link_failed' });
 
         const existingGoogleUser = await supabaseFindUserByGoogleOrEmail(googleUser.googleId, googleUser.email);
         if (existingGoogleUser && existingGoogleUser.id !== currentUser.id) {
@@ -124,6 +134,9 @@ function setupGoogleAuthRoutes(app, deps = {}) {
 
       let isNewUser = false;
       let user = await supabaseFindUserByGoogleOrEmail(googleUser.googleId, googleUser.email);
+      if (user && !isVerified(user)) {
+        return redirectWithBaseUrl(res, baseUrl, { error: 'email_confirmation_required' });
+      }
       if (!user) {
         user = await supabaseCreateUser({
           name: googleUser.name,
@@ -148,7 +161,7 @@ function setupGoogleAuthRoutes(app, deps = {}) {
         await supabaseUpdateGoogleLink(user.id, googleUser.googleId);
       }
 
-      const token = jwt.sign({ id: user.id, email: user.email }, jwtSecret, { expiresIn: '7d' });
+      const token = jwt.sign(sessionClaims(user), jwtSecret, { expiresIn: '7d' });
       setAuthCookie(res, token);
       return redirectWithBaseUrl(res, baseUrl, {
         auth: 'success',

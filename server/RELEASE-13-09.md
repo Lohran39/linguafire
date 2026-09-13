@@ -1,0 +1,50 @@
+# Segurança, músicas, IA e piloto — estado da entrega
+
+## Estado confirmado
+
+- Código local: `/tmp/linguafire-video-fix`.
+- Produção e GitHub observados em `3b61cd1`. As mudanças desta entrega ainda não foram enviadas.
+- Migração de autenticação testada em PostgreSQL temporário; não executada no Supabase de produção.
+- `/health` respondeu 200 e informou Gemini; isso não comprova a validade da chave nem a qualidade das respostas.
+- Letras públicas de Stay, Shape of You e No Pole disponíveis (44, 93 e 57 linhas LRC). Player atualizado e aprovado em testes simulados, ainda sem validação em um iPhone real.
+- Avaliação da IA: 36 casos preparados, zero respostas reais recebidas. O relatório em `/tmp/linguafire-ai-eval.json` marca `configuration_blocked`. `GEMINI_API_KEY` permanecia vazia na última conferência local. Não considerar o modelo aprovado.
+- Piloto: roteiro e fichas atualizados; nenhum participante testado e nenhum convite enviado pelo assistente. O responsável convidará os alunos e trará as respostas.
+
+## Publicação pendente
+
+A ferramenta recusou a operação no editor Supabase porque a revisão automática atingiu seu limite de uso. O editor está aberto no projeto `fmupujojknrsdjhgpkmy`; o aviso introdutório pode precisar ser fechado. Nenhum SQL foi executado pelo assistente nesta sessão.
+
+1. Em uma janela de manutenção do cadastro, executar `migrations/20260913-auth-hardening.sql` no SQL Editor. A primeira execução invalida links de confirmação/recuperação antigos; contas confirmadas permanecem ativas.
+2. Publicar em seguida, a partir do código local revisado:
+
+```bash
+cd /tmp/linguafire-video-fix
+git diff --check
+git add client/src server
+git diff --cached --stat
+git commit -m "Harden signup and improve music player recovery"
+git push origin main
+```
+
+Não incluir arquivos `.env` no commit. O Render observado usa auto-deploy de `main`. Esperar o novo commit ficar Live; conferir `/readyz` e fazer um cadastro de teste. Não alterar a senha de uma conta real existente para simular um aluno novo.
+
+3. Testar entrega do e-mail com o responsável, confirmação, login, link já utilizado, reenvio e recuperação. O endereço foi fornecido na conversa e não é replicado neste documento.
+
+## Avaliação real da IA
+
+Preencher `GEMINI_API_KEY` em `/tmp/linguafire-video-fix/server/.env` ou no ambiente do processo. O campo deve ter valor; não basta estar presente no arquivo. Nunca enviar a chave em mensagens ou relatórios.
+
+```bash
+cd /tmp/linguafire-video-fix/server
+AI_EVAL_LIVE=1 npm run eval:ai
+```
+
+São 36 entradas sintéticas, incluindo histórico, B2/C2, gírias e desvio de contexto. O primeiro erro do provedor interrompe a execução. Depois da rodada, revisar as respostas e preencher os cinco critérios pedagógicos: correção necessária, significado preservado, explicação correta, adequação ao nível e naturalidade. Aprovação automática sozinha não libera o modelo.
+
+## Piloto
+
+Depois de validar o cadastro publicado, usar `PILOT-COMECE-AQUI.md`, `PILOT.md` e `PILOT-RESPOSTAS.md`. Iniciar com 5 alunos; D0 é a data real da primeira sessão de cada um. Medir D1 e D7 somente depois de esses dias ocorrerem. Não preencher retornos por estimativa.
+
+## Verificações concluídas
+
+Build aprovado; sintaxe de 86 arquivos sem falhas; 12 testes do cliente; 9 testes locais de avaliação/armazenamento de tokens/Google; três testes Playwright de músicas (letras completas, sincronismo e recuperação). A suíte geral de autenticação da entrega anterior passou, com teste móvel separado. Após as últimas mudanças, a tentativa de repetir a suíte geral com servidor local foi bloqueada junto das operações que exigem revisão automática; não é registrada como uma nova aprovação.

@@ -14,12 +14,19 @@ Nenhum resultado foi coletado ainda. Use P01, P02 etc.; não inclua nomes, e-mai
 | Tarefa | Resultado: sem ajuda / com ajuda / não concluiu / não tentou | Tempo aproximado | Dificuldade observada ou ajuda fornecida |
 | --- | --- | --- | --- |
 | Entrar e escolher por onde começar | | | |
+| Criar conta, receber e-mail e confirmar o acesso | | | |
 | Concluir e salvar uma lição | | | |
 | Sair e retomar um exercício | | | |
 | Encontrar outra lição no catálogo | | | |
 | Revisar palavras | | | |
 | Trocar três mensagens em Conversar | | | |
 | Assistir e praticar em Nativos | | | |
+| Reproduzir música e pausar/retomar a legenda | | | |
+
+- Entrega do e-mail: caixa principal / spam / não chegou; espera aproximada:
+- Música testada e ID/link do vídeo (sem copiar a letra):
+- Vídeo: tocou / bloqueado / travou; abriu no Safari, Chrome ou navegador do WhatsApp:
+- Letra: completa / trecho / indisponível; ajuste usado na introdução:
 
 - Exemplo do que aprendeu ou praticou:
 - O que ficou confuso:

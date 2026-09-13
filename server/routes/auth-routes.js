@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { isVerified, sessionIsCurrent, sessionClaims } = require('../utils/auth-security');
 const { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, forgotPasswordSchema, validateBody } = require('../validation');
 const { getCookieToken, setAuthCookie, clearAuthCookie } = require('../utils/auth');
 const { verifyEmailCanReceiveMail: defaultVerifyEmailCanReceiveMail } = require('../utils/email-verifier');
@@ -18,6 +19,7 @@ function setupAuthRoutes(app, deps = {}) {
     supabaseResetPassword = async () => ({ error: 'not configured' }),
     supabaseGetUserByEmailVerificationToken = async () => null,
     supabaseSetEmailVerificationToken = async () => ({ error: 'not configured' }),
+    supabaseRestoreEmailVerificationToken = async () => ({ error: 'not configured' }),
     supabaseVerifyUserEmail = async () => ({ error: 'not configured' }),
     JWT_SECRET = 'dev-secret',
     BASE_URL = 'http://localhost:3000',
@@ -77,7 +79,13 @@ function setupAuthRoutes(app, deps = {}) {
     }
 
     if (isTransactionalEmailConfigured()) {
-      await sendEmailVerificationEmail(user.email, verifyUrl, user.name);
+      try {
+        await sendEmailVerificationEmail(user.email, verifyUrl, user.name);
+      } catch (error) {
+        const restored = await supabaseRestoreEmailVerificationToken(user.id, verificationToken, user);
+        if (restored.error) logger.error?.('Failed to restore previous verification link');
+        throw error;
+      }
     }
 
     return verifyUrl;
@@ -118,7 +126,7 @@ function setupAuthRoutes(app, deps = {}) {
 
       const existingUser = await supabaseGetUserByEmail(email);
       if (existingUser) {
-        if (Number(existingUser.email_verified ?? 1) === 0) {
+        if (!isVerified(existingUser)) {
           try {
             const verificationUrl = await sendVerificationForUser(existingUser);
             return res.json(emailVerificationResponse(verificationUrl));
@@ -191,11 +199,11 @@ function setupAuthRoutes(app, deps = {}) {
         return res.status(401).json({ error: 'Email ou senha incorretos' });
       }
 
-      if (Number(user.email_verified ?? 1) === 0) {
+      if (!isVerified(user)) {
         return res.status(403).json({ error: 'Confirme seu email antes de entrar.' });
       }
 
-      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+      const token = jwt.sign(sessionClaims(user), JWT_SECRET, { expiresIn: '7d' });
       setAuthCookie(res, token);
 
       res.json({
@@ -209,23 +217,31 @@ function setupAuthRoutes(app, deps = {}) {
 
   app.get('/api/auth/verify-email', async (req, res) => {
     const token = String(req.query.token || '');
-    if (!token) return res.redirect(`${BASE_URL}/?error=email_verification_invalid`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    if (!/^[a-f0-9]{64}$/.test(token)) return res.redirect(`${BASE_URL}/?error=email_verification_invalid`);
+    // Mail scanners may open GET links. Activation requires an explicit action.
+    return res.redirect(`${BASE_URL}/#confirm-email=${token}`);
+  });
+
+  app.post('/api/auth/verify-email', validateBody(resetPasswordSchema), async (req, res) => {
+    const { token, newPassword } = req.validatedBody;
 
     try {
       const user = await supabaseGetUserByEmailVerificationToken(token);
-      if (!user) return res.redirect(`${BASE_URL}/?error=email_verification_invalid`);
+      if (!user || isVerified(user)) return res.status(400).json({ error: 'Link inválido ou já utilizado. Solicite uma nova confirmação.' });
       if (Number(user.email_verification_expires || 0) < Date.now()) {
-        return res.redirect(`${BASE_URL}/?error=email_verification_expired`);
+        return res.status(400).json({ error: 'O link expirou. Solicite uma nova confirmação.' });
       }
 
-      const result = await supabaseVerifyUserEmail(user.id);
+      // The inbox owner chooses the final password, replacing any password
+      // someone else might have supplied when registering their address.
+      const password = await bcrypt.hash(newPassword, 10);
+      const result = await supabaseVerifyUserEmail(user.id, token, password);
       if (result.error) {
         logger.error?.('Failed to verify email', { error: result.error });
-        return res.redirect(`${BASE_URL}/?error=email_verification_failed`);
+        return res.status(400).json({ error: 'Não foi possível confirmar. Solicite um novo link.' });
       }
-
-      const authToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-      setAuthCookie(res, authToken);
 
       if (isTransactionalEmailConfigured()) {
         sendWelcomeEmail(user.email, user.name).catch((emailErr) => {
@@ -233,10 +249,10 @@ function setupAuthRoutes(app, deps = {}) {
         });
       }
 
-      return res.redirect(`${BASE_URL}/?auth=email_verified&placement=1`);
+      return res.json({ success: true, message: 'E-mail confirmado! Entre com sua senha.' });
     } catch (error) {
       logger.error?.('Unexpected email verification error', { error: error.message });
-      return res.redirect(`${BASE_URL}/?error=email_verification_failed`);
+      return res.status(500).json({ error: 'Não foi possível confirmar. Tente novamente.' });
     }
   });
 
@@ -245,7 +261,7 @@ function setupAuthRoutes(app, deps = {}) {
 
     try {
       const user = await supabaseGetUserByEmail(email);
-      if (!user || Number(user.email_verified ?? 1) !== 0) {
+      if (!user || isVerified(user)) {
         return res.json({ success: true, message: 'Se a conta estiver pendente, enviaremos um novo link de confirmação.' });
       }
 
@@ -327,7 +343,7 @@ function setupAuthRoutes(app, deps = {}) {
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
-      const result = await supabaseResetPassword(user.id, hashedPassword);
+      const result = await supabaseResetPassword(user.id, hashedPassword, token);
       if (result.error) {
         return res.status(500).json({ error: 'Erro ao redefinir senha' });
       }
@@ -348,11 +364,11 @@ function setupAuthRoutes(app, deps = {}) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       const user = await supabaseGetUserById(decoded.id);
-      if (!user) {
+      if (!user || !sessionIsCurrent(decoded, user)) {
         clearAuthCookie(res);
         return res.status(401).json({ error: 'Não autenticado' });
       }
-      if (Number(user.email_verified ?? 1) === 0) {
+      if (!isVerified(user)) {
         clearAuthCookie(res);
         return res.status(403).json({ error: 'Confirme seu email antes de entrar.' });
       }
@@ -382,7 +398,7 @@ function setupAuthRoutes(app, deps = {}) {
       const decoded = jwt.verify(token, JWT_SECRET);
       const { data, error } = await deps.supabase
         .from('users')
-        .select('password,email_verified')
+        .select('password,email_verified,auth_version')
         .eq('id', decoded.id)
         .single();
 
@@ -390,7 +406,7 @@ function setupAuthRoutes(app, deps = {}) {
         return res.status(500).json({ error: 'Erro interno do servidor' });
       }
 
-      if (Number(data.email_verified ?? 1) === 0) {
+      if (!isVerified(data) || !sessionIsCurrent(decoded, data)) {
         clearAuthCookie(res);
         return res.status(403).json({ error: 'Confirme seu email antes de entrar.' });
       }
@@ -401,10 +417,13 @@ function setupAuthRoutes(app, deps = {}) {
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
-      await deps.supabase
+      const authVersion = Date.now();
+      const { error: updateError, data: updated } = await deps.supabase
         .from('users')
-        .update({ password: hashedPassword })
-        .eq('id', decoded.id);
+        .update({ password: hashedPassword, auth_version: authVersion })
+        .eq('id', decoded.id).eq('password', data.password).select('id').maybeSingle();
+      if (updateError || !updated) return res.status(409).json({ error: 'Não foi possível alterar a senha. Tente novamente.' });
+      setAuthCookie(res, jwt.sign(sessionClaims({ ...decoded, auth_version: authVersion }), JWT_SECRET, { expiresIn: '7d' }));
 
       res.json({ success: true, message: 'Senha alterada com sucesso' });
     } catch (error) {
