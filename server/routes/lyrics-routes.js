@@ -769,6 +769,21 @@ function normalizeLyricsResult(candidate, expectedTrack, expectedArtist) {
 }
 
 async function findReliableLyrics(trackName, artistName) {
+  // Video uploads may use "Track - Artist | Clean Version", including saved drafts.
+  // Confirm BOTH fields with the provider before accepting the reversed identity.
+  const cleanUploadLabel = value => String(value || '').replace(/\s*[|]\s*clean(?:\s+version)?\s*$/i, '').trim();
+  const directTrack = cleanUploadLabel(trackName), directArtist = cleanUploadLabel(artistName);
+  const exactCandidates = [{ track: directTrack, artist: directArtist }, { track: directArtist, artist: directTrack }];
+  for (const candidate of exactCandidates) {
+    if (!candidate.track || !candidate.artist) continue;
+    const url = `https://lrclib.net/api/get?${new URLSearchParams({ track_name: candidate.track, artist_name: candidate.artist })}`;
+    const result = await fetchJsonWithTimeout(url);
+    if (result.response.ok) {
+      const match = getLyricsMatchDetails(result.data, candidate.track, candidate.artist);
+      const normalized = normalizeLyricsResult(result.data, candidate.track, candidate.artist);
+      if (normalized && match.exactTrack && match.exactArtist) return { ...normalized, searchedVariant: candidate };
+    }
+  }
   const candidates = buildLyricsLookupCandidates(trackName, artistName);
   if (!candidates.length) return null;
 
@@ -1343,6 +1358,7 @@ function registerLyricsRoutes(app, deps = {}) {
 
 module.exports = {
   registerLyricsRoutes,
+  findReliableLyrics,
   LYRICS_APPROVED_CACHE_SOURCE,
   LYRICS_CACHE_VERSION,
   LYRICS_PROVIDER_CACHE_SOURCE,

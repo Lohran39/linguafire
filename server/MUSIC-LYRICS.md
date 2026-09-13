@@ -17,3 +17,9 @@ A busca pública por `don toliver no pole` retornou um ID salvo com miniatura e 
 Validação: 133 testes do servidor aprovados, 1 ignorado; 70 arquivos com sintaxe válida. Regressões cobrem cache com vídeo longo, títulos de compilação e fallback para áudio oficial. A regra usa metadados, não análise do áudio; sem duração de referência, só os filtros de metadados se aplicam. A reprodução integral de No Pole após o deploy ainda precisa ser conferida.
 
 Não requer SQL nem apagar caches: vídeos anteriormente salvos são revalidados quando encontrados pela busca atualizada.
+
+## No Pole: título e artista invertidos (13/09/2026)
+
+A busca também retorna `No Pole - Don Toliver | Clean Version`. Esse formato era interpretado como artista `No Pole` e faixa `Don Toliver | Clean Version`. A consulta agora testa a identidade direta e invertida, removendo apenas o sufixo de apresentação `| Clean Version`, e exige correspondência exata de faixa e artista no provedor para essa recuperação. Funciona também com os campos invertidos de rascunhos salvos. Remix/live continuam sujeitos às verificações existentes.
+
+Validação: 19 testes de letras aprovados, incluindo a rota com metadados invertidos, rascunho sem título de vídeo e rejeição de outro artista. Consulta real ao LRCLIB confirmou `No Pole` / `Don Toliver`, com sincronismo e 57 linhas LRC. Nenhuma letra foi incorporada ao repositório. Não exige migração SQL; publicar o servidor atualizado.
