@@ -170,6 +170,24 @@ test('activities resume across isolated devices; mobile navigation and keyboard 
     await input.fill('Versão desatualizada');
     await desktop.getByText('Outra sessão alterou esta atividade.', { exact: false }).waitFor();
     assert.equal(entries.conversation.state.input, 'Rascunho offline');
+    assert.ok(await desktop.locator('.conversation-room').isVisible());
+    assert.equal(await input.inputValue(), 'Versão desatualizada');
+    await desktop.reload();
+    await desktop.getByText('Há alterações locais e uma versão diferente na conta.', { exact: false }).waitFor();
+    await desktop.locator('.conversation-room').waitFor();
+    assert.ok(await desktop.locator('.conversation-room').isVisible());
+    assert.equal(await desktop.locator('.conversation-room input, .conversation-room textarea').first().inputValue(), 'Versão desatualizada');
+    assert.equal(entries.conversation.state.input, 'Rascunho offline');
+
+    // A stale navigation revision alone must recover automatically.
+    await phone.evaluate(() => localStorage.removeItem('linguafire-drafts-v1:resume-user'));
+    await phone.reload();
+    await phone.getByRole('button', { name: 'Perfil', exact: true }).waitFor();
+    entries.navigation = { ...entries.navigation, revision: entries.navigation.revision + 1 };
+    await phone.getByRole('button', { name: 'Perfil', exact: true }).click();
+    await synced(phone);
+    await phone.getByRole('region', { name: 'Perfil', exact: true }).waitFor();
+    assert.equal(await phone.getByText('Outra sessão alterou esta atividade.', { exact: false }).count(), 0);
   } finally {
     await browser.close();
     await new Promise(resolve => server.close(resolve));

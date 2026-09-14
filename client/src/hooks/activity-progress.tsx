@@ -46,6 +46,16 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
           signal: AbortSignal.timeout(12000)
         });
         if (response.status === 409) {
+          // Navigation is a preference, not an exercise answer. Rebase only this
+          // entry so switching tabs on another device never blocks study drafts.
+          if (activity === 'navigation') {
+            const latest = await fetch('/api/activities', { credentials: 'include', signal: AbortSignal.timeout(12000) });
+            if (!latest.ok) throw new Error('Não foi possível sincronizar a navegação. Tente novamente.');
+            const result = await latest.json() as { activities: Entry[] };
+            entry.revision = result.activities.find(item => item.activity === activity)?.revision || 0;
+            cache();
+            continue;
+          }
           blocked.current = true;
           if (mounted.current) setConflict(true);
           throw new Error('Outra sessão alterou esta atividade. Recarregue a versão da conta para continuar.');
@@ -71,7 +81,7 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
   store.change = activity => {
     store.dirty.add(activity);
     const cached = cache();
-    if (mounted.current) setStatus(cached ? '' : 'Salvamento local indisponível · aguarde a sincronização antes de sair.');
+    if (mounted.current && !blocked.current) setStatus(cached ? '' : 'Salvamento local indisponível · aguarde a sincronização antes de sair.');
     clearTimeout(timer.current);
     timer.current = setTimeout(() => void flush(), 600);
   };
@@ -93,9 +103,11 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
           const remote = store.entries[activity];
           if (remote && JSON.stringify(remote.state) === JSON.stringify(entry.state)) continue;
           if ((remote?.revision || 0) !== entry.revision) {
-            blocked.current = true;
-            setConflict(true);
-            throw new Error('Há alterações locais e uma versão diferente na conta. Use a versão da conta para retomar sem sobrescrevê-la.');
+            if (activity === 'navigation') entry.revision = remote?.revision || 0;
+            else {
+              blocked.current = true;
+              setConflict(true);
+            }
           }
           store.entries[activity] = entry;
           store.dirty.add(activity);
@@ -103,7 +115,8 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
         loaded.current = true;
         cache();
         setReady(true);
-        setStatus('');
+        setFailed(blocked.current);
+        setStatus(blocked.current ? 'Há alterações locais e uma versão diferente na conta. Sua cópia local está preservada; carregue a conta para sincronizar.' : '');
         void flush();
       } catch (error) {
         if (!cancelled) { setFailed(true); setStatus(error instanceof Error ? error.message : 'Falha ao carregar atividades.'); }
@@ -132,6 +145,7 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
   }, [userId]);
 
   function useCloudVersion() {
+    try {
     // Preserve the local draft as a downloadable backup before discarding it.
     const blob = new Blob([JSON.stringify({ pending: JSON.parse(localStorage.getItem(key) || '{}'), loaded: store.entries }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -141,6 +155,10 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
     store.dirty.clear();
     localStorage.removeItem(key);
     window.location.reload();
+    } catch {
+      setFailed(true);
+      setStatus('Não foi possível guardar a cópia local. Seu progresso continua aberto; tente novamente.');
+    }
   }
 
   return <Context.Provider value={store}>
@@ -150,7 +168,7 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
         ? <button type="button" onClick={useCloudVersion}>Guardar cópia local e carregar conta</button>
         : <button type="button" onClick={() => ready ? void flush() : window.location.reload()}>Tentar novamente</button>)}
     </div>}
-    {ready && !conflict ? children : null}
+    {ready ? children : null}
   </Context.Provider>;
 }
 
