@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 
-type Draft = { version: number; [key: string]: unknown };
-type Entry = { activity: string; state: Draft; revision: number; updated_at?: string };
+import { loadActivities, saveActivity, readPendingDrafts, reconcileDrafts, sameDraft, type ActivityEntry as Entry } from '../services/activity-drafts';
 type Store = {
   entries: Record<string, Entry>;
   dirty: Set<string>;
@@ -39,19 +38,13 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
       for (const activity of [...store.dirty]) {
         const entry = store.entries[activity];
         const state = JSON.stringify(entry.state);
-        const response = await fetch(`/api/activities/${activity}`, {
-          method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ state: JSON.parse(state), revision: entry.revision }),
-          signal: AbortSignal.timeout(12000)
-        });
-        if (response.status === 409) {
+        const revision = await saveActivity(activity, JSON.parse(state), entry.revision);
+        if (revision === null) {
           // Navigation is a preference, not an exercise answer. Rebase only this
           // entry so switching tabs on another device never blocks study drafts.
           if (activity === 'navigation') {
-            const latest = await fetch('/api/activities', { credentials: 'include', signal: AbortSignal.timeout(12000) });
-            if (!latest.ok) throw new Error('Não foi possível sincronizar a navegação. Tente novamente.');
-            const result = await latest.json() as { activities: Entry[] };
-            entry.revision = result.activities.find(item => item.activity === activity)?.revision || 0;
+            const latest = await loadActivities();
+            entry.revision = latest.find(item => item.activity === activity)?.revision || 0;
             cache();
             continue;
           }
@@ -62,10 +55,8 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
           window.location.reload();
           return;
         }
-        if (!response.ok) throw new Error('Sem sincronização. Suas alterações aguardam envio neste dispositivo.');
-        const result = await response.json();
-        entry.revision = result.revision;
-        if (JSON.stringify(entry.state) === state) store.dirty.delete(activity);
+        entry.revision = revision;
+        if (sameDraft(entry.state, JSON.parse(state))) store.dirty.delete(activity);
         cache();
       }
       if (mounted.current) { setStatus(''); setFailed(false); }
@@ -93,28 +84,17 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
     let cancelled = false;
     async function load() {
       try {
-        const response = await fetch('/api/activities', { credentials: 'include', signal: AbortSignal.timeout(12000) });
-        if (!response.ok) throw new Error('Não foi possível carregar suas atividades. Tente novamente para continuar com segurança.');
-        const result = await response.json() as { activities: Entry[] };
+        const remote = await loadActivities();
         if (cancelled) return;
-        store.entries = Object.fromEntries(result.activities.filter(entry => entry.state?.version === 1).map(entry => [entry.activity, entry]));
         let pending: Record<string, Entry> = {};
-        try { pending = JSON.parse(localStorage.getItem(key) || '{}'); } catch { /* Cache opcional. */ }
-        for (const [activity, entry] of Object.entries(pending)) {
-          if (!entry?.state || entry.state.version !== 1) continue;
-          const remote = store.entries[activity];
-          if (remote && JSON.stringify(remote.state) === JSON.stringify(entry.state)) continue;
-          if ((remote?.revision || 0) !== entry.revision) {
-            if (activity === 'navigation') entry.revision = remote?.revision || 0;
-            else {
-              // Keep conflicting work locally without downloading or overwriting the account.
-              localStorage.setItem(`${key}:conflict:${activity}:${Date.now()}`, JSON.stringify(entry));
-              continue;
-            }
-          }
-          store.entries[activity] = entry;
-          store.dirty.add(activity);
+        try { pending = readPendingDrafts(localStorage.getItem(key)); } catch { /* Storage may be unavailable. */ }
+        const next = reconcileDrafts(remote, pending);
+        // Archive before replacing pending work. If storage fails, retain the original cache.
+        for (const entry of next.conflicts) {
+          localStorage.setItem(`${key}:conflict:${entry.activity}:${Date.now()}`, JSON.stringify(entry));
         }
+        store.entries = next.entries;
+        store.dirty = next.dirty;
         loaded.current = true;
         cache();
         setReady(true);
@@ -171,7 +151,7 @@ export function useActivityState<T>(activity: string, name: string, initial: T |
   const current = useRef(value);
   const set: Dispatch<SetStateAction<T>> = useCallback(next => {
     const resolved = typeof next === 'function' ? (next as (previous: T) => T)(current.current) : next;
-    if (Object.is(current.current, resolved) || JSON.stringify(current.current) === JSON.stringify(resolved)) return;
+    if (sameDraft(current.current, resolved)) return;
     current.current = resolved;
     setValue(resolved);
     if (store) {
