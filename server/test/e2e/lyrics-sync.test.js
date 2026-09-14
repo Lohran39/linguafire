@@ -45,11 +45,14 @@ test('lyrics adjustment waits for vocals, saves per video and resumes on another
       return page;
     }
     const phone = await device();
+    const pause = phone.locator('.lyrics-sync-controls').getByRole('button', { name: 'Pausar legenda', exact: true });
+    assert.equal(await pause.isVisible(), false);
     await phone.getByText('Aguardando início do canto.', { exact: true }).waitFor();
     assert.equal(await phone.locator('.karaoke-panel').count(), 0);
     await phone.evaluate(() => { window.__musicTime = 30; });
     await phone.locator('.karaoke-panel strong').filter({ hasText: 'Second synthetic phrase' }).waitFor();
     await phone.locator('.lyrics-sync-controls summary').click();
+    assert.equal(await pause.isVisible(), true);
     await phone.getByRole('button', { name: 'A primeira frase começa agora', exact: true }).click();
     await phone.getByText('Legenda 20 s mais tarde.', { exact: true }).waitFor();
     await phone.locator('.karaoke-panel strong').filter({ hasText: 'First synthetic phrase' }).waitFor();

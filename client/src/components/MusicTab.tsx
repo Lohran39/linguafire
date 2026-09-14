@@ -731,16 +731,14 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
               <button className="secondary-button" type="button" disabled={lyricOffset === 0} onClick={() => adjustLyrics(0)}>Restaurar</button>
             </div>
             <p role="status">{lyricOffset === 0 ? 'Sem ajuste.' : `Legenda ${Math.abs(lyricOffset).toLocaleString('pt-BR')} s ${lyricOffset > 0 ? 'mais tarde' : 'mais cedo'}.`}</p>
+            <div className="lyrics-playback-controls">
+              <button className="secondary-button" type="button" aria-pressed={Boolean(pausedLyrics)} onClick={toggleLyricsPause}>
+                {pausedLyrics ? 'Retomar legenda' : 'Pausar legenda'}
+              </button>
+              <small role="status">{pausedLyrics ? 'Legenda pausada. O vídeo continua.' : ''}</small>
+            </div>
             <small>Vale só para este vídeo e fica na sua conta. Se o clipe tiver pausas no meio, prefira uma versão de áudio.</small>
           </details>
-        )}
-        {syncedLyrics.length > 0 && (
-          <div className="lyrics-playback-controls">
-            <button className="secondary-button" type="button" aria-pressed={Boolean(pausedLyrics)} onClick={toggleLyricsPause}>
-              {pausedLyrics ? 'Retomar legenda' : 'Pausar legenda'}
-            </button>
-            <small role="status">{pausedLyrics ? 'Legenda pausada. O vídeo continua.' : ''}</small>
-          </div>
         )}
         {syncedLyrics.length > 0 && activeLyricIndex < 0 && <p className="music-status">Aguardando início do canto.</p>}
         {activeKaraokeLine && (
