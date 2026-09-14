@@ -14,7 +14,6 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState('');
   const [failed, setFailed] = useState(false);
-  const [conflict, setConflict] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const inFlight = useRef(false);
   const blocked = useRef(false);
@@ -57,8 +56,11 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
             continue;
           }
           blocked.current = true;
-          if (mounted.current) setConflict(true);
-          throw new Error('Outra sessão alterou esta atividade. Recarregue a versão da conta para continuar.');
+          if (!cache()) { blocked.current = false; throw new Error('Não foi possível preservar o rascunho neste navegador. Tente novamente.'); }
+          loaded.current = false;
+          store.dirty.clear();
+          window.location.reload();
+          return;
         }
         if (!response.ok) throw new Error('Sem sincronização. Suas alterações aguardam envio neste dispositivo.');
         const result = await response.json();
@@ -105,8 +107,9 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
           if ((remote?.revision || 0) !== entry.revision) {
             if (activity === 'navigation') entry.revision = remote?.revision || 0;
             else {
-              blocked.current = true;
-              setConflict(true);
+              // Keep conflicting work locally without downloading or overwriting the account.
+              localStorage.setItem(`${key}:conflict:${activity}:${Date.now()}`, JSON.stringify(entry));
+              continue;
             }
           }
           store.entries[activity] = entry;
@@ -115,8 +118,8 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
         loaded.current = true;
         cache();
         setReady(true);
-        setFailed(blocked.current);
-        setStatus(blocked.current ? 'Há alterações locais e uma versão diferente na conta. Sua cópia local está preservada; carregue a conta para sincronizar.' : '');
+        setFailed(false);
+        setStatus('');
         void flush();
       } catch (error) {
         if (!cancelled) { setFailed(true); setStatus(error instanceof Error ? error.message : 'Falha ao carregar atividades.'); }
@@ -144,29 +147,10 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
     };
   }, [userId]);
 
-  function useCloudVersion() {
-    try {
-    // Preserve the local draft as a downloadable backup before discarding it.
-    const blob = new Blob([JSON.stringify({ pending: JSON.parse(localStorage.getItem(key) || '{}'), loaded: store.entries }, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url; link.download = 'atividades-locais.json'; link.click();
-    URL.revokeObjectURL(url);
-    store.dirty.clear();
-    localStorage.removeItem(key);
-    window.location.reload();
-    } catch {
-      setFailed(true);
-      setStatus('Não foi possível guardar a cópia local. Seu progresso continua aberto; tente novamente.');
-    }
-  }
-
   return <Context.Provider value={store}>
     {status && <div className={`activity-sync ${failed ? 'sync-error' : ''}`} role="status" aria-live="polite">
       <span>{status}</span>
-      {failed && (conflict
-        ? <button type="button" onClick={useCloudVersion}>Guardar cópia local e carregar conta</button>
-        : <button type="button" onClick={() => ready ? void flush() : window.location.reload()}>Tentar novamente</button>)}
+      {failed && <button type="button" onClick={() => ready ? void flush() : window.location.reload()}>Tentar novamente</button>}
     </div>}
     {ready ? children : null}
   </Context.Provider>;

@@ -168,16 +168,14 @@ test('activities resume across isolated devices; mobile navigation and keyboard 
     assert.equal(entries.conversation.state.input, 'Rascunho offline');
     // The old desktop session cannot overwrite the newer phone draft.
     await input.fill('Versão desatualizada');
-    await desktop.getByText('Outra sessão alterou esta atividade.', { exact: false }).waitFor();
-    assert.equal(entries.conversation.state.input, 'Rascunho offline');
-    assert.ok(await desktop.locator('.conversation-room').isVisible());
-    assert.equal(await input.inputValue(), 'Versão desatualizada');
-    await desktop.reload();
-    await desktop.getByText('Há alterações locais e uma versão diferente na conta.', { exact: false }).waitFor();
+    await desktop.waitForFunction(() => Object.keys(localStorage).some(key => key.startsWith('linguafire-drafts-v1:resume-user:conflict:conversation:')));
     await desktop.locator('.conversation-room').waitFor();
-    assert.ok(await desktop.locator('.conversation-room').isVisible());
-    assert.equal(await desktop.locator('.conversation-room input, .conversation-room textarea').first().inputValue(), 'Versão desatualizada');
+    assert.equal(await desktop.locator('.conversation-room input, .conversation-room textarea').first().inputValue(), 'Rascunho offline');
     assert.equal(entries.conversation.state.input, 'Rascunho offline');
+    assert.equal(await desktop.locator('.activity-sync').count(), 0);
+    await desktop.reload();
+    await desktop.locator('.conversation-room').waitFor();
+    assert.equal(await desktop.locator('.activity-sync').count(), 0);
 
     // A stale navigation revision alone must recover automatically.
     await phone.evaluate(() => localStorage.removeItem('linguafire-drafts-v1:resume-user'));
