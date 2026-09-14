@@ -114,6 +114,21 @@ function AuthForm({
     }
   }
 
+  if (!isLogin) return (
+    <main className="auth-screen">
+      <section className="auth-panel" aria-label="Criar conta">
+        <div className="brand-mark">LF</div>
+        <h1>Crie sua conta</h1>
+        <p>Por enquanto, novos cadastros são feitos pelo Google. Não é preciso receber um e-mail do LinguaFire.</p>
+        <button className="google-button" type="button" onClick={() => loginWithGoogle('login')}>
+          <img src="/assets/google-g.svg" alt="" aria-hidden="true" />Criar conta com Google
+        </button>
+        <button className="secondary-button" type="button" onClick={onSwitch}>Já tenho conta</button>
+        <button className="ghost-button" type="button" onClick={onBack}>Voltar</button>
+      </section>
+    </main>
+  );
+
   if (pending) return (
     <main className="auth-screen">
       <section className="auth-panel confirmation-panel" aria-labelledby="confirmation-title">

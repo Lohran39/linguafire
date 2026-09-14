@@ -124,7 +124,7 @@ const {
   supabaseFindUserByStripe,
   supabaseSyncSubscription,
   supabaseGetUserByEmail, supabaseGetUserById, supabaseFindUserByGoogleOrEmail, supabaseCreateUser, supabaseUpdateUser, supabaseCompareUpdateUser, supabaseRecordChallengeAnswer,
-  supabaseUpdateGoogleLink, supabaseSetPasswordResetToken, supabaseGetUserByResetToken, supabaseResetPassword,
+  supabaseCompletePendingGoogleUser, supabaseUpdateGoogleLink, supabaseSetPasswordResetToken, supabaseGetUserByResetToken, supabaseResetPassword,
   supabaseGetUserByEmailVerificationToken, supabaseSetEmailVerificationToken, supabaseVerifyUserEmail, supabaseRestoreEmailVerificationToken,
   supabaseGetPushSubscription, supabaseGetAllPushSubscriptions, supabaseSavePushSubscription, supabaseDeletePushSubscription,
   supabaseGetUserRewards, supabaseAwardReward,
@@ -423,7 +423,7 @@ setupGoogleAuthRoutes(app, {
   supabaseFindUserByGoogleOrEmail,
   supabaseGetUserById,
   supabaseCreateUser,
-  supabaseUpdateGoogleLink,
+  supabaseCompletePendingGoogleUser, supabaseUpdateGoogleLink,
   sendWelcomeEmail,
   isTransactionalEmailConfigured,
   logger

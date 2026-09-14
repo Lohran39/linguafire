@@ -10,7 +10,11 @@
 4. Depois de confirmar, entra com e-mail e senha. Links expirados têm orientação para reenvio na tela de login.
 5. Reenvio tem espera de 60 segundos, compartilhada com cadastro e recuperação. Falha de envio tenta restaurar o link anterior com atualização condicional.
 
-Google exige e-mail verificado pelo provedor e estado OAuth ligado à sessão, válido por 10 minutos e utilizável uma vez. Contas pendentes precisam finalizar confirmação antes da vinculação Google; não herdamos uma senha escolhida por terceiros.
+Google exige e-mail verificado pelo provedor e estado OAuth ligado à sessão, válido por 10 minutos e utilizável uma vez. Cadastros pendentes com Gmail ou domínio Workspace confirmado pelo Google podem ser concluídos pelo OAuth. Uma atualização condicional marca a conta como verificada, vincula o Google, remove senha e tokens anteriores e invalida sessões antigas antes de emitir a sessão nova. O progresso é preservado. E-mails externos sem autoridade do Google continuam exigindo confirmação; não basta confiar no domínio digitado pelo usuário.
+
+A interface de novos cadastros oferece somente Google enquanto o envio de e-mail não estiver disponível para todos. Login por senha de contas confirmadas e links de confirmação/recuperação existentes são mantidos. A API de cadastro por senha continua exigindo confirmação, sem liberar automaticamente endereços não verificados. Esta mudança não configura o Resend nem remove verificações de segurança feitas pelo próprio Google.
+
+Não exige SQL novo: usa as colunas da migração de autenticação existente. A validação automatizada usa identidades Google simuladas; o login real do aluno deve ser conferido após o deploy.
 
 ## Proteções
 

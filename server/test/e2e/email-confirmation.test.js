@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const express = require('express');
 const { chromium } = require('playwright');
 
-test('mobile signup shows pending confirmation, resend and expired-link recovery', { skip: process.env.RUN_PLAYWRIGHT_E2E !== '1' }, async () => {
+test('mobile signup uses Google while existing confirmation links remain usable', { skip: process.env.RUN_PLAYWRIGHT_E2E !== '1' }, async () => {
   const app = express(); app.use(express.static(require('path').resolve(__dirname, '../../../client/dist')));
   const server = await new Promise(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   let browser;
@@ -23,18 +23,13 @@ test('mobile signup shows pending confirmation, resend and expired-link recovery
     await page.goto(base);
     await page.getByRole('button', { name: 'Começar agora', exact: true }).click();
     await page.getByRole('button', { name: /criar conta/i }).first().click();
-    await page.getByPlaceholder('Nome', { exact: true }).fill('Ana');
-    await page.getByPlaceholder('Email', { exact: true }).fill('ana@example.com');
-    await page.getByPlaceholder('Senha (min. 6 caracteres)', { exact: true }).fill('safe-password123');
-    await page.getByPlaceholder('Confirmar senha', { exact: true }).fill('safe-password123');
-    await page.getByRole('button', { name: 'Criar conta', exact: true }).click();
-    await page.getByRole('heading', { name: 'Confira seu e-mail' }).waitFor();
-    assert.equal(await page.locator('.form-error').count(), 0);
-    assert.ok(await page.getByRole('button', { name: /Reenviar em/ }).isDisabled());
+    await page.getByRole('heading', { name: 'Crie sua conta' }).waitFor();
+    assert.ok(await page.getByRole('button', { name: 'Criar conta com Google', exact: true }).isVisible());
+    assert.equal(await page.getByPlaceholder('Email', { exact: true }).count(), 0);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-    await page.screenshot({ path: '/tmp/linguafire-email-confirmation-mobile.png', fullPage: true });
-    await page.getByRole('button', { name: 'Corrigir e-mail' }).click();
-    assert.equal(await page.getByPlaceholder('Email', { exact: true }).inputValue(), 'ana@example.com');
+    await page.route('**/auth/google', route => route.fulfill({ contentType: 'text/html', body: '<h1>Google de teste</h1>' }));
+    await page.getByRole('button', { name: 'Criar conta com Google', exact: true }).click();
+    await page.waitForURL('**/auth/google');
     await page.goto(`${base}/#confirm-email=${'a'.repeat(64)}`);
     await page.getByPlaceholder('Nova senha', { exact: true }).fill('safe-password123');
     await page.getByPlaceholder('Confirmar nova senha', { exact: true }).fill('safe-password123');

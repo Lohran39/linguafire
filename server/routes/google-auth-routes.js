@@ -46,6 +46,7 @@ function setupGoogleAuthRoutes(app, deps = {}) {
     supabaseGetUserById,
     supabaseCreateUser,
     supabaseUpdateGoogleLink,
+    supabaseCompletePendingGoogleUser,
     sendWelcomeEmail = async () => {},
     isTransactionalEmailConfigured = () => false,
     logger = console,
@@ -73,11 +74,13 @@ function setupGoogleAuthRoutes(app, deps = {}) {
       callbackURL: `${baseUrl}/auth/google/callback`
     }, (_req, _accessToken, _refreshToken, profile, done) => {
       const email = profile.emails?.find((entry) => entry.verified === true);
-      if (!email) return done(null, false);
+      if (!email || !profile.id) return done(null, false);
       done(null, {
         email: email.value,
         name: profile.displayName,
-        googleId: profile.id
+        googleId: profile.id,
+        // Google is authoritative for Gmail and verified Workspace domains.
+        authoritativeEmail: /@gmail\.com$/i.test(email.value) || Boolean(profile._json?.hd)
       });
     }));
   }
@@ -135,7 +138,13 @@ function setupGoogleAuthRoutes(app, deps = {}) {
       let isNewUser = false;
       let user = await supabaseFindUserByGoogleOrEmail(googleUser.googleId, googleUser.email);
       if (user && !isVerified(user)) {
-        return redirectWithBaseUrl(res, baseUrl, { error: 'email_confirmation_required' });
+        if (!googleUser.authoritativeEmail || user.email?.toLowerCase() !== googleUser.email?.toLowerCase()
+          || (user.google_id && user.google_id !== googleUser.googleId)) {
+          return redirectWithBaseUrl(res, baseUrl, { error: 'email_confirmation_required' });
+        }
+        const completed = await supabaseCompletePendingGoogleUser(user, googleUser);
+        if (completed.error || !completed.data) throw new Error(completed.error || 'Cadastro indisponível');
+        user = completed.data;
       }
       if (!user) {
         user = await supabaseCreateUser({

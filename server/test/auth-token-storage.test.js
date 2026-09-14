@@ -33,6 +33,18 @@ function fixture() {
   return { db: sandbox.module.exports, row: rows[0] };
 }
 
+test('Google conversion invalidates old credentials atomically and cannot run twice', async () => {
+  const { db, row } = fixture();
+  Object.assign(row, { email: 'ana@gmail.com', email_verification_token: 'old', password_reset_token: 'old-reset', xp: 100 });
+  const pending = { ...row };
+  const google = { googleId: 'g1', name: 'Ana' };
+  const results = await Promise.all([db.supabaseCompletePendingGoogleUser(pending, google), db.supabaseCompletePendingGoogleUser(pending, google)]);
+  assert.equal(results.filter(result => !result.error).length, 1);
+  assert.equal(row.email_verified, 1); assert.equal(row.password, '');
+  assert.equal(row.email_verification_token, ''); assert.equal(row.password_reset_token, '');
+  assert.equal(row.google_id, 'g1'); assert.equal(row.xp, 100); assert.ok(row.auth_version > 0);
+});
+
 test('confirmation stores hash and concurrent consumers cannot reuse a token', async () => {
   const { db, row } = fixture();
   await db.supabaseSetEmailVerificationToken('1', 'raw-token', Date.now() + 10000);

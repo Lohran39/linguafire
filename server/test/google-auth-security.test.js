@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { setupGoogleAuthRoutes } = require('../routes/google-auth-routes');
 
-function fixture(user) {
+function fixture(user, overrides = {}) {
   const routes = new Map(); let verifyProfile, created;
   const deps = {
     passport: {
@@ -15,7 +15,8 @@ function fixture(user) {
     supabaseFindUserByGoogleOrEmail: async () => user,
     supabaseCreateUser: async (payload) => { created = payload; return { data: { id: 'new', ...payload } }; },
     supabaseUpdateGoogleLink: () => assert.fail('must not silently link pending accounts'),
-    setAuthCookie(res) { res.cookieIssued = true; }
+    setAuthCookie(res) { res.cookieIssued = true; },
+    ...overrides
   };
   setupGoogleAuthRoutes({ get(path, ...handlers) { routes.set(path, handlers); } }, deps);
   return { routes, verifyProfile: (...args) => verifyProfile(...args), get created() { return created; } };
@@ -45,11 +46,45 @@ test('OAuth state is bound to initiating session, expires and cannot be reused',
   assert.equal(allowed, 1);
 });
 
-test('Google cannot activate an existing pending account or inherit its password', async () => {
+test('third-party email without Google authority cannot activate a pending account', async () => {
   const f = fixture({ id: 'pending', email_verified: 0, password: 'third-party-password' });
   const res = { redirect(url) { this.url = url; } };
   await f.routes.get('/auth/google/callback').at(-1)({ user: { email: 'x@example.com', googleId: 'g1' }, query: {} }, res);
   assert.match(res.url, /email_confirmation_required/); assert.equal(res.cookieIssued, undefined);
+});
+
+test('verified Gmail and Workspace profiles carry authority only from provider data', () => {
+  const f = fixture();
+  for (const [email, hd, expected] of [['ana@gmail.com', undefined, true], ['ana@company.test', 'company.test', true], ['ana@example.test', undefined, false]]) {
+    f.verifyProfile({}, '', '', { id: 'g1', emails: [{ value: email, verified: true }], _json: { hd } }, (err, user) => {
+      assert.equal(err, null); assert.equal(user.authoritativeEmail, expected);
+    });
+  }
+});
+
+test('pending Google login uses atomic credential replacement before issuing a session', async () => {
+  const user = { id: 'pending', email: 'ana@gmail.com', email_verified: 0, password: 'old' };
+  let replaced = false;
+  const f = fixture(user, { supabaseCompletePendingGoogleUser: async (pending, google) => {
+    assert.equal(pending, user); assert.equal(google.googleId, 'g1'); replaced = true;
+    return { data: { ...user, email_verified: 1, password: '', google_id: 'g1', auth_version: 123 } };
+  }, setAuthCookie(res, token) {
+    assert.equal(replaced, true);
+    assert.equal(require('jsonwebtoken').verify(token, 'test').av, 123); res.cookieIssued = true;
+  } });
+  const req = { user: { email: user.email, googleId: 'g1', authoritativeEmail: true }, query: {} };
+  const res = { redirect(url) { this.url = url; } };
+  await f.routes.get('/auth/google/callback').at(-1)(req, res);
+  assert.equal(res.cookieIssued, true); assert.match(res.url, /auth=success/);
+});
+
+test('failed pending-account replacement cannot create a session', async () => {
+  const f = fixture({ id: 'p', email: 'ana@gmail.com', email_verified: 0 }, {
+    isProduction: true, supabaseCompletePendingGoogleUser: async () => ({ error: 'concurrent update' })
+  });
+  const res = { redirect(url) { this.url = url; } };
+  await f.routes.get('/auth/google/callback').at(-1)({ user: { email: 'ana@gmail.com', googleId: 'g1', authoritativeEmail: true }, query: {} }, res);
+  assert.equal(res.cookieIssued, undefined); assert.match(res.url, /auth_failed/);
 });
 
 test('Google creates explicitly verified accounts and issues a session', async () => {

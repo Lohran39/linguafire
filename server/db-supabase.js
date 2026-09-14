@@ -107,6 +107,21 @@ async function supabaseUpdateGoogleLink(id, googleId) {
   return supabaseUpdateUser(id, { google_id: googleId });
 }
 
+async function supabaseCompletePendingGoogleUser(user, googleUser) {
+  const { data, error } = await supabase.from('users').update({
+    google_id: googleUser.googleId,
+    name: String(googleUser.name || user.name || 'Estudante').slice(0, 20),
+    password: '',
+    email_verified: 1,
+    email_verified_at: Date.now(),
+    email_verification_token: '', email_verification_expires: 0,
+    password_reset_token: '', password_reset_expires: 0,
+    auth_version: Math.max(Date.now(), Number(user.auth_version || 0) + 1)
+  }).eq('id', user.id).eq('email', user.email).eq('email_verified', 0)
+    .select('*').maybeSingle();
+  return { data, error: error?.message || (!data ? 'Cadastro alterado. Tente entrar novamente.' : null) };
+}
+
 async function supabaseSetPasswordResetToken(id, token, expiresAt) {
   return supabaseUpdateUser(id, {
     password_reset_token: hashToken(token),
@@ -549,6 +564,7 @@ module.exports = {
   supabaseCompareUpdateUser,
   supabaseRecordChallengeAnswer,
   supabaseUpdateGoogleLink,
+  supabaseCompletePendingGoogleUser,
   supabaseSetPasswordResetToken,
   supabaseGetUserByResetToken,
   supabaseResetPassword,
