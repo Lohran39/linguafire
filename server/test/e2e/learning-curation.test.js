@@ -9,7 +9,7 @@ test('learning evidence, verified recommendations and moderation work on mobile'
   const app = express(); app.use(express.static(path.resolve(__dirname, '../../../client/dist')));
   const server = await new Promise(resolve => { const value = app.listen(0, '127.0.0.1', () => resolve(value)); });
   const browser = await chromium.launch({ headless: true });
-  const user = { id: 'learner', name: 'Ana', role: 'admin', email: 'test@example.com', level: 9, xp: 2100, streak: 3, correct_answers: 12, lessons_completed: 2, english_level: 'A1', achievements: [], favorites: [] };
+  const user = { id: 'learner', name: 'Ana', role: 'admin', email: 'test@example.com', level: 9, xp: 2100, streak: 3, correct_answers: 12, lessons_completed: 2, english_level: 'A1', placement_completed: 1, achievements: [], favorites: [] };
   let reports = [], reportFails = true, review = null;
   const events = [], drafts = {};
   const music = { kind: 'music', title: 'Hello', artist: 'Adele', lang: 'english', video_id: 'YQHsXMglC9A', content_key: 'hello|adele', status: 'verified', video_matches: true, text_matches: true, translation: 'available', updated_at: new Date().toISOString(), reports: 0 };
@@ -50,11 +50,13 @@ test('learning evidence, verified recommendations and moderation work on mobile'
   }
   try {
     await page.goto(`http://127.0.0.1:${server.address().port}`);
-    await page.getByRole('heading', { name: 'Seu aprendizado além do XP' }).waitFor();
+    await page.getByRole('heading', { name: 'Seu aprendizado', exact: true }).waitFor();
     await page.getByText('palavras consolidadas de 1 revisadas', { exact: true }).waitFor();
+    await page.locator('.home-extras > summary').click();
     assert.ok(await page.getByText('Nível de jogo 9', { exact: false }).isVisible());
-    assert.ok(await page.getByText('Inglês A1', { exact: false }).isVisible());
-    assert.equal(await page.locator('.skill-evidence-grid').getByText('Sem dados', { exact: true }).count(), 5);
+    assert.ok(await page.locator('.welcome-panel .lead').filter({ hasText: 'Inglês A1' }).isVisible());
+    assert.equal(await page.locator('.skill-evidence-grid article').count(), 0);
+    await page.getByText('Complete uma lição ou revisão para acompanhar sua evolução.', { exact: true }).waitFor();
     await page.locator('.learning-evidence').screenshot({ path: '/tmp/linguafire-learning-panel.png' });
     await tab('Lições');
     if (await page.getByLabel('Digite a resposta', { exact: true }).count()) {
@@ -62,7 +64,7 @@ test('learning evidence, verified recommendations and moderation work on mobile'
     } else await page.locator('.lesson-choices button').first().click();
     await page.getByRole('button', { name: 'Próxima', exact: true }).click();
     await tab('Início');
-    await page.getByText('1 resposta(s) nos últimos 14 dias', { exact: true }).waitFor();
+    await page.getByText('1 respostas', { exact: true }).waitFor();
     assert.equal(events[0].activity, 'lesson'); assert.equal(events[0].text, undefined);
     await tab('Música');
     await page.locator('.song-list .song-row').first().getByText('Hello', { exact: true }).waitFor();
@@ -78,6 +80,7 @@ test('learning evidence, verified recommendations and moderation work on mobile'
     await page.getByText('Denúncia enviada para revisão. Obrigado por ajudar.', { exact: true }).waitFor();
     await page.getByText('Em revisão', { exact: true }).waitFor();
     await tab('Admin');
+    await page.getByRole('button', { name: 'Conteúdos', exact: true }).click();
     await page.getByRole('button', { name: 'Revisar este conteúdo', exact: true }).click();
     assert.ok(await page.getByRole('button', { name: 'Aprovar conteúdo', exact: true }).isDisabled());
     await page.getByLabel('Assisti ao vídeo e confirmei a música ou expressão.').check();
@@ -90,6 +93,7 @@ test('learning evidence, verified recommendations and moderation work on mobile'
     await tab('Nativos');
     await page.locator('#nativesInput').fill('look forward to');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await page.getByText('Detalhes e opções do vídeo', { exact: true }).click();
     await page.getByText('Tradução ausente', { exact: true }).waitFor();
     assert.ok(await page.getByText('Conteúdo verificado', { exact: true }).isVisible());
     await page.screenshot({ path: '/tmp/linguafire-curation-native.png', fullPage: true });

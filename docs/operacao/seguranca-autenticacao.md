@@ -1,5 +1,7 @@
 # Confirmação de e-mail e proteção de acesso
 
+[Índice da documentação](../README.md)
+
 ## Fluxo
 
 1. Cadastro com senha cria uma conta pendente; não emite sessão.
@@ -21,7 +23,7 @@ Google exige e-mail verificado pelo provedor e estado OAuth ligado à sessão, v
 
 ## Publicação
 
-1. Em janela de manutenção dos cadastros, executar `migrations/20260913-auth-hardening.sql` no Supabase e publicar este código em seguida. A primeira execução invalida links antigos em texto; usuários precisam solicitar novos links. Não rodar a migração com a versão antiga recebendo cadastros.
+1. Em janela de manutenção dos cadastros, executar `server/migrations/20260913-auth-hardening.sql` no Supabase e publicar este código em seguida. A primeira execução invalida links antigos em texto; usuários precisam solicitar novos links. Não rodar a migração com a versão antiga recebendo cadastros.
 2. Conferir `BASE_URL` com a URL HTTPS pública, Redis e o serviço de envio já suportado (Resend com remetente validado ou SMTP). Nunca publicar links de desenvolvimento; `NODE_ENV=production` impede esses links nas respostas.
 3. Testar com uma caixa real: cadastro, recebimento, confirmação, login, reenvio, expiração e recuperação. Os testes automatizados usam provedores simulados e não comprovam entrega de e-mail em produção.
 

@@ -454,7 +454,7 @@ function AppHome({
         <PlacementTab user={user} onProfileRefresh={onProfileRefresh} onContinue={() => setActiveTab('lessons')} />
       )}
       {activeTab === 'admin' && (user.role === 'admin' ? <AdminTab /> : <p role="alert">Acesso restrito ao administrador.</p>)}
-      {activeTab === 'profile' && <ProfileTab user={user} onProfileRefresh={onProfileRefresh} />}
+      {activeTab === 'profile' && <ProfileTab user={user} onProfileRefresh={onProfileRefresh} onPlacement={() => navigate('placement')} />}
       </TabContent>
       </div>
     </main>

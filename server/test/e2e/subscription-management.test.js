@@ -17,7 +17,7 @@ test('mobile billing shows usage, handles portal failures and reconciles a retur
     const req = route.request(), pathname = new URL(req.url()).pathname; let payload = {};
     if (pathname === '/api/auth/session') payload = { userId: user.id };
     else if (pathname === '/api/profile') payload = { user };
-    else if (pathname === '/api/activities') payload = { activities: [{ activity: 'navigation', state: { activeTab: 'lessons' }, revision: 1 }] };
+    else if (pathname === '/api/activities') payload = { activities: [{ activity: 'navigation', state: { version: 1, activeTab: 'lessons' }, revision: 1 }] };
     else if (pathname.startsWith('/api/activities/')) payload = { revision: req.postDataJSON().revision + 1 };
     else if (pathname === '/api/subscription/status') payload = state;
     else if (pathname === '/api/subscription/portal') {
@@ -32,16 +32,17 @@ test('mobile billing shows usage, handles portal failures and reconciles a retur
   const origin = `http://127.0.0.1:${server.address().port}`;
   try {
     await page.goto(`${origin}/?billing=return`);
+    await page.getByText('Detalhes do plano e consumo', { exact: true }).click();
     await page.getByRole('heading', { name: 'Seu uso de IA' }).waitFor();
     await page.getByText('7 de 10 usos', { exact: true }).waitFor();
-    assert.ok(await page.getByText('3 disponíveis', { exact: false }).isVisible());
+    assert.ok(await page.getByText('3 usos de IA disponíveis hoje', { exact: true }).isVisible());
     assert.ok(await page.getByText('21:00 (America/Sao_Paulo)', { exact: false }).isVisible());
     assert.ok(await page.getByRole('button', { name: 'Ativar Pro', exact: true }).isEnabled());
     state = { ...state, active: true, plan: 'max', expires: Date.now() + 86400000, aiDailyLimit: 1000, canSubscribe: false, hasBillingAccount: true, portalAvailable: true, cancelAtPeriodEnd: true, billingStatus: 'active', aiUsage: { ...state.aiUsage, limit: 1000, remaining: 993 } };
     await page.getByRole('button', { name: 'Atualizar dados da assinatura' }).click();
     await page.getByText('Plano MAX ativo', { exact: true }).waitFor();
     await page.getByText('Renovação cancelada. Acesso até', { exact: false }).waitFor();
-    const manage = page.getByRole('button', { name: 'Gerenciar assinatura e cobranças' });
+    const manage = page.getByRole('button', { name: 'Gerenciar plano' });
     await manage.click();
     await page.getByRole('alert').filter({ hasText: 'Portal temporariamente indisponível' }).waitFor();
     assert.ok(await manage.isEnabled());

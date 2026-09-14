@@ -76,14 +76,17 @@ export function SubscriptionPanel({ user, onProfileRefresh }: { user: UserProfil
 
   const usage = status?.aiUsage;
   return <section className="profile-settings subscription-panel" aria-label="Assinatura e consumo de IA">
-    <div className="panel-heading"><h2>Assinatura</h2><span>{status ? (status.plan || 'free').toUpperCase() : 'Consultando'}</span></div>
+    <div className="panel-heading"><h2>Assinatura</h2></div>
     {status && <>
       <div className="profile-subscription">
         <strong>{status.active ? `Plano ${status.plan?.toUpperCase()} ativo` : 'Plano gratuito'}</strong>
-        <span>{billingLabels[status.billingStatus] || status.billingStatus}</span>
+        {!['none', 'active'].includes(status.billingStatus) && <span>{billingLabels[status.billingStatus] || status.billingStatus}</span>}
         {status.active && status.expires > 0 && <span>{status.cancelAtPeriodEnd ? 'Renovação cancelada. Acesso até' : status.billingStatus === 'trialing' ? 'Teste até' : 'Próxima renovação em'} {localDate(status.expires)}.</span>}
         {['past_due', 'unpaid', 'incomplete'].includes(status.billingStatus) && <p>Atualize o pagamento no portal para recuperar os benefícios do plano.</p>}
       </div>
+      {usage && <p className="subscription-remaining"><strong>{usage.remaining} usos de IA disponíveis hoje</strong>{usage.monthlyRemaining != null && <span> · {usage.monthlyRemaining} restantes no mês</span>}</p>}
+      {status.hasBillingAccount && <button className="primary-button" disabled={busy || !status.portalAvailable} onClick={() => void manage()}>{busy ? 'Abrindo...' : 'Gerenciar plano'}</button>}
+      <details className="subscription-details"><summary>Detalhes do plano e consumo</summary>
       {usage && <div className="subscription-usage">
         <h3>Seu uso de IA</h3>
         <p><strong>{usage.used} de {usage.limit} usos</strong> · {usage.remaining} disponíveis</p>
@@ -94,13 +97,14 @@ export function SubscriptionPanel({ user, onProfileRefresh }: { user: UserProfil
       </div>}
       {status.hasBillingAccount && <p>Consulte cobranças e recibos, atualize o cartão e gerencie Pro ou Max no portal de pagamentos da Stripe.</p>}
       <div className="profile-actions">
-        {status.hasBillingAccount && <button className="primary-button" disabled={busy || !status.portalAvailable} onClick={() => void manage()}>{busy ? 'Abrindo...' : 'Gerenciar assinatura e cobranças'}</button>}
         {status.canSubscribe && <>
           <button className="primary-button" disabled={busy || loading || Boolean(error)} onClick={() => void manage('pro')}>Ativar Pro</button>
           <button className="secondary-button" disabled={busy || loading || Boolean(error)} onClick={() => void manage('max')}>Ativar Max</button>
         </>}
       </div>
       {status.canSubscribe && <p>Pro: R$45/mês · 1.000 usos/mês, até 50/dia. Max: R$85/mês · 3.000 usos/mês, até 150/dia. O limite diário faz parte da franquia mensal.</p>}
+      <button className="secondary-button" disabled={loading || busy} onClick={() => void refresh()}>Atualizar dados da assinatura</button>
+      </details>
       {status.hasBillingAccount && !status.portalAvailable && <p role="status">A gestão de pagamentos está temporariamente indisponível.</p>}
       {!status.active && !status.checkoutConfigured && <p role="status">Assinaturas temporariamente indisponíveis.</p>}
       {user.role === 'admin' && status.checkoutIssues?.length ? <p className="form-error">{status.checkoutIssues.join(' ')}</p> : null}
@@ -109,6 +113,6 @@ export function SubscriptionPanel({ user, onProfileRefresh }: { user: UserProfil
     {loading && <p role="status">Consultando assinatura...</p>}
     {error && <p className="form-error" role="alert">{error}</p>}
     {notice && <p className="form-success" role="status">{notice}</p>}
-    <button className="secondary-button" disabled={loading || busy} onClick={() => void refresh()}>Atualizar dados da assinatura</button>
+    {!status && !loading && <button className="secondary-button" onClick={() => void refresh()}>Tentar novamente</button>}
   </section>;
 }

@@ -1538,6 +1538,56 @@ h2 span {
   gap: 1rem;
 }
 
+/* Compact profile: account controls stay behind native, keyboard-accessible disclosures. */
+.profile-layout.profile-compact { width: min(100%, 860px); }
+.profile-compact .profile-identity { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .8rem; }
+.profile-compact .profile-identity h1 { margin: .15rem 0; font-size: clamp(1.35rem, 4vw, 2rem); text-align: left; overflow-wrap: anywhere; }
+.profile-compact .profile-identity p { margin: 0; }
+.profile-compact .profile-email { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+.profile-avatar { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--surface-strong); color: var(--text); font-size: 1.5rem; }
+.profile-identity > :last-child { grid-column: 2; justify-self: start; }
+.profile-level { font-size: .85rem; border: 1px solid var(--border); border-radius: 20px; padding: .35rem .7rem; }
+.profile-study-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: .9rem 0; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.profile-study-summary > div + div { border-left: 1px solid var(--border); }
+.profile-study-summary dt { color: var(--muted); font-size: .75rem; padding: 0 .25rem; }
+.profile-study-summary dd { margin: .25rem 0 0; font-size: 1.35rem; font-weight: 700; overflow-wrap: anywhere; }
+.profile-preferences { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.profile-disclosure + .profile-disclosure { border-top: 1px solid var(--border); }
+.profile-disclosure > summary, .subscription-details > summary { display: flex; align-items: center; gap: .5rem; min-height: 48px; padding: .8rem 1rem; cursor: pointer; font-weight: 600; }
+.profile-disclosure > summary::after, .subscription-details > summary::after { content: '+'; margin-left: auto; }
+.profile-disclosure[open] > summary::after, .subscription-details[open] > summary::after { content: '−'; }
+.profile-disclosure > summary::-webkit-details-marker, .subscription-details > summary::-webkit-details-marker { display: none; }
+.profile-compact summary:focus-visible, .profile-theme-choice:focus-within { outline: 2px solid var(--text); outline-offset: 2px; }
+.profile-section-body, .profile-password-form { display: grid; gap: .8rem; min-width: 0; }
+.profile-section-body { padding: 0 1rem 1rem; }
+.profile-section-body p { margin: 0; overflow-wrap: anywhere; }
+.profile-section-body label { display: grid; gap: .4rem; }
+.profile-section-body .field { margin: 0; width: 100%; min-width: 0; }
+.profile-compact :is(.primary-button, .secondary-button) { justify-self: start; min-height: 44px; margin-top: 0; max-width: 100%; white-space: normal; }
+.profile-theme-options { display: grid; gap: .6rem; border: 0; padding: 0; margin: 0; min-width: 0; }
+.profile-theme-options legend { margin-bottom: .6rem; }
+.profile-section-body .profile-theme-choice { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: .7rem; min-height: 64px; border: 1px solid var(--border); border-radius: 8px; padding: .65rem; cursor: pointer; }
+.profile-theme-choice.selected { border-color: var(--fire-2); }
+.profile-theme-choice input { width: 18px; height: 18px; accent-color: var(--fire-2); }
+.profile-theme-choice strong, .profile-theme-choice small { display: block; }
+.profile-theme-choice small { color: var(--muted); font-size: .8rem; }
+.profile-connected { font-weight: 600; }
+.profile-compact .profile-subscription { border: 0; padding: 0; background: transparent; }
+.profile-compact .subscription-panel { gap: .7rem; }
+.profile-compact .subscription-panel .panel-heading { margin: 0; }
+.profile-compact .subscription-panel h2 { font-size: 1.2rem; margin: 0; }
+.profile-compact .subscription-remaining { margin: 0; font-size: .9rem; }
+.subscription-details { border-top: 1px solid var(--border); }
+.subscription-details > summary { padding-left: 0; padding-right: 0; }
+.subscription-details > p, .subscription-details .subscription-usage p { font-size: .85rem; overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  .profile-layout.profile-compact { padding: .75rem; gap: .75rem; }
+  .profile-compact .profile-identity { padding: .85rem; }
+  .profile-compact :is(.primary-button, .secondary-button) { width: 100%; }
+  .profile-identity > .secondary-button { grid-column: 1 / -1; }
+  .profile-section-body { padding: 0 .8rem .8rem; }
+}
+
 .profile-hero,
 .profile-settings {
   border: 1px solid var(--border);

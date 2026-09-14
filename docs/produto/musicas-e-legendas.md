@@ -1,5 +1,7 @@
 # Letras completas — 12/09/2026
 
+[Índice da documentação](../README.md)
+
 Problema: músicas do catálogo trazem pequenos trechos de estudo. O cliente os considerava letras completas e não consultava o provedor. Além disso, a busca cortava a resposta em 80 linhas.
 
 Correção: consultar o provedor para músicas do catálogo e rascunhos antigos; marcar a origem carregada com `lyricsVersion: 2`; remover o limite padrão de linhas; interpretar múltiplos timestamps LRC sem perder repetições. Tradução parcial continua permitindo ler o original. Em falha de busca, trechos de estudo são identificados como incompletos.
@@ -30,7 +32,7 @@ Validação: 19 testes de letras aprovados, incluindo a rota com metadados inver
 
 O mapa `music.lyricOffsets`, indexado pelo ID do vídeo realmente em reprodução, usa a sincronização autenticada de atividades existente. Ajustes são pessoais, retomam em outro dispositivo e não alteram a letra compartilhada nem outras versões do vídeo. Não exige SQL novo.
 
-“Pausar legenda” fica visível junto à legenda e congela tanto a frase do karaokê quanto o destaque na lista, mantendo o vídeo independente. “Retomar legenda” continua do instante pausado e incorpora o tempo decorrido do vídeo ao ajuste salvo. Trocar de música/vídeo ou usar os controles de ajuste encerra a pausa. A pausa em andamento é temporária nesta tela; apenas o ajuste final é salvo na conta. O destaque também funciona para versos no instante zero.
+“Pausar legenda” fica dentro de “Ajustar legenda” e congela tanto a frase do karaokê quanto o destaque na lista, mantendo o vídeo independente. “Retomar legenda” continua do instante pausado e incorpora o tempo decorrido do vídeo ao ajuste salvo. Fechar “Ajustar legenda” não encerra a pausa. Trocar de música/vídeo ou usar os controles de ajuste encerra a pausa. A pausa em andamento é temporária nesta tela; apenas o ajuste final é salvo na conta. O destaque também funciona para versos no instante zero.
 
 Isso permite compensar manualmente cenas sem canto durante a reprodução. Como ainda existe um único deslocamento por vídeo, voltar para um trecho anterior à pausa pode exigir novo ajuste; sincronismo automático diferente em cada trecho exige uma futura linha do tempo de marcações.
 

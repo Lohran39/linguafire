@@ -1,5 +1,7 @@
 # Piloto com alunos reais
 
+[Índice da documentação](../README.md)
+
 Objetivo: descobrir se os alunos voltam e quais atividades ajudam no estudo. Métricas instrumentadas não equivalem a um piloto já realizado.
 
 ## Situação atual
@@ -14,7 +16,7 @@ D0 é a primeira sessão (15–20 minutos). Acompanhe D1, D3 e D7; D7 significa 
 
 ## Antes de convidar
 
-1. Confirmar as migrações e o deploy, inclusive vidas e métricas de uso (`migrations/20260910-product-usage.sql`).
+1. Confirmar as migrações e o deploy, inclusive vidas e métricas de uso (`server/migrations/20260910-product-usage.sql`).
 2. Abrir o site em uma conta de aluno comum e concluir uma lição; contas Admin não entram nas métricas de uso.
 3. Conferir o painel Admin → Retorno dos alunos e uso. Anotar a versão testada e as datas de início e fim.
 4. Fazer uma sessão interna para verificar login, Lições, Revisão e reprodução de um vídeo. Se o vídeo falhar, registrar como problema conhecido.
@@ -64,7 +66,7 @@ Registre se cada contato ocorreu antes ou depois do uso. Um retorno provocado po
 
 ## Registro e decisão
 
-Copie uma ficha de `PILOT-RESPOSTAS.md` por participante. Traga as fichas preenchidas para a análise; por enquanto, todos os resultados estão pendentes.
+Copie uma ficha de [respostas](respostas.md) por participante. Traga as fichas preenchidas para a análise; por enquanto, todos os resultados estão pendentes.
 
 Priorize primeiro bloqueios (não conseguir entrar, concluir ou salvar, vídeo indisponível, cobrança de XP sem benefício); depois problemas observados em duas ou mais pessoas. Uma correção pedagógica incorreta pode exigir ação mesmo aparecendo uma vez. Cada problema deve ter tela, passos para reproduzir, dispositivo e resultado esperado. Após corrigir, peça ao participante afetado para repetir a tarefa.
 

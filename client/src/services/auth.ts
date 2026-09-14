@@ -16,6 +16,7 @@ export type UserProfile = {
   placement_completed?: number;
   role?: 'user' | 'admin' | string;
   google_linked?: boolean;
+  has_password?: boolean;
   theme?: string;
   subscription_active?: boolean;
   subscription_expires?: number;

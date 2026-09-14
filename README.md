@@ -1,5 +1,14 @@
 # LinguaFire
 
+## Documentação
+
+Consulte o [índice da documentação](docs/README.md) para encontrar os guias por assunto:
+
+- [Produto e interface](docs/README.md#produto)
+- [Operação e segurança](docs/README.md#operacao)
+- [Piloto com alunos](docs/piloto/comece-aqui.md)
+- [Histórico de entregas](docs/README.md#historico)
+
 Plataforma gamificada de ingles. A interface principal foi migrada para React + TypeScript em `client/`; o app legado continua disponivel em `/legacy/index.html` para compatibilidade.
 
 ## Status atual do projeto

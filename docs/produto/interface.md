@@ -1,5 +1,7 @@
 # Interface de estudo
 
+[Índice da documentação](../README.md)
+
 Aplicados os itens 2, 3, 4, 5 e 6 da revisão visual. O fundo ilustrado, seus arquivos e sua configuração foram preservados por solicitação do usuário.
 
 - Laranja sólido nas ações principais, seleção de navegação discreta, controles secundários neutros e amarelo nas recompensas. Sombras e gradientes de controles reduzidos.
@@ -7,6 +9,7 @@ Aplicados os itens 2, 3, 4, 5 e 6 da revisão visual. O fundo ilustrado, seus ar
 - Métricas em faixa compacta, linhas e divisórias em listas de músicas, letras e missões. Progresso de jogo, missões e recompensas agrupados em um painel recolhido.
 - Miniaturas dos vídeos nas músicas, com símbolo musical caso a imagem não carregue. Ilustrações SVG originais de cenários nas conversas e nos atalhos do Início, além de uma chama para recompensas.
 - O Início prioriza continuar a última área de estudo visitada. `navigation.lastStudyTab` usa o armazenamento de atividades existente e preserva o rascunho daquela atividade. Sem histórico, sugere Lições; sem nivelamento concluído, prioriza o teste. Os atalhos abrem as áreas de lições, música e conversa, que mantêm suas recomendações existentes por nível.
+- Conflitos de sincronização são resolvidos carregando a versão da conta automaticamente. O rascunho conflitante fica arquivado no armazenamento local do navegador, sem aviso ou download. Respostas conflitantes não sobrescrevem a conta. Conflitos apenas de navegação atualizam a revisão automaticamente, sem bloquear o estudo.
 
 Não exige migração SQL. O carrossel de abas no celular permanece.
 

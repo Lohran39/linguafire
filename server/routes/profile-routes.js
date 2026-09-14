@@ -1,5 +1,6 @@
 const { mutateUser, lessonXp } = require('../services/shop-benefits');
 const { aiUsage } = require('../services/subscription-state');
+const { publicProfile } = require('../utils/public-profile');
 const { profileUpdateSchema, validateBody } = require('../validation');
 
 function setupProfileRoutes(app, deps = {}) {
@@ -21,11 +22,7 @@ function setupProfileRoutes(app, deps = {}) {
       const usage = aiUsage(user);
       res.json({
         user: {
-          ...user,
-          achievements: parseJsonField(user.achievements, []),
-          favorites: parseJsonField(user.favorites, []),
-          titles: parseJsonField(user.titles, []),
-          google_linked: !!user.google_id,
+          ...publicProfile(user, parseJsonField),
           theme: user.theme || 'default',
           subscription_active: usage.plan !== 'free',
           subscription_expires: user.subscription_expires || 0,

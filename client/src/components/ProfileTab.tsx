@@ -1,311 +1,199 @@
-import { FormEvent, useEffect, useState } from 'react';
-import {
-  changePassword,
-  deleteAccount,
-  loginWithGoogle,
-  updateProfile,
-  type UserProfile
-} from '../services/auth';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { changePassword, deleteAccount, loginWithGoogle, requestPasswordReset, updateProfile, type UserProfile } from '../services/auth';
 import { getPushStatus, subscribeToPush, supportsPushNotifications, unsubscribeFromPush } from '../services/notifications';
 import { applyTheme, normalizeTheme, themeOptions, type Theme } from '../theme';
-
 import { SubscriptionPanel } from './SubscriptionPanel';
 
-type ProfileTabProps = {
-  user: UserProfile;
-  onProfileRefresh: (user: UserProfile) => void;
-};
+type Section = 'name' | 'theme' | 'push' | 'password' | 'delete';
+type Notice = { kind: 'success' | 'error'; text: string };
+type Props = { user: UserProfile; onProfileRefresh: (user: UserProfile) => void; onPlacement: () => void };
+function Feedback({ notice }: { notice?: Notice }) {
+  return notice ? <p className={`form-${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>{notice.text}</p> : null;
+}
 
-export function ProfileTab({ user, onProfileRefresh }: ProfileTabProps) {
+export function ProfileTab({ user, onProfileRefresh, onPlacement }: Props) {
+  const latest = useRef(user); latest.current = user;
   const [name, setName] = useState(user.name || '');
   const [theme, setTheme] = useState<Theme>(normalizeTheme(user.theme));
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState('');
-  const [notice, setNotice] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSavingTheme, setIsSavingTheme] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [notices, setNotices] = useState<Partial<Record<Section, Notice>>>({});
+  const [busy, setBusy] = useState<Partial<Record<Section, boolean>>>({});
   const [pushSubscribed, setPushSubscribed] = useState(false);
-  const [pushBusy, setPushBusy] = useState(false);
+  const [pushState, setPushState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const pushSupported = supportsPushNotifications();
+  const passwordless = user.has_password === false;
+  const setNotice = (section: Section, kind: Notice['kind'], text: string) => setNotices(previous => ({ ...previous, [section]: { kind, text } }));
+  const begin = (section: Section) => {
+    setNotices(previous => ({ ...previous, [section]: undefined }));
+    setBusy(previous => ({ ...previous, [section]: true }));
+  };
+  const end = (section: Section) => setBusy(previous => ({ ...previous, [section]: false }));
+  const fail = (section: Section, error: unknown, fallback: string) => setNotice(section, 'error', error instanceof Error ? error.message : fallback);
 
+  useEffect(() => { setName(user.name || ''); setNotices({}); }, [user.id]);
+  useEffect(() => { setTheme(applyTheme(user.theme)); }, [user.id, user.theme]);
   useEffect(() => {
-    setName(user.name || '');
-  }, [user.id]);
+    let active = true;
+    if (!pushSupported) { setPushState('ready'); return; }
+    setPushState('loading');
+    getPushStatus().then(subscribed => {
+      if (active) { setPushSubscribed(subscribed); setPushState('ready'); }
+    }).catch(() => { if (active) setPushState('error'); });
+    return () => { active = false; };
+  }, [user.id, pushSupported]);
 
-  useEffect(() => {
-    setTheme(applyTheme(user.theme));
-  }, [user.id, user.theme]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadAccountStatus() {
-      if (!supportsPushNotifications()) return;
-      try {
-        const subscribed = await getPushStatus();
-        if (isMounted) setPushSubscribed(subscribed);
-      } catch {
-        if (isMounted) setPushSubscribed(false);
-      }
-    }
-
-    loadAccountStatus();
-    return () => {
-      isMounted = false;
-    };
-  }, [user.subscription_active, user.subscription_expires]);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function saveName(event: FormEvent) {
     event.preventDefault();
-    setNotice('');
-
-    if (!name.trim()) {
-      setNotice('Digite um nome.');
-      return;
-    }
-
-    setIsSaving(true);
+    if (!name.trim()) { setNotice('name', 'error', 'Digite um nome.'); return; }
+    begin('name');
     try {
       await updateProfile({ name: name.trim() });
-      onProfileRefresh({ ...user, name: name.trim() });
-      setNotice('Perfil atualizado.');
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Erro ao atualizar perfil.');
-    } finally {
-      setIsSaving(false);
-    }
+      onProfileRefresh({ ...latest.current, name: name.trim() });
+      setNotice('name', 'success', 'Nome atualizado.');
+    } catch (error) { fail('name', error, 'Não foi possível salvar o nome.'); }
+    finally { end('name'); }
   }
 
-  async function selectTheme(nextTheme: Theme) {
-    if (nextTheme === theme || isSavingTheme) return;
-
-    const previousTheme = theme;
-    setNotice('');
-    setTheme(nextTheme);
-    applyTheme(nextTheme);
-    onProfileRefresh({ ...user, theme: nextTheme });
-
+  async function selectTheme(next: Theme) {
+    if (next === theme || busy.theme) return;
+    const previous = theme;
+    begin('theme'); setTheme(next); applyTheme(next);
     try {
-      setIsSavingTheme(true);
-      await updateProfile({ theme: nextTheme });
-      setNotice('Tema atualizado.');
-    } catch (error) {
-      setTheme(previousTheme);
-      applyTheme(previousTheme);
-      onProfileRefresh({ ...user, theme: previousTheme });
-      setNotice(error instanceof Error ? error.message : 'Erro ao atualizar tema.');
-    } finally {
-      setIsSavingTheme(false);
-    }
+      await updateProfile({ theme: next });
+      onProfileRefresh({ ...latest.current, theme: next });
+      setNotice('theme', 'success', 'Aparência atualizada.');
+    } catch (error) { setTheme(previous); applyTheme(previous); fail('theme', error, 'Não foi possível salvar a aparência.'); }
+    finally { end('theme'); }
   }
 
   async function togglePush() {
-    setNotice('');
-    setPushBusy(true);
-
+    begin('push');
     try {
-      if (pushSubscribed) {
-        await unsubscribeFromPush();
-        setPushSubscribed(false);
-        setNotice('Notificações desativadas.');
-      } else {
-        await subscribeToPush();
-        setPushSubscribed(true);
-        setNotice('Notificações ativadas.');
+      if (pushState === 'error') {
+        setPushSubscribed(await getPushStatus()); setPushState('ready'); return;
       }
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Erro ao alterar notificações.');
-    } finally {
-      setPushBusy(false);
-    }
+      if (pushSubscribed) await unsubscribeFromPush();
+      else await subscribeToPush();
+      setPushSubscribed(!pushSubscribed);
+      setNotice('push', 'success', pushSubscribed ? 'Notificações desativadas.' : 'Notificações ativadas.');
+    } catch (error) { fail('push', error, 'Não foi possível alterar as notificações.'); }
+    finally { end('push'); }
   }
 
-  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
+  async function savePassword(event: FormEvent) {
     event.preventDefault();
-    setNotice('');
-
-    if (newPassword.length < 6) {
-      setNotice('A nova senha precisa ter pelo menos 6 caracteres.');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setNotice('A confirmação da nova senha não confere.');
-      return;
-    }
-
+    if (newPassword.length < 6) { setNotice('password', 'error', 'Use pelo menos 6 caracteres.'); return; }
+    if (newPassword !== confirmPassword) { setNotice('password', 'error', 'A confirmação da nova senha não confere.'); return; }
+    begin('password');
     try {
-      setIsChangingPassword(true);
-      const message = await changePassword(currentPassword, newPassword);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setNotice(message);
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Erro ao alterar senha.');
-    } finally {
-      setIsChangingPassword(false);
-    }
+      setNotice('password', 'success', await changePassword(currentPassword, newPassword));
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+    } catch (error) { fail('password', error, 'Não foi possível alterar a senha.'); }
+    finally { end('password'); }
   }
 
-  async function handleDeleteAccount() {
-    setNotice('');
-    if (deleteConfirm !== user.email) {
-      setNotice('Digite seu email para confirmar exclusão da conta.');
-      return;
-    }
-
+  async function createPassword() {
+    begin('password');
     try {
-      setDeleteBusy(true);
-      await deleteAccount();
-      window.location.reload();
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Erro ao excluir conta.');
-      setDeleteBusy(false);
-    }
+      const result = await requestPasswordReset(user.email);
+      setNotice('password', 'success', result.message + ' Abra o link para definir sua senha.');
+    } catch (error) { fail('password', error, 'Não foi possível enviar o link.'); }
+    finally { end('password'); }
   }
 
-  return (
-    <section className="profile-layout" aria-label="Perfil">
-      <header className="profile-hero">
-        <p className="kicker">Perfil</p>
-        <h1>{user.name || 'Estudante'}</h1>
-        <p className="lead">Gerencie sua conta e confira o progresso principal já vindo do backend.</p>
-      </header>
+  async function removeAccount(event: FormEvent) {
+    event.preventDefault();
+    if (deleteConfirm !== user.email || busy.delete) return;
+    begin('delete');
+    try { await deleteAccount(); window.location.reload(); }
+    catch (error) { fail('delete', error, 'Não foi possível excluir a conta.'); end('delete'); }
+  }
 
-      <section className="profile-grid">
-        <div>
-          <span>Email</span>
-          <strong>{user.email}</strong>
-        </div>
-        <div>
-          <span>Nível de inglês</span>
-          <strong>{user.english_level || 'A1'}</strong>
-        </div>
-        <div>
-          <span>XP</span>
-          <strong>{user.xp || 0}</strong>
-        </div>
-        <div>
-          <span>Sequência</span>
-          <strong>{user.streak || 0}</strong>
-        </div>
-        <div>
-          <span>Acertos</span>
-          <strong>{user.correct_answers || 0}</strong>
-        </div>
-        <div>
-          <span>Lições</span>
-          <strong>{user.lessons_completed || 0}</strong>
-        </div>
-      </section>
+  return <section className="profile-layout profile-compact" aria-label="Perfil">
+    <header className="profile-hero profile-identity">
+      <span className="profile-avatar" aria-hidden="true">{user.name?.trim().slice(0, 1).toUpperCase() || 'L'}</span>
+      <div><p className="kicker">Meu perfil</p><h1>{user.name || 'Estudante'}</h1><p className="profile-email">{user.email}</p></div>
+      {user.placement_completed ? <span className="profile-level">Inglês {user.english_level}</span>
+        : <button className="secondary-button" onClick={onPlacement}>Descobrir meu nível</button>}
+    </header>
 
-      <form className="profile-settings" onSubmit={handleSubmit}>
-        <div className="panel-heading">
-          <h2>Conta</h2>
-          <span>{isSavingTheme ? 'salvando' : themeOptions.find((option) => option.id === theme)?.label || 'Fogo'}</span>
-        </div>
+    <dl className="profile-study-summary" aria-label="Resumo de estudo">
+      <div><dt>Lições</dt><dd>{user.lessons_completed || 0}</dd></div>
+      <div><dt>Dias de sequência</dt><dd>{user.streak || 0}</dd></div>
+      <div><dt>XP</dt><dd>{(user.xp || 0).toLocaleString('pt-BR')}</dd></div>
+    </dl>
 
-        <label>
-          <span>Nome</span>
-          <input className="field" maxLength={20} value={name} onChange={(event) => setName(event.target.value)} />
-        </label>
+    <SubscriptionPanel user={user} onProfileRefresh={onProfileRefresh} />
 
-        <div className="theme-picker" role="radiogroup" aria-label="Tema">
-          {themeOptions.map((option) => (
-            <button
-              aria-checked={theme === option.id}
-              className={theme === option.id ? 'theme-option active' : 'theme-option'}
-              disabled={isSavingTheme}
-              key={option.id}
-              role="radio"
-              type="button"
-              onClick={() => selectTheme(option.id)}
-            >
+    <div className="profile-preferences">
+      <details className="profile-disclosure">
+        <summary>Meus dados</summary>
+        <form className="profile-section-body" onSubmit={saveName}>
+          <label>Nome<input className="field" autoComplete="name" maxLength={20} value={name} onChange={event => setName(event.target.value)} /></label>
+          <button className="primary-button" disabled={busy.name || name.trim() === user.name} type="submit">{busy.name ? 'Salvando...' : 'Salvar nome'}</button>
+          <Feedback notice={notices.name} />
+        </form>
+      </details>
+
+      <details className="profile-disclosure">
+        <summary>Aparência</summary>
+        <div className="profile-section-body">
+          <fieldset className="profile-theme-options" disabled={busy.theme}>
+            <legend>Escolha seu tema</legend>
+            {themeOptions.map(option => <label className={`profile-theme-choice${theme === option.id ? ' selected' : ''}`} key={option.id}>
+              <input type="radio" name="profile-theme" value={option.id} checked={theme === option.id} onChange={() => void selectTheme(option.id)} />
               <span className={`theme-swatch theme-swatch-${option.id}`} aria-hidden="true" />
-              <span>
-                <strong>{option.label}</strong>
-                <small>{option.description}</small>
-              </span>
-            </button>
-          ))}
+              <span><strong>{option.label}</strong><small>{option.description}</small></span>
+            </label>)}
+          </fieldset>
+          <Feedback notice={notices.theme} />
         </div>
+      </details>
 
-        <div className="profile-actions">
-          <button className="secondary-button" type="button" onClick={() => loginWithGoogle('link')}>
-            {user.google_linked ? 'Google vinculado' : 'Vincular Google'}
-          </button>
-          <button className="secondary-button" disabled={pushBusy || !supportsPushNotifications()} type="button" onClick={togglePush}>
-            {pushSubscribed ? 'Desativar notificações' : 'Ativar notificações'}
-          </button>
-          <button className="primary-button" disabled={isSaving} type="submit">
-            {isSaving ? 'Salvando...' : 'Salvar perfil'}
-          </button>
+      <details className="profile-disclosure">
+        <summary>Notificações</summary>
+        <div className="profile-section-body">
+          <p>{!pushSupported ? 'Este navegador não oferece notificações. Tente usar um navegador compatível ou o site instalado na Tela de Início.'
+            : pushState === 'loading' ? 'Consultando suas notificações...'
+            : pushState === 'error' ? 'Não foi possível consultar suas notificações.'
+            : pushSubscribed ? 'As notificações estão ativadas.' : 'Ative para receber lembretes de estudo.'}</p>
+          {pushSupported && <button className="secondary-button" disabled={busy.push || pushState === 'loading'} onClick={togglePush}>
+            {busy.push ? 'Aguarde...' : pushState === 'error' ? 'Tentar novamente' : pushSubscribed ? 'Desativar notificações' : 'Ativar notificações'}
+          </button>}
+          <Feedback notice={notices.push} />
         </div>
+      </details>
 
-        {notice && <div className="form-success">{notice}</div>}
-      </form>
+      <details className="profile-disclosure">
+        <summary>Segurança</summary>
+        <div className="profile-section-body">
+          {user.google_linked ? <p className="profile-connected">Google conectado</p>
+            : <button className="secondary-button" onClick={() => loginWithGoogle('link')}>Vincular Google</button>}
+          {passwordless ? <div>
+            <p>Sua conta ainda não tem senha. Receba um link por e-mail para definir uma e também entrar com e-mail e senha.</p>
+            <button className="secondary-button" disabled={busy.password} onClick={createPassword}>{busy.password ? 'Enviando...' : 'Criar senha por e-mail'}</button>
+          </div> : <form className="profile-password-form" onSubmit={savePassword}>
+            <label>Senha atual<input className="field" type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} /></label>
+            <label>Nova senha<input className="field" type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} /></label>
+            <label>Confirmar nova senha<input className="field" type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} /></label>
+            <button className="primary-button" disabled={busy.password || !currentPassword || !newPassword} type="submit">{busy.password ? 'Alterando...' : 'Alterar senha'}</button>
+          </form>}
+          <Feedback notice={notices.password} />
+        </div>
+      </details>
 
-      <SubscriptionPanel user={user} onProfileRefresh={onProfileRefresh} />
-
-      <form className="profile-settings" onSubmit={handlePasswordSubmit}>
-        <div className="panel-heading">
-          <h2>Segurança</h2>
-          <span>senha</span>
-        </div>
-        <label>
-          <span>Senha atual</span>
-          <input
-            className="field"
-            type="password"
-            autoComplete="current-password"
-            value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Nova senha</span>
-          <input
-            className="field"
-            type="password"
-            autoComplete="new-password"
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Confirmar nova senha</span>
-          <input
-            className="field"
-            type="password"
-            autoComplete="new-password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-          />
-        </label>
-        <div className="profile-actions">
-          <button className="primary-button" disabled={isChangingPassword || !currentPassword || !newPassword} type="submit">
-            {isChangingPassword ? 'Alterando...' : 'Alterar senha'}
-          </button>
-        </div>
-      </form>
-
-      <section className="profile-settings danger-zone">
-        <div className="panel-heading">
-          <h2>Excluir conta</h2>
-          <span>permanente</span>
-        </div>
-        <p>Digite seu email para confirmar a exclusão da conta e dos dados de progresso.</p>
-        <input className="field" value={deleteConfirm} onChange={(event) => setDeleteConfirm(event.target.value)} />
-        <div className="profile-actions">
-          <button className="secondary-button danger-button" disabled={deleteBusy} type="button" onClick={handleDeleteAccount}>
-            {deleteBusy ? 'Excluindo...' : 'Excluir conta'}
-          </button>
-        </div>
-      </section>
-    </section>
-  );
+      <details className="profile-disclosure profile-delete">
+        <summary>Excluir conta</summary>
+        <form className="profile-section-body" onSubmit={removeAccount}>
+          <p>A exclusão da conta e do progresso é permanente. Para confirmar, digite seu e-mail: <strong>{user.email}</strong>.</p>
+          <label>E-mail de confirmação<input className="field" autoComplete="off" type="email" value={deleteConfirm} onChange={event => setDeleteConfirm(event.target.value)} /></label>
+          <button className="secondary-button danger-button" disabled={busy.delete || deleteConfirm !== user.email} type="submit">{busy.delete ? 'Excluindo...' : 'Excluir minha conta'}</button>
+          <Feedback notice={notices.delete} />
+        </form>
+      </details>
+    </div>
+  </section>;
 }

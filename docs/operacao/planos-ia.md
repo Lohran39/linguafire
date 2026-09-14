@@ -1,5 +1,7 @@
 # Franquias de IA e operação para 50 alunos
 
+[Índice da documentação](../README.md)
+
 ## Implementado
 
 | Nova política | Mensalidade anunciada | Usos no mês-calendário UTC | Proteção diária UTC |

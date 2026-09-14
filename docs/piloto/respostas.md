@@ -1,5 +1,7 @@
 # Registro do piloto — preencher após as sessões
 
+[Índice da documentação](../README.md)
+
 Nenhum resultado foi coletado ainda. Use P01, P02 etc.; não inclua nomes, e-mails, senhas ou conversas completas. Copie a ficha abaixo para cada participante. “Não observado” é diferente de “não conseguiu”.
 
 ## Participante P__

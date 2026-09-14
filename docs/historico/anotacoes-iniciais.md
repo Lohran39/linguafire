@@ -1,3 +1,9 @@
+# Anotações iniciais do projeto
+
+[Índice da documentação](../README.md)
+
+> Anotações antigas preservadas como referência. Comandos, erros e ideias abaixo não são instruções atuais de instalação ou publicação.
+
 print = cd /Users/lohranlira/Desktop/api
 source .venv/bin/activate
 uvicorn main:app --reload --port 3000

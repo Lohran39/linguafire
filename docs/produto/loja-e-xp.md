@@ -1,8 +1,10 @@
 # Loja: benefícios com XP
 
+[Índice da documentação](../README.md)
+
 ## Publicação
 
-Antes do deploy, executar `migration-shop-benefits.sql` e `migration-ten-lives.sql` no SQL Editor do Supabase. A primeira adiciona `users.last_study_date`. A segunda define o máximo de 10 vidas, preserva saldos válidos e cria o registro transacional de respostas de desafio. Ambas podem ser executadas novamente.
+Antes do deploy, executar `server/migration-shop-benefits.sql` e `server/migration-ten-lives.sql` no SQL Editor do Supabase. A primeira adiciona `users.last_study_date`. A segunda define o máximo de 10 vidas, preserva saldos válidos e cria o registro transacional de respostas de desafio. Ambas podem ser executadas novamente.
 
 Publicar cliente e servidor juntos. Clientes antigos precisam recarregar: atualizações de XP agora informam o saldo de origem (`xp_base`), para recusar sobrescritas de um saldo alterado em outro dispositivo.
 

@@ -50,6 +50,17 @@ test('confirmation stores hash and concurrent consumers cannot reuse a token', a
   assert.equal(row.email_verified, 1);
 });
 
+test('Google-only account can create a password only with its valid email token', async () => {
+  const { db, row } = fixture();
+  row.password = ''; row.google_id = 'google-id'; row.email_verified = 1;
+  await db.supabaseSetPasswordResetToken('1', 'email-proof', Date.now() + 10000);
+  assert.ok((await db.supabaseResetPassword('1', 'new-password', 'wrong-proof')).error);
+  assert.equal(row.password, '');
+  assert.ok(!(await db.supabaseResetPassword('1', 'new-password', 'email-proof')).error);
+  assert.equal(row.password, 'new-password'); assert.equal(row.google_id, 'google-id');
+  assert.ok(row.auth_version > 0);
+});
+
 test('password reset expires and consumes a hashed token exactly once', async () => {
   const { db, row } = fixture();
   await db.supabaseSetPasswordResetToken('1', 'reset-token', Date.now() - 1);

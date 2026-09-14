@@ -46,6 +46,7 @@ function setupAuthRoutes(app, deps = {}) {
       favorites: parseJsonField(user.favorites, []),
       titles: parseJsonField(user.titles, []),
       google_linked: !!user.google_id,
+      has_password: typeof user.password === 'string' && user.password.length > 0,
       theme: user.theme || 'default',
       subscription_active: !!user.subscription_active,
       subscription_expires: user.subscription_expires || 0,

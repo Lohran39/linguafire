@@ -1,5 +1,7 @@
 # Organização do Admin
 
+[Índice da documentação](../README.md)
+
 O Admin abre em **Visão geral**, com contas cadastradas, alunos ativos hoje e em 28 dias, retorno no dia 7, até três denúncias e três cadastros recentes.
 
 - **Alunos:** até oito cadastros recentes. Clique no nome para expandir os dados; os emails ficam mascarados. O ranking de até dez contas e os detalhes de cadastro ficam recolhidos. Não é uma lista completa ou uma busca global.
@@ -8,9 +10,9 @@ O Admin abre em **Visão geral**, com contas cadastradas, alunos ativos hoje e e
 
 No computador, a navegação fica à esquerda; até 900 px, vira uma faixa horizontal deslizante. Os indicadores ficam em duas colunas no celular. Os rascunhos são preservados entre seções internas do Admin; não são persistidos ao sair do Admin ou recarregar a página.
 
-Os dados usam as APIs existentes. A reorganização visual não exige SQL; a nova área de IA depende de `migrations/20260912-ai-plan-quotas.sql` e `migrations/20260913-unify-ai-plan-quotas.sql` (nessa ordem). Falhas de cada fonte são sinalizadas separadamente. Se uma atualização falhar, os dados anteriores ficam visíveis com o aviso de falha. A fila carrega até 100 denúncias antigas; ao atingir o limite, a visão geral mostra “100 ou mais”. A lista de revisados depende do limite existente de até 1.000 itens por tipo.
+Os dados usam as APIs existentes. A reorganização visual não exige SQL; a nova área de IA depende de `server/migrations/20260912-ai-plan-quotas.sql` e `server/migrations/20260913-unify-ai-plan-quotas.sql` (nessa ordem). Falhas de cada fonte são sinalizadas separadamente. Se uma atualização falhar, os dados anteriores ficam visíveis com o aviso de falha. A fila carrega até 100 denúncias antigas; ao atingir o limite, a visão geral mostra “100 ou mais”. A lista de revisados depende do limite existente de até 1.000 itens por tipo.
 
-A área **IA e operação** agora mostra tentativas, falhas, tokens e custo estimado por plano/modelo (30 dias), após a migração de franquias. Consulte `AI-PLAN-ROLLOUT.md`. Resultados da avaliação pedagógica, plano por aluno e métricas financeiras da Stripe ainda precisam de integração. Não são exibidos números demonstrativos nem estados de saúde presumidos.
+A área **IA e operação** agora mostra tentativas, falhas, tokens e custo estimado por plano/modelo (30 dias), após a migração de franquias. Consulte [planos ia](../operacao/planos-ia.md). Resultados da avaliação pedagógica, plano por aluno e métricas financeiras da Stripe ainda precisam de integração. Não são exibidos números demonstrativos nem estados de saúde presumidos.
 
 ## Verificação
 

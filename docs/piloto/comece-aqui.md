@@ -1,5 +1,7 @@
 # Seu primeiro teste com alunos
 
+[Índice da documentação](../README.md)
+
 **Comece com 5 pessoas.** Convide somente depois de confirmar que o cadastro e o e-mail funcionam na versão publicada. Cada pessoa usa sua própria conta. Não peça senhas nem grave conversas por padrão.
 
 ## Convite para copiar
@@ -13,7 +15,7 @@
 3. Deixe escolher música ou conversa. Na música, testar o vídeo e pausar/retomar a legenda; na conversa, trocar três mensagens e explicar o que entendeu da correção.
 4. Pergunte: “O que você praticou? O que ficou confuso? Você voltaria amanhã para fazer o quê?”
 
-Anote sem ajuda / com ajuda / não conseguiu / não tentou, dispositivo e versão do site. Se não terminar no tempo previsto, registre; não transforme a sessão em uma aula de todas as abas. Alterne música e conversa entre participantes para cobrir ambas. O roteiro completo opcional está em `PILOT.md`.
+Anote sem ajuda / com ajuda / não conseguiu / não tentou, dispositivo e versão do site. Se não terminar no tempo previsto, registre; não transforme a sessão em uma aula de todas as abas. Alterne música e conversa entre participantes para cobrir ambas. O roteiro completo opcional está em [roteiro](roteiro.md).
 
 ## Depois
 
@@ -21,4 +23,4 @@ Anote sem ajuda / com ajuda / não conseguiu / não tentou, dispositivo e versã
 - D3: perguntar qual atividade ajudou e o que ainda atrapalha.
 - D7: registrar retorno e motivo para continuar ou parar.
 
-Use uma ficha de `PILOT-RESPOSTAS.md` por pessoa, identificada apenas por P01–P05. Traga as fichas para escolhermos as três correções prioritárias. Resultados ainda não foram coletados.
+Use uma ficha de [respostas](respostas.md) por pessoa, identificada apenas por P01–P05. Traga as fichas para escolhermos as três correções prioritárias. Resultados ainda não foram coletados.
