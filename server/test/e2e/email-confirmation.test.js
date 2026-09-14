@@ -37,8 +37,8 @@ test('mobile signup uses Google while existing confirmation links remain usable'
     await page.getByText('O link expirou. Solicite uma nova confirmação.', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Voltar ao login ou reenviar link' }).click();
     await page.getByPlaceholder('Email', { exact: true }).fill('ana@example.com');
-    await page.getByRole('button', { name: 'Reenviar confirmação de e-mail', exact: true }).click();
-    await page.getByText('Se a conta estiver pendente, enviaremos um novo link de confirmação.', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Reenviar confirmação de e-mail', exact: true }).count(), 0);
+    assert.ok(await page.getByRole('button', { name: 'Entrar com Google', exact: true }).isVisible());
     assert.deepEqual(errors, []);
   } finally { await browser?.close(); server.closeAllConnections(); server.close(); }
 });

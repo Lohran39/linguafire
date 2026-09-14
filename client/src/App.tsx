@@ -206,9 +206,6 @@ function AuthForm({
             Esqueci minha senha
           </button>
         )}
-        {isLogin && <button className="text-button" type="button" disabled={isSubmitting || cooldown > 0} onClick={handleResend}>
-          {cooldown ? `Reenviar em ${cooldown}s` : 'Reenviar confirmação de e-mail'}
-        </button>}
         <button className="google-button" type="button" onClick={() => loginWithGoogle('login')}>
           <img src="/assets/google-g.svg" alt="" aria-hidden="true" />
           {isLogin ? 'Entrar com Google' : 'Criar conta com Google'}
