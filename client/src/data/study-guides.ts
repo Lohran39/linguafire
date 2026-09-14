@@ -1,7 +1,7 @@
 import type { EnglishLevel } from './levels';
 
 export type GuidePage = { title: string; steps: [string, string, string]; tip: string };
-export type StudyGuide = { label: string; usage?: boolean; pages: [GuidePage, GuidePage] };
+export type StudyGuide = { label: string; usage?: boolean; pages: [GuidePage, ...GuidePage[]] };
 
 export const studyGuides = {
   home: { label: 'Início', pages: [
@@ -14,7 +14,9 @@ export const studyGuides = {
   ] },
   music: { label: 'Música', pages: [
     { title: 'Estude um trecho', steps: ['Escolha uma música e ouça um trecho curto.', 'Confira a letra e a tradução, quando disponíveis.', 'Pause e repita uma frase em voz alta.'], tip: 'Você não precisa entender a música inteira.' },
-    { title: 'Escute mais uma vez', steps: ['Ouça o mesmo trecho sem acompanhar a letra.', 'Separe uma expressão e crie um exemplo seu.', 'Use o quiz disponível para conferir a compreensão.'], tip: 'Se houver problema no conteúdo, use “Informar problema”.' }
+    { title: 'Escute mais uma vez', steps: ['Ouça o mesmo trecho sem acompanhar a letra.', 'Separe uma expressão e crie um exemplo seu.', 'Use o quiz disponível para conferir a compreensão.'], tip: 'Se houver problema no conteúdo, use “Informar problema”.' },
+    { title: 'Ajuste o tempo da legenda', steps: ['Abra “Ajustar legenda” abaixo do vídeo.', 'Ao ouvir a primeira frase da letra, toque em “A primeira frase começa agora”.', 'Letra aparecendo antes da voz? Use “Atrasar 0,5 s”. Depois da voz? Use “Adiantar 0,5 s”.'], tip: '“Restaurar” remove o ajuste. Esses controles aparecem quando a letra tem marcações de tempo.' },
+    { title: 'Pause só a legenda', steps: ['Dentro de “Ajustar legenda”, toque em “Pausar legenda” quando houver uma cena sem canto.', 'O vídeo continua tocando, mas a legenda fica na mesma frase.', 'Quando o canto voltar, toque em “Retomar legenda”: ela continua da frase pausada.'], tip: 'Para parar também o som e repetir uma frase em voz alta, pause o próprio vídeo.' }
   ] },
   flashcard: { label: 'Revisão', pages: [
     { title: 'Lembre antes de revelar', steps: ['Comece pelos cartões disponíveis para revisão.', 'Tente lembrar o significado antes de revelar a resposta.', 'Avalie com sinceridade o quanto conseguiu lembrar.'], tip: 'Reconhecer a resposta depois de vê-la não é o mesmo que lembrá-la.' },
