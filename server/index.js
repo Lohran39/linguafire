@@ -135,7 +135,10 @@ const {
   supabaseGetLyricsCache, supabaseUpsertLyricsCache,
   supabaseGetTranslationCache, supabaseUpsertTranslationCache,
   supabaseGetWorkingMusicVideo, supabaseGetBadMusicVideos, supabaseSaveWorkingMusicVideo, supabaseSaveBadMusicVideo,
-  supabaseDeleteUser
+  supabaseDeleteUser,
+  supabaseUploadProfileAvatar,
+  supabaseGetProfileAvatar,
+  supabaseDeleteProfileAvatar
 } = require('./db-supabase');
 
 // ============ MIDDLEWARE ============
@@ -318,7 +321,8 @@ setupAuthRoutes(app, {
 
 // Profile routes
 setupProfileRoutes(app, {
-  authenticateToken, supabaseGetUserById, supabaseUpdateUser, supabaseCompareUpdateUser, parseJsonField
+  authenticateToken, supabaseGetUserById, supabaseUpdateUser, supabaseCompareUpdateUser, parseJsonField,
+  supabaseUploadProfileAvatar, supabaseGetProfileAvatar, supabaseDeleteProfileAvatar
 });
 
 // Subscription routes
@@ -471,6 +475,7 @@ setupAgentRoutes(app, {
 app.use((err, req, res, next) => {
   monitoring.recordError(err, req);
   if (res.headersSent) return next(err);
+  if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'A foto enviada é muito grande.' });
   return res.status(500).json({ error: 'Erro interno do servidor' });
 });
 

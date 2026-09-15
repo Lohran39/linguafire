@@ -36,6 +36,7 @@ export type UserProfile = {
   xp_multiplier?: number;
   xp_multiplier_until?: number;
   titles?: string[];
+  avatar_url?: string | null;
 };
 
 export type FavoriteSong = {
@@ -150,6 +151,20 @@ export async function updateProfile(updates: Partial<UserProfile> & { lesson_xp?
   } finally {
     window.clearTimeout(timeout);
   }
+}
+
+export async function uploadProfileAvatar(avatar: Blob): Promise<string> {
+  const data = await parseJson<{ avatarUrl: string }>(await fetch(`${API_BASE}/profile/avatar`, {
+    method: 'PUT', credentials: 'include', headers: { 'Content-Type': avatar.type }, body: avatar,
+    signal: AbortSignal.timeout(20000)
+  }));
+  return data.avatarUrl;
+}
+
+export async function removeProfileAvatar(): Promise<void> {
+  await parseJson<{ success: boolean }>(await fetch(`${API_BASE}/profile/avatar`, {
+    method: 'DELETE', credentials: 'include', signal: AbortSignal.timeout(20000)
+  }));
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<string> {

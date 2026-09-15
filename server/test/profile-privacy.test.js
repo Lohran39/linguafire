@@ -4,7 +4,7 @@ const { setupProfileRoutes } = require('../routes/profile-routes');
 
 async function profile(row) {
   let handler, body;
-  setupProfileRoutes({ get(_path, ...handlers) { handler = handlers.at(-1); }, put() {} }, {
+  setupProfileRoutes({ get(path, ...handlers) { if (path === '/api/profile') handler = handlers.at(-1); }, put() {}, delete() {} }, {
     supabaseGetUserById: async () => row,
     parseJsonField(value, fallback) { return typeof value === 'string' ? JSON.parse(value) : value || fallback; }
   });

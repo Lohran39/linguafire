@@ -1,14 +1,39 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
-import { changePassword, deleteAccount, loginWithGoogle, requestPasswordReset, updateProfile, type UserProfile } from '../services/auth';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
+import { changePassword, deleteAccount, loginWithGoogle, removeProfileAvatar, requestPasswordReset, updateProfile, uploadProfileAvatar, type UserProfile } from '../services/auth';
 import { getPushStatus, subscribeToPush, supportsPushNotifications, unsubscribeFromPush } from '../services/notifications';
 import { applyTheme, normalizeTheme, themeOptions, type Theme } from '../theme';
 import { SubscriptionPanel } from './SubscriptionPanel';
 
-type Section = 'name' | 'theme' | 'push' | 'password' | 'delete';
+type Section = 'avatar' | 'name' | 'theme' | 'push' | 'password' | 'delete';
 type Notice = { kind: 'success' | 'error'; text: string };
 type Props = { user: UserProfile; onProfileRefresh: (user: UserProfile) => void; onPlacement: () => void };
 function Feedback({ notice }: { notice?: Notice }) {
   return notice ? <p className={`form-${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>{notice.text}</p> : null;
+}
+
+async function prepareAvatar(file: File): Promise<Blob> {
+  if (!file.type.startsWith('image/')) throw new Error('Escolha um arquivo de imagem.');
+  if (file.size > 12 * 1024 * 1024) throw new Error('Escolha uma foto com até 12 MB.');
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('Não foi possível abrir esta imagem.'));
+      element.src = sourceUrl;
+    });
+    const size = 320;
+    const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Seu navegador não conseguiu ajustar a foto.');
+    const crop = Math.min(image.naturalWidth, image.naturalHeight);
+    const left = (image.naturalWidth - crop) / 2, top = (image.naturalHeight - crop) / 2;
+    context.drawImage(image, left, top, crop, crop, 0, 0, size, size);
+    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/webp', .82));
+    if (!blob) throw new Error('Seu navegador não conseguiu preparar a foto.');
+    if (blob.size > 600 * 1024) throw new Error('Não foi possível reduzir a foto. Tente outra imagem.');
+    return blob;
+  } finally { URL.revokeObjectURL(sourceUrl); }
 }
 
 export function ProfileTab({ user, onProfileRefresh, onPlacement }: Props) {
@@ -23,6 +48,9 @@ export function ProfileTab({ user, onProfileRefresh, onPlacement }: Props) {
   const [busy, setBusy] = useState<Partial<Record<Section, boolean>>>({});
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushState, setPushState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const avatarInput = useRef<HTMLInputElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || `/api/profile/avatar?user=${encodeURIComponent(user.id)}`);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const pushSupported = supportsPushNotifications();
   const passwordless = user.has_password === false;
   const setNotice = (section: Section, kind: Notice['kind'], text: string) => setNotices(previous => ({ ...previous, [section]: { kind, text } }));
@@ -33,7 +61,10 @@ export function ProfileTab({ user, onProfileRefresh, onPlacement }: Props) {
   const end = (section: Section) => setBusy(previous => ({ ...previous, [section]: false }));
   const fail = (section: Section, error: unknown, fallback: string) => setNotice(section, 'error', error instanceof Error ? error.message : fallback);
 
-  useEffect(() => { setName(user.name || ''); setNotices({}); }, [user.id]);
+  useEffect(() => {
+    setName(user.name || ''); setNotices({}); setAvatarFailed(false);
+    setAvatarUrl(user.avatar_url || `/api/profile/avatar?user=${encodeURIComponent(user.id)}`);
+  }, [user.id]);
   useEffect(() => { setTheme(applyTheme(user.theme)); }, [user.id, user.theme]);
   useEffect(() => {
     let active = true;
@@ -55,6 +86,29 @@ export function ProfileTab({ user, onProfileRefresh, onPlacement }: Props) {
       setNotice('name', 'success', 'Nome atualizado.');
     } catch (error) { fail('name', error, 'Não foi possível salvar o nome.'); }
     finally { end('name'); }
+  }
+
+  async function selectAvatar(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]; event.target.value = '';
+    if (!file) return;
+    begin('avatar');
+    try {
+      const nextUrl = await uploadProfileAvatar(await prepareAvatar(file));
+      setAvatarUrl(nextUrl); setAvatarFailed(false);
+      onProfileRefresh({ ...latest.current, avatar_url: nextUrl });
+      setNotice('avatar', 'success', 'Foto atualizada.');
+    } catch (error) { fail('avatar', error, 'Não foi possível salvar a foto.'); }
+    finally { end('avatar'); }
+  }
+
+  async function deleteAvatar() {
+    begin('avatar');
+    try {
+      await removeProfileAvatar(); setAvatarFailed(true); setAvatarUrl('');
+      onProfileRefresh({ ...latest.current, avatar_url: null });
+      setNotice('avatar', 'success', 'Foto removida.');
+    } catch (error) { fail('avatar', error, 'Não foi possível remover a foto.'); }
+    finally { end('avatar'); }
   }
 
   async function selectTheme(next: Theme) {
@@ -114,7 +168,10 @@ export function ProfileTab({ user, onProfileRefresh, onPlacement }: Props) {
 
   return <section className="profile-layout profile-compact" aria-label="Perfil">
     <header className="profile-hero profile-identity">
-      <span className="profile-avatar" aria-hidden="true">{user.name?.trim().slice(0, 1).toUpperCase() || 'L'}</span>
+      <span className="profile-avatar" aria-hidden="true">
+        {!avatarFailed && avatarUrl && <img src={avatarUrl} alt="" onError={() => setAvatarFailed(true)} />}
+        {(avatarFailed || !avatarUrl) && (user.name?.trim().slice(0, 1).toUpperCase() || 'L')}
+      </span>
       <div><p className="kicker">Meu perfil</p><h1>{user.name || 'Estudante'}</h1><p className="profile-email">{user.email}</p></div>
       {user.placement_completed ? <span className="profile-level">Inglês {user.english_level}</span>
         : <button className="secondary-button" onClick={onPlacement}>Descobrir meu nível</button>}
@@ -132,6 +189,13 @@ export function ProfileTab({ user, onProfileRefresh, onPlacement }: Props) {
       <details className="profile-disclosure">
         <summary>Meus dados</summary>
         <form className="profile-section-body" onSubmit={saveName}>
+          <div className="profile-avatar-settings">
+            <input ref={avatarInput} hidden type="file" accept="image/*" onChange={selectAvatar} aria-label="Escolher foto de perfil" />
+            <button className="secondary-button" disabled={busy.avatar} type="button" onClick={() => avatarInput.current?.click()}>{busy.avatar ? 'Enviando...' : 'Escolher foto'}</button>
+            {!avatarFailed && avatarUrl && <button className="profile-avatar-remove" disabled={busy.avatar} type="button" onClick={deleteAvatar}>Remover foto</button>}
+          </div>
+          <p className="profile-avatar-hint">A foto será cortada em formato quadrado.</p>
+          <Feedback notice={notices.avatar} />
           <label>Nome<input className="field" autoComplete="name" maxLength={20} value={name} onChange={event => setName(event.target.value)} /></label>
           <button className="primary-button" disabled={busy.name || name.trim() === user.name} type="submit">{busy.name ? 'Salvando...' : 'Salvar nome'}</button>
           <Feedback notice={notices.name} />

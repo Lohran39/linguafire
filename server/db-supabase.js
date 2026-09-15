@@ -9,6 +9,62 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+const PROFILE_AVATAR_BUCKET = 'profile-avatars';
+let avatarBucketPromise;
+
+function ensureAvatarBucket() {
+  if (!avatarBucketPromise) {
+    avatarBucketPromise = (async () => {
+      const { data, error } = await supabase.storage.listBuckets();
+      if (error) throw error;
+      if (data?.some(bucket => bucket.name === PROFILE_AVATAR_BUCKET)) return;
+      const created = await supabase.storage.createBucket(PROFILE_AVATAR_BUCKET, {
+        public: false,
+        fileSizeLimit: 600 * 1024,
+        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
+      });
+      if (created.error && !/already exists|duplicate/i.test(created.error.message || '')) throw created.error;
+    })().catch(error => { avatarBucketPromise = null; throw error; });
+  }
+  return avatarBucketPromise;
+}
+
+async function supabaseUploadProfileAvatar(userId, buffer, contentType) {
+  try {
+    await ensureAvatarBucket();
+    const { error } = await supabase.storage.from(PROFILE_AVATAR_BUCKET).upload(`${userId}/avatar`, buffer, {
+      contentType,
+      cacheControl: '300',
+      upsert: true
+    });
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    return { error: error.message || 'Falha ao salvar foto' };
+  }
+}
+
+async function supabaseGetProfileAvatar(userId) {
+  try {
+    await ensureAvatarBucket();
+    const { data, error } = await supabase.storage.from(PROFILE_AVATAR_BUCKET).download(`${userId}/avatar`);
+    if (error) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function supabaseDeleteProfileAvatar(userId) {
+  try {
+    await ensureAvatarBucket();
+    const { error } = await supabase.storage.from(PROFILE_AVATAR_BUCKET).remove([`${userId}/avatar`]);
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    return { error: error.message || 'Falha ao remover foto' };
+  }
+}
 
 // User operations with Supabase
 async function supabaseGetUserByEmail(email) {
@@ -551,6 +607,7 @@ async function supabaseDeleteUser(id) {
     .delete()
     .eq('id', id);
   if (error) return { error: error.message };
+  await supabaseDeleteProfileAvatar(id);
   return { success: true };
 }
 
@@ -600,5 +657,8 @@ module.exports = {
   supabaseSaveBadMusicVideo,
   supabaseDeleteUser,
   supabaseFindUserByStripe,
-  supabaseSyncSubscription
+  supabaseSyncSubscription,
+  supabaseUploadProfileAvatar,
+  supabaseGetProfileAvatar,
+  supabaseDeleteProfileAvatar
 };

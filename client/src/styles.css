@@ -1544,7 +1544,13 @@ h2 span {
 .profile-compact .profile-identity h1 { margin: .15rem 0; font-size: clamp(1.35rem, 4vw, 2rem); text-align: left; overflow-wrap: anywhere; }
 .profile-compact .profile-identity p { margin: 0; }
 .profile-compact .profile-email { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
-.profile-avatar { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--surface-strong); color: var(--text); font-size: 1.5rem; }
+.profile-avatar { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; overflow: hidden; background: var(--surface-strong); color: var(--text); font-size: 1.5rem; }
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.profile-avatar-settings { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
+.profile-avatar-settings .secondary-button { width: auto; }
+.profile-avatar-remove { border: 0; padding: .6rem .2rem; background: transparent; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+.profile-avatar-remove:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.profile-avatar-hint { color: var(--muted); font-size: .8rem; }
 .profile-identity > :last-child { grid-column: 2; justify-self: start; }
 .profile-level { font-size: .85rem; border: 1px solid var(--border); border-radius: 20px; padding: .35rem .7rem; }
 .profile-study-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: .9rem 0; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }

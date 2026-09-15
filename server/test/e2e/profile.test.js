@@ -15,11 +15,22 @@ test('profile stays compact on mobile and scopes settings, errors and password c
       streak: 3, lessons_completed: 12, english_level: 'A2', placement_completed: true,
       google_linked: true, has_password: true, theme: 'default' };
     let emailRequests = 0;
+    let avatarUploaded = false;
+    const avatarPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.route('**/api/**', async route => {
       const req = route.request(), pathname = new URL(req.url()).pathname;
       let payload = {};
       if (pathname === '/api/auth/session') payload = { userId: user.id };
+      else if (pathname === '/api/profile/avatar') {
+        if (req.method() === 'PUT') {
+          assert.equal(req.headers()['content-type'], 'image/webp'); avatarUploaded = true;
+          return route.fulfill({ json: { success: true, avatarUrl: '/api/profile/avatar?v=test' } });
+        }
+        if (req.method() === 'DELETE') { avatarUploaded = false; return route.fulfill({ json: { success: true } }); }
+        if (!avatarUploaded) return route.fulfill({ status: 404, body: '' });
+        return route.fulfill({ status: 200, contentType: 'image/png', body: avatarPng });
+      }
       else if (pathname === '/api/profile') {
         if (req.method() === 'PUT') {
           const changes = req.postDataJSON();
@@ -48,6 +59,12 @@ test('profile stays compact on mobile and scopes settings, errors and password c
     }
     await page.setViewportSize({ width: 390, height: 844 });
     await profile.getByText('Meus dados', { exact: true }).click();
+    await profile.getByLabel('Escolher foto de perfil').setInputFiles({ name: 'avatar.png', mimeType: 'image/png', buffer: avatarPng });
+    await profile.getByRole('status').filter({ hasText: 'Foto atualizada.' }).waitFor();
+    assert.equal(avatarUploaded, true);
+    await profile.getByRole('button', { name: 'Remover foto' }).click();
+    await profile.getByRole('status').filter({ hasText: 'Foto removida.' }).waitFor();
+    assert.equal(avatarUploaded, false);
     await profile.getByLabel('Nome', { exact: true }).fill('Ana Silva');
     await profile.getByRole('button', { name: 'Salvar nome' }).click();
     await profile.getByRole('heading', { name: 'Ana Silva', exact: true }).waitFor();

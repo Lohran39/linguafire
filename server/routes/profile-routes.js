@@ -1,15 +1,51 @@
+const express = require('express');
 const { mutateUser, lessonXp } = require('../services/shop-benefits');
 const { aiUsage } = require('../services/subscription-state');
 const { publicProfile } = require('../utils/public-profile');
 const { profileUpdateSchema, validateBody } = require('../validation');
+const { detectedAvatarType, validateAvatar } = require('../utils/profile-avatar');
 
 function setupProfileRoutes(app, deps = {}) {
   const {
     authenticateToken = (req, res, next) => next(),
     supabaseGetUserById = async () => null,
     supabaseUpdateUser = async () => ({ error: 'not configured' }),
+    supabaseUploadProfileAvatar = async () => ({ error: 'not configured' }),
+    supabaseGetProfileAvatar = async () => null,
+    supabaseDeleteProfileAvatar = async () => ({ error: 'not configured' }),
     parseJsonField = (v, f) => f
   } = deps;
+
+  app.get('/api/profile/avatar', authenticateToken, async (req, res) => {
+    try {
+      const avatar = await supabaseGetProfileAvatar(req.user.id);
+      if (!avatar) return res.status(404).end();
+      const bytes = Buffer.from(await avatar.arrayBuffer());
+      const contentType = detectedAvatarType(bytes);
+      if (!contentType) return res.status(404).end();
+      res.set('Content-Type', contentType);
+      res.set('Cache-Control', 'private, max-age=300');
+      res.set('X-Content-Type-Options', 'nosniff');
+      return res.send(bytes);
+    } catch {
+      return res.status(500).json({ error: 'Não foi possível carregar a foto.' });
+    }
+  });
+
+  app.put('/api/profile/avatar', authenticateToken,
+    express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '600kb' }), async (req, res) => {
+      const validation = validateAvatar(req.body, req.headers['content-type']);
+      if (validation.error) return res.status(400).json({ error: validation.error });
+      const result = await supabaseUploadProfileAvatar(req.user.id, req.body, validation.contentType);
+      if (result?.error) return res.status(500).json({ error: 'Não foi possível salvar a foto.' });
+      return res.json({ success: true, avatarUrl: `/api/profile/avatar?v=${Date.now()}` });
+    });
+
+  app.delete('/api/profile/avatar', authenticateToken, async (req, res) => {
+    const result = await supabaseDeleteProfileAvatar(req.user.id);
+    if (result?.error) return res.status(500).json({ error: 'Não foi possível remover a foto.' });
+    return res.json({ success: true });
+  });
 
   // Get profile
   app.get('/api/profile', authenticateToken, async (req, res) => {
