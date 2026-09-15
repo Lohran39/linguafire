@@ -46,13 +46,6 @@ export type FavoriteSong = {
   level: string;
 };
 
-export type RegisterResult = {
-  requiresEmailVerification: boolean;
-  message: string;
-  verificationLink?: string | null;
-  user?: UserProfile;
-};
-
 const PASSWORD_RESET_TIMEOUT_MS = 20000;
 const PROFILE_UPDATE_TIMEOUT_MS = 15000;
 
@@ -80,8 +73,8 @@ export async function login(email: string, password: string): Promise<UserProfil
   return data.user;
 }
 
-export async function register(name: string, email: string, password: string): Promise<RegisterResult> {
-  const data = await parseJson<RegisterResult>(
+export async function register(name: string, email: string, password: string): Promise<UserProfile> {
+  const data = await parseJson<{ user: UserProfile }>(
     await fetch(`${API_BASE}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -90,8 +83,8 @@ export async function register(name: string, email: string, password: string): P
     })
   );
 
-  if (data.user) persistUserId(String(data.user.id));
-  return data;
+  persistUserId(String(data.user.id));
+  return data.user;
 }
 
 export async function resendVerification(email: string): Promise<{ message: string }> {

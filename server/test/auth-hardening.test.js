@@ -38,10 +38,10 @@ test('expired and previously consumed confirmation links never activate or issue
   }
 });
 
-test('missing verification status fails closed and reset revokes old session cookies', async t => {
+test('legacy password login works and password reset still revokes old session cookies', async t => {
   const user = { id: '1', email: 'test@example.com', password: await bcrypt.hash('secret123', 4), auth_version: 2 };
   const request = await serve(t, { JWT_SECRET: 'test', supabaseGetUserByEmail: async () => user, supabaseGetUserById: async () => user });
-  assert.equal((await request('/api/login', { email: user.email, password: 'secret123' })).status, 403);
+  assert.equal((await request('/api/login', { email: user.email, password: 'secret123' })).status, 200);
   user.email_verified = 1;
   const session = jwt.sign(sessionClaims(user), 'test');
   const headers = { cookie: `linguafire_token=${session}` };

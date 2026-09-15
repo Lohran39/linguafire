@@ -92,7 +92,7 @@ test('login endpoint returns stored profile arrays and shop bonuses', async () =
   }
 });
 
-test('register endpoint stores pending user and sends email verification', async () => {
+test('register endpoint activates the account and starts a session without email delivery', async () => {
   const app = express();
   app.use(express.json());
   let createdUser = null;
@@ -124,22 +124,20 @@ test('register endpoint stores pending user and sends email verification', async
     });
     const body = await response.json();
 
-    assert.equal(response.status, 200);
-    assert.equal(body.requiresEmailVerification, true);
-    assert.match(body.message, /link de confirmação/);
-    assert.equal(body.user, undefined);
-    assert.equal(createdUser.email_verified, 0);
-    assert.match(createdUser.email_verification_token, /^[a-f0-9]{64}$/);
-    assert.ok(createdUser.email_verification_expires > Date.now());
-    assert.equal(verificationEmail.email, 'new@example.com');
-    assert.match(verificationEmail.verifyUrl, /^https:\/\/linguafire\.test\/api\/auth\/verify-email\?token=/);
-    assert.equal(verificationEmail.name, 'New User');
+    assert.equal(response.status, 201);
+    assert.equal(body.user.email, 'new@example.com');
+    assert.equal(body.user.has_password, true);
+    assert.equal(createdUser.email_verified, 1);
+    assert.equal(createdUser.email_verification_token, '');
+    assert.equal(createdUser.email_verification_expires, 0);
+    assert.equal(verificationEmail, null);
+    assert.match(response.headers.get('set-cookie'), /linguafire_token=/);
   } finally {
     await stopTestServer(server);
   }
 });
 
-test('login endpoint blocks password users that have not confirmed email', async () => {
+test('login accepts legacy pending password accounts without requiring email delivery', async () => {
   const hashedPassword = await bcrypt.hash('secret123', 4);
   const app = express();
   app.use(express.json());
@@ -164,8 +162,9 @@ test('login endpoint blocks password users that have not confirmed email', async
     });
     const body = await response.json();
 
-    assert.equal(response.status, 403);
-    assert.equal(body.error, 'Confirme seu email antes de entrar.');
+    assert.equal(response.status, 200);
+    assert.equal(body.user.email, 'pending@example.com');
+    assert.match(response.headers.get('set-cookie'), /linguafire_token=/);
   } finally {
     await stopTestServer(server);
   }
@@ -216,7 +215,7 @@ test('email verification requires explicit activation and sets the inbox owner p
   }
 });
 
-test('register endpoint rejects email domains that cannot receive mail', async () => {
+test('register does not depend on email domain delivery checks', async () => {
   const app = express();
   app.use(express.json());
   let createUserCalled = false;
@@ -225,9 +224,9 @@ test('register endpoint rejects email domains that cannot receive mail', async (
     JWT_SECRET: 'unit-test-secret',
     parseJsonField,
     verifyEmailCanReceiveMail: async () => false,
-    supabaseCreateUser: async () => {
+    supabaseCreateUser: async (payload) => {
       createUserCalled = true;
-      return { data: { id: 'should-not-create' }, error: null };
+      return { data: { id: 'created-user', ...payload }, error: null };
     }
   });
 
@@ -240,9 +239,9 @@ test('register endpoint rejects email domains that cannot receive mail', async (
     });
     const body = await response.json();
 
-    assert.equal(response.status, 400);
-    assert.equal(body.error, 'Use um email valido que consiga receber mensagens.');
-    assert.equal(createUserCalled, false);
+    assert.equal(response.status, 201);
+    assert.equal(body.user.email, 'new@invalid.test');
+    assert.equal(createUserCalled, true);
   } finally {
     await stopTestServer(server);
   }

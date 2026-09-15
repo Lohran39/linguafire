@@ -10,7 +10,6 @@ import {
   loginWithGoogle,
   logout,
   register,
-  resendVerification,
   confirmEmail,
   requestPasswordReset,
   resetPassword,
@@ -58,27 +57,6 @@ function AuthForm({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState('');
-  const [cooldown, setCooldown] = useState(0);
-
-  useEffect(() => {
-    if (!cooldown) return;
-    const timer = window.setTimeout(() => setCooldown(value => Math.max(0, value - 1)), 1000);
-    return () => window.clearTimeout(timer);
-  }, [cooldown]);
-
-  async function handleResend() {
-    if (!email.trim()) { setError('Digite seu e-mail para reenviar a confirmação.'); return; }
-    setError(''); setMessage(''); setIsSubmitting(true);
-    try {
-      const result = await resendVerification(email.trim());
-      setMessage(result.message); setCooldown(60);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível reenviar. Tente novamente.');
-    } finally { setIsSubmitting(false); }
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -103,49 +81,13 @@ function AuthForm({
       const user = isLogin
         ? await login(email.trim(), password)
         : await register(name.trim(), email.trim(), password);
-      if ('requiresEmailVerification' in user) {
-        if (user.user && !user.requiresEmailVerification) onAuthenticated(user.user, true);
-        else { setPending(true); setMessage(''); setPassword(''); setConfirmPassword(''); setCooldown(60); }
-      } else onAuthenticated(user, false);
+      onAuthenticated(user, !isLogin);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Erro ao autenticar.');
     } finally {
       setIsSubmitting(false);
     }
   }
-
-  if (!isLogin) return (
-    <main className="auth-screen">
-      <section className="auth-panel" aria-label="Criar conta">
-        <div className="brand-mark">LF</div>
-        <h1>Crie sua conta</h1>
-        <p>Por enquanto, novos cadastros são feitos pelo Google. Não é preciso receber um e-mail do LinguaFire.</p>
-        <button className="google-button" type="button" onClick={() => loginWithGoogle('login')}>
-          <img src="/assets/google-g.svg" alt="" aria-hidden="true" />Criar conta com Google
-        </button>
-        <button className="secondary-button" type="button" onClick={onSwitch}>Já tenho conta</button>
-        <button className="ghost-button" type="button" onClick={onBack}>Voltar</button>
-      </section>
-    </main>
-  );
-
-  if (pending) return (
-    <main className="auth-screen">
-      <section className="auth-panel confirmation-panel" aria-labelledby="confirmation-title">
-        <div className="brand-mark">LF</div>
-        <h1 id="confirmation-title">Confira seu e-mail</h1>
-        <p>Abra o link enviado para <strong style={{ overflowWrap: 'anywhere' }}>{email}</strong>. Ele vale por 24 horas.</p>
-        <p>Confira também o spam. Seu acesso será liberado depois da confirmação.</p>
-        {message && <p role="status">{message}</p>}
-        {error && <div className="form-error" role="alert">{error}</div>}
-        <button className="primary-button" disabled={isSubmitting || cooldown > 0} onClick={handleResend}>
-          {cooldown ? `Reenviar em ${cooldown}s` : 'Reenviar confirmação'}
-        </button>
-        <button className="secondary-button" onClick={() => { setPending(false); setMessage(''); onSwitch(); }}>Já confirmei, entrar</button>
-        <button className="text-button" onClick={() => { setPending(false); setMessage(''); }}>Corrigir e-mail</button>
-      </section>
-    </main>
-  );
 
   return (
     <main className="auth-screen">
@@ -195,7 +137,6 @@ function AuthForm({
         )}
 
         {notice && <p className="auth-message" role="status">{notice}</p>}
-        {message && <p className="auth-message" role="status">{message}</p>}
         {error && <div className="form-error" role="alert">{error}</div>}
 
         <button className="primary-button" type="submit" disabled={isSubmitting}>
@@ -206,10 +147,10 @@ function AuthForm({
             Esqueci minha senha
           </button>
         )}
-        <button className="google-button" type="button" onClick={() => loginWithGoogle('login')}>
+        {isLogin && <button className="google-button" type="button" onClick={() => loginWithGoogle('login')}>
           <img src="/assets/google-g.svg" alt="" aria-hidden="true" />
-          {isLogin ? 'Entrar com Google' : 'Criar conta com Google'}
-        </button>
+          Entrar com Google
+        </button>}
         <button className="secondary-button" type="button" onClick={onSwitch}>
           {isLogin ? 'Criar conta gratuita' : 'Ja tenho conta'}
         </button>
@@ -352,7 +293,7 @@ function ResetPasswordForm({ token, onDone, verifying = false }: { token: string
         <button className="primary-button" type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Aguarde...' : verifying ? 'Confirmar e-mail e senha' : 'Alterar senha'}
         </button>
-        {verifying && <button className="text-button" type="button" onClick={() => { window.history.replaceState({}, '', '/'); onDone(); }}>Voltar ao login ou reenviar link</button>}
+        {verifying && <button className="text-button" type="button" onClick={() => { window.history.replaceState({}, '', '/'); onDone(); }}>Voltar ao login</button>}
       </form>
     </main>
   );

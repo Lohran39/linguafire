@@ -5,7 +5,6 @@ const crypto = require('crypto');
 const { isVerified, sessionIsCurrent, sessionClaims } = require('../utils/auth-security');
 const { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, forgotPasswordSchema, validateBody } = require('../validation');
 const { getCookieToken, setAuthCookie, clearAuthCookie } = require('../utils/auth');
-const { verifyEmailCanReceiveMail: defaultVerifyEmailCanReceiveMail } = require('../utils/email-verifier');
 
 const router = express.Router();
 
@@ -30,8 +29,7 @@ function setupAuthRoutes(app, deps = {}) {
     isPasswordResetEmailConfigured = () => !!process.env.SMTP_HOST,
     isTransactionalEmailConfigured = () => !!process.env.SMTP_HOST,
     logger = console,
-    parseJsonField = (value, fallback) => fallback,
-    verifyEmailCanReceiveMail = defaultVerifyEmailCanReceiveMail
+    parseJsonField = (value, fallback) => fallback
   } = deps;
 
   function buildDefaultUserPayload(user) {
@@ -120,41 +118,20 @@ function setupAuthRoutes(app, deps = {}) {
     const { name, email, password } = req.validatedBody;
 
     try {
-      const canReceiveMail = await verifyEmailCanReceiveMail(email);
-      if (!canReceiveMail) {
-        return res.status(400).json({ error: 'Use um email valido que consiga receber mensagens.' });
-      }
-
       const existingUser = await supabaseGetUserByEmail(email);
       if (existingUser) {
-        if (!isVerified(existingUser)) {
-          try {
-            const verificationUrl = await sendVerificationForUser(existingUser);
-            return res.json(emailVerificationResponse(verificationUrl));
-          } catch (emailErr) {
-            logger.error?.('Failed to resend email verification', { error: emailErr.message });
-            return res.status(500).json({ error: getPublicEmailError(emailErr, 'Erro ao enviar confirmação de email') });
-          }
-        }
         return res.status(400).json({ error: 'Este email já está cadastrado' });
       }
 
-      if (!isTransactionalEmailConfigured() && IS_PRODUCTION) {
-        logger.error?.('Registration requested without transactional email provider configured');
-        return res.status(500).json({ error: 'Email de confirmação não configurado' });
-      }
-
       const hashedPassword = await bcrypt.hash(password, 10);
-      const verificationToken = crypto.randomBytes(32).toString('hex');
-      const verificationExpires = Date.now() + 24 * 60 * 60 * 1000;
       const result = await supabaseCreateUser({
         name,
         email,
         password: hashedPassword,
-        email_verified: 0,
-        email_verified_at: 0,
-        email_verification_token: verificationToken,
-        email_verification_expires: verificationExpires
+        email_verified: 1,
+        email_verified_at: Date.now(),
+        email_verification_token: '',
+        email_verification_expires: 0
       });
 
       if (result.error) {
@@ -165,20 +142,9 @@ function setupAuthRoutes(app, deps = {}) {
         return res.status(500).json({ error: 'Erro ao criar conta' });
       }
 
-      const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${verificationToken}`;
-
-      if (isTransactionalEmailConfigured()) {
-        try {
-          await sendEmailVerificationEmail(email, verifyUrl, name);
-        } catch (emailErr) {
-          logger.error?.('Failed to send email verification', { error: emailErr.message });
-          return res.status(500).json({ error: getPublicEmailError(emailErr, 'Erro ao enviar confirmação de email') });
-        }
-      } else {
-        logger.info?.('Email confirmation link generated in development mode');
-      }
-
-      res.json(emailVerificationResponse(verifyUrl));
+      const user = result.data;
+      setAuthCookie(res, jwt.sign(sessionClaims(user), JWT_SECRET, { expiresIn: '7d' }));
+      res.status(201).json({ success: true, user: buildDefaultUserPayload(user) });
     } catch (error) {
       logger.error?.('Unexpected register error', { error: error.message });
       res.status(500).json({ error: 'Erro interno do servidor' });
@@ -198,10 +164,6 @@ function setupAuthRoutes(app, deps = {}) {
       const validPassword = await bcrypt.compare(password, user.password);
       if (!validPassword) {
         return res.status(401).json({ error: 'Email ou senha incorretos' });
-      }
-
-      if (!isVerified(user)) {
-        return res.status(403).json({ error: 'Confirme seu email antes de entrar.' });
       }
 
       const token = jwt.sign(sessionClaims(user), JWT_SECRET, { expiresIn: '7d' });
