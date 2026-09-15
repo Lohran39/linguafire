@@ -1,0 +1,333 @@
+.flash-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 1.25rem;
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  padding: clamp(1rem, 4vw, 2rem);
+}
+
+.flash-side,
+.flash-main {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
+.flash-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.flash-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0.85rem 0 1rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgb(7 8 13 / 74%);
+}
+
+.flash-mode-switch button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.flash-mode-switch button.active {
+  color: #160702;
+  background: linear-gradient(135deg, var(--fire-2), var(--fire-3));
+  box-shadow: 0 10px 24px rgb(255 102 0 / 16%);
+}
+
+.flash-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.flash-mode-grid button {
+  display: grid;
+  gap: 0.15rem;
+  min-height: 70px;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.flash-mode-grid button.active {
+  border-color: rgb(255 140 0 / 74%);
+  background: linear-gradient(145deg, rgb(255 102 0 / 20%), rgb(255 204 0 / 10%));
+}
+
+.flash-mode-grid strong,
+.flash-mode-grid span {
+  display: block;
+}
+
+.flash-mode-grid strong {
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.flash-mode-grid span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.flash-filter {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+}
+
+.flash-filter label {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.flash-filter select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgb(7 8 13 / 82%);
+  font: inherit;
+  font-weight: 800;
+}
+
+.flash-stats article {
+  min-height: 92px;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.flash-stats span,
+.flash-stats strong {
+  display: block;
+}
+
+.flash-stats span {
+  font-family: var(--display-font);
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--fire-3);
+}
+
+.flash-stats strong {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.flash-card {
+  display: grid;
+  min-height: 480px;
+  align-content: center;
+  gap: 1.2rem;
+  padding: clamp(1.2rem, 4vw, 2rem);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 0%, rgb(255 140 0 / 12%), transparent),
+    linear-gradient(145deg, rgb(16 16 24 / 84%), rgb(31 29 35 / 68%));
+  backdrop-filter: blur(3px);
+  text-align: center;
+}
+
+.flash-card.empty {
+  text-align: left;
+}
+
+.flash-card.empty .lead {
+  margin-left: 0;
+  text-align: left;
+}
+
+.flash-empty-hints,
+.flash-summary,
+.flash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.flash-empty-hints span,
+.flash-summary span {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgb(255 255 255 / 4%);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.flash-card h1 {
+  font-size: clamp(3rem, 10vw, 6.5rem);
+  color: var(--fire-2);
+  overflow-wrap: anywhere;
+}
+
+.flash-card h1.compact {
+  font-size: clamp(2rem, 5vw, 4rem);
+}
+
+.flash-card.empty h1 {
+  font-size: clamp(2.2rem, 6vw, 4rem);
+}
+
+.flash-card .primary-button {
+  justify-self: center;
+}
+
+.audio-button {
+  justify-self: center;
+  min-height: 42px;
+  padding: 0 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgb(255 255 255 / 5%);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.audio-button:hover {
+  border-color: rgb(255 140 0 / 62%);
+  color: var(--fire-3);
+}
+
+.flash-card.empty .primary-button {
+  justify-self: start;
+}
+
+.flash-card-top {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.flash-card-top span,
+.flash-card-top strong {
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.flash-card-top span {
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.flash-card-top strong {
+  color: #120602;
+  background: var(--fire-3);
+}
+
+.translation {
+  max-width: 620px;
+  margin: 0 auto;
+  color: var(--text);
+  font-size: clamp(1.25rem, 4vw, 2rem);
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.flash-example {
+  width: min(100%, 620px);
+  margin: 0 auto;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  background: rgb(255 255 255 / 5%);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.flash-note {
+  width: min(100%, 620px);
+  margin: -0.35rem auto 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.quality-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.quality-grid button {
+  display: grid;
+  gap: 0.2rem;
+  min-height: 84px;
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.quality-grid button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.quality-grid strong {
+  font-size: 0.95rem;
+}
+
+.quality-grid span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.daily-goal {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.daily-goal > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.daily-goal span {
+  color: var(--fire-3);
+}

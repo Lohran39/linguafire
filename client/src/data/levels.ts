@@ -1,3 +1,5 @@
+import appLevels from '../../../shared/app-levels.json';
+
 export type AppLevel = {
   level: number;
   name: string;
@@ -8,13 +10,11 @@ export type EnglishLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1';
 
 export const ENGLISH_LEVELS: EnglishLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1'];
 
-export const APP_LEVELS: AppLevel[] = [
-  { level: 1, name: 'Iniciante', xpNeeded: 200 },
-  { level: 2, name: 'Aprendiz', xpNeeded: 400 },
-  { level: 3, name: 'Explorador', xpNeeded: 700 },
-  { level: 4, name: 'Comunicador', xpNeeded: 1200 },
-  { level: 5, name: 'Fluente', xpNeeded: 2000 }
-];
+export const APP_LEVELS: AppLevel[] = appLevels;
+
+export function resolveLevel(xp: number) {
+  return Math.min(APP_LEVELS.length, 1 + APP_LEVELS.filter(level => xp >= level.xpNeeded).length);
+}
 
 export const LEVEL_PROFILES: Record<EnglishLevel, { title: string; focus: string; next: string; practice: string }> = {
   A1: {

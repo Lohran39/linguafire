@@ -1,3 +1,5 @@
+import { LessonCard } from './LessonCard';
+import { isLessonSet, isLessonQuestion, safeQuestionIndex } from '../services/lesson-state';
 import { LivesIndicator } from './LivesIndicator';
 import { useLessonHint, recordChallengeAnswer } from '../services/shop';
 import { recordLearning } from '../services/learning';
@@ -5,24 +7,20 @@ import { useActivityState } from '../hooks/activity-progress';
 import { getMistakeFlashcards, reviewFlashcard, type Flashcard } from '../services/flashcards';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  APP_LEVELS,
+  resolveLevel,
   englishLevelDistance,
   isRecommendedEnglishLevel,
   normalizeEnglishLevel,
   sortByEnglishLevel
 } from '../data/levels';
 import { lessonSets, type LessonSet } from '../data/lessons';
-import { updateProfile, type UserProfile } from '../services/auth';
+import { updateProfile } from '../services/profile';
+import { type UserProfile } from '../services/auth';
 
 type LessonTabProps = {
   user: UserProfile;
   onProfileRefresh: (user: UserProfile) => void;
 };
-
-function resolveLevel(xp: number) {
-  const reached = APP_LEVELS.filter((level) => xp >= level.xpNeeded).at(-1);
-  return reached ? Math.min(reached.level + 1, APP_LEVELS.length) : 1;
-}
 
 function dailyQuestionSortKey(questionId: string, seed: string) {
   let hash = 0;
@@ -43,18 +41,18 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     requestAnimationFrame(() => { runnerRef.current?.focus({ preventScroll: true }); runnerRef.current?.scrollIntoView({ block: 'start' }); });
   }
   const recommendedLessons = useMemo(() => sortByEnglishLevel(lessonSets, user.english_level), [user.english_level]);
-  const [activeLesson, setActiveLesson] = useActivityState<LessonSet>('lessons', 'activeLesson', recommendedLessons[0]);
+  const [activeLesson, setActiveLesson] = useActivityState<LessonSet>('lessons', 'activeLesson', recommendedLessons[0], isLessonSet);
   const [learningRun, setLearningRun] = useActivityState('lessons', 'learningRun', () => crypto.randomUUID());
   const [challenge, setChallenge] = useActivityState('lessons', 'challenge', false);
   const [lifeMessage, setLifeMessage] = useState('');
   const submittingChallenge = useRef(false);
-  const [practiceMode, setPracticeMode] = useActivityState<'quick' | 'complete'>('lessons', 'practiceMode', 'quick');
-  const [questionIndex, setQuestionIndex] = useActivityState('lessons', 'questionIndex', 0);
+  const [practiceMode, setPracticeMode] = useActivityState<'quick' | 'complete'>('lessons', 'practiceMode', 'quick', value => value === 'quick' || value === 'complete');
+  const [questionIndex, setQuestionIndex] = useActivityState('lessons', 'questionIndex', 0, value => Number.isInteger(value) && Number(value) >= 0);
   const [selectedChoice, setSelectedChoice] = useActivityState<number | null>('lessons', 'selectedChoice', null);
   const [typedAnswer, setTypedAnswer] = useActivityState('lessons', 'typedAnswer', '');
   const [submittedTextAnswer, setSubmittedTextAnswer] = useActivityState('lessons', 'submittedTextAnswer', '');
-  const [answers, setAnswers] = useActivityState<boolean[]>('lessons', 'answers', []);
-  const [missedQuestions, setMissedQuestions] = useActivityState<typeof activeLesson.questions>('lessons', 'missedQuestions', []);
+  const [answers, setAnswers] = useActivityState<boolean[]>('lessons', 'answers', [], value => Array.isArray(value) && value.every(answer => typeof answer === 'boolean'));
+  const [missedQuestions, setMissedQuestions] = useActivityState<typeof activeLesson.questions>('lessons', 'missedQuestions', [], value => Array.isArray(value) && value.every(isLessonQuestion));
   const [isSaving, setIsSaving] = useState(false);
   const [savedResult, setSavedResult] = useActivityState('lessons', 'savedResult', '');
 
@@ -97,7 +95,14 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
     },
     [activeLesson, dailyQuestionPool, isReviewLesson, practiceMode]
   );
-  const activeQuestion = currentQuestions[questionIndex];
+  const restoredIndex = safeQuestionIndex(questionIndex, currentQuestions.length);
+  useEffect(() => {
+    if (restoredIndex !== questionIndex) {
+      setQuestionIndex(restoredIndex); setAnswers([]); setSelectedChoice(null);
+      setTypedAnswer(''); setSubmittedTextAnswer(''); setSavedResult('');
+    }
+  }, [restoredIndex, questionIndex, setQuestionIndex, setAnswers, setSelectedChoice, setTypedAnswer, setSubmittedTextAnswer, setSavedResult]);
+  const activeQuestion = currentQuestions[restoredIndex];
   const isTypeQuestion = activeQuestion.prompt.startsWith('Complete:');
   const normalizedTypedAnswer = submittedTextAnswer.trim().toLowerCase();
   const normalizedCorrectAnswer = activeQuestion.choices[activeQuestion.answer].trim().toLowerCase();
@@ -324,21 +329,9 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
         <span className="section-kicker secondary-kicker">Recomendadas para você</span>
         <div className="lesson-grid">
           {primaryLessons.map((lesson) => (
-            <button
-              className={`${activeLesson.id === lesson.id ? 'lesson-card active' : 'lesson-card'} ${
-                completedLessons.has(`lesson-${lesson.id}`) ? 'completed' : ''
-              }`.trim()}
-              key={lesson.id}
-              type="button"
-              onClick={() => startLesson(lesson)}
-            >
-              <div className="lesson-card-meta">
-                <span>{lesson.level}</span>
-                {perfectLessons.has(`perfect-${lesson.id}`) ? <em>Perfeita</em> : completedLessons.has(`lesson-${lesson.id}`) ? <em>Concluída</em> : null}
-              </div>
-              <strong>{lesson.title}</strong>
-              <small>{lesson.focus}</small>
-            </button>
+            <LessonCard key={lesson.id} lesson={lesson} active={activeLesson.id === lesson.id}
+              completed={completedLessons.has(`lesson-${lesson.id}`)} perfect={perfectLessons.has(`perfect-${lesson.id}`)}
+              onSelect={() => startLesson(lesson)} />
           ))}
         </div>
         {practiceLessons.length > 0 && (
@@ -346,21 +339,9 @@ export function LessonTab({ user, onProfileRefresh }: LessonTabProps) {
             <span className="section-kicker secondary-kicker">Também liberadas</span>
             <div className="lesson-grid compact">
               {practiceLessons.map((lesson) => (
-                <button
-                  className={`${activeLesson.id === lesson.id ? 'lesson-card active' : 'lesson-card'} ${
-                    completedLessons.has(`lesson-${lesson.id}`) ? 'completed' : ''
-                  }`.trim()}
-                  key={lesson.id}
-                  type="button"
-                  onClick={() => startLesson(lesson)}
-                >
-                  <div className="lesson-card-meta">
-                    <span>{lesson.level}</span>
-                    {perfectLessons.has(`perfect-${lesson.id}`) ? <em>Perfeita</em> : completedLessons.has(`lesson-${lesson.id}`) ? <em>Concluída</em> : null}
-                  </div>
-                  <strong>{lesson.title}</strong>
-                  <small>{lesson.focus}</small>
-                </button>
+                <LessonCard key={lesson.id} lesson={lesson} active={activeLesson.id === lesson.id}
+              completed={completedLessons.has(`lesson-${lesson.id}`)} perfect={perfectLessons.has(`perfect-${lesson.id}`)}
+              onSelect={() => startLesson(lesson)} />
               ))}
             </div>
           </>

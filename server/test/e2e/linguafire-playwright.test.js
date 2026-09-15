@@ -75,6 +75,7 @@ function readRequestJson(request) {
 
 async function mockAuthenticatedApis(page) {
   const user = fixtureUser();
+  await page.route('**/api/profile/avatar*', route => route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') }));
   const activities = {};
   await page.route('**/api/product/usage', route => route.fulfill({ status: 204 }));
   await page.route('**/api/learning/summary', route => route.fulfill({ json: { consolidatedWords: 0, reviewedWords: 0, words: [], recurringErrors: [], skills: [] } }));
@@ -372,19 +373,19 @@ test('Playwright E2E: tabs load on demand and failed chunks leave navigation usa
     });
     await page.route('**/assets/NativesTab-*.js', route => route.abort('failed'));
     await page.goto(baseUrl);
-    await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor();
+    await page.getByText('Olá, E2E User', { exact: true }).waitFor();
     assert.ok(!scripts.some(url => /\/(MusicTab|LessonTab|NativesTab|AdminTab)-/.test(url)), 'unused tabs must not load with the dashboard');
     await openSecondaryTab(page, 'Música');
     await page.getByText('Carregando Música...', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Início', exact: true }).click();
-    await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor();
+    await page.getByText('Olá, E2E User', { exact: true }).waitFor();
     releaseChunk();
     await openSecondaryTab(page, 'Música');
     await page.getByRole('heading', { name: 'Shape of You', exact: true }).waitFor();
     await openSecondaryTab(page, 'Nativos');
     await page.getByRole('heading', { name: 'Não foi possível abrir Nativos', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Início', exact: true }).click();
-    await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor();
+    await page.getByText('Olá, E2E User', { exact: true }).waitFor();
   } finally {
     releaseChunk();
     await browser.close();
@@ -444,7 +445,7 @@ test('Playwright E2E: music shows original lyrics early and ignores outdated req
           } }).catch(() => {});
         });
         await page.goto(baseUrl);
-        await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor();
+        await page.getByText('Olá, E2E User', { exact: true }).waitFor();
         await openSecondaryTab(page, 'Música');
         const search = page.getByPlaceholder('Ex: stay, adele ou link do YouTube');
         await search.fill('fixture alpha');
@@ -489,7 +490,7 @@ test('Playwright E2E: music shows original lyrics early and ignores outdated req
         releaseSearch();
         await page.getByRole('heading', { name: 'Shape of You', exact: true }).waitFor();
         await page.getByRole('button', { name: 'Início', exact: true }).click();
-        await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor();
+        await page.getByText('Olá, E2E User', { exact: true }).waitFor();
       } finally {
         releaseLyrics();
         releaseTranslation();
@@ -528,6 +529,9 @@ test('Playwright E2E: native coach keeps ten turns, recovers errors and cancels 
         });
         await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
         await openSecondaryTab(page, 'Nativos');
+        await page.getByText('Explorar situações e expressões', { exact: true }).click();
+        await page.locator('.native-practice-disclosure > summary').click();
+        await page.getByRole('button', { name: 'Conversa com IA', exact: true }).click();
         const answer = page.getByLabel('Treino com IA', { exact: true });
         for (let index = 0; index < 10; index += 1) {
           await answer.fill(`I would like some water, please. Turn ${index + 1}.`);
@@ -610,7 +614,8 @@ test('Playwright E2E: React app primary flows work', {
     });
 
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor({ timeout: 5000 });
+    await page.getByText('Olá, E2E User', { exact: true }).waitFor({ timeout: 5000 });
+    await page.getByText('Missões e recompensas', { exact: false }).click();
     await page.getByRole('button', { name: 'Semanais' }).click();
     await page.getByText('Acumule 500 XP').waitFor({ timeout: 3000 });
 
@@ -655,7 +660,7 @@ test('Playwright E2E: React app primary flows work', {
     await page.getByText('Sessão concluída', { exact: true }).waitFor({ timeout: 5000 });
 
     await page.getByRole('button', { name: 'Loja' }).click();
-    await page.getByRole('heading', { name: 'Use XP para acelerar o estudo' }).waitFor({ timeout: 3000 });
+    await page.getByRole('heading', { name: 'Troque XP por benefícios' }).waitFor({ timeout: 3000 });
     await page.getByRole('button', { name: 'Comprar' }).first().click();
     await page.getByText('Dica comprada!').waitFor({ timeout: 5000 });
 
@@ -668,7 +673,7 @@ test('Playwright E2E: React app primary flows work', {
     await page.getByRole('button', { name: 'Fechar e analisar' }).click();
 
     await page.getByRole('button', { name: 'Nativos' }).click();
-    await page.getByRole('heading', { name: 'Treine inglês real por situação' }).waitFor({ timeout: 3000 });
+    await page.getByRole('heading', { name: 'Inglês na vida real' }).waitFor({ timeout: 3000 });
     await page.locator('#nativesInput').fill('me and you');
     await page.getByRole('button', { name: 'Buscar' }).click();
     await page.locator('.natives-result iframe').waitFor({ timeout: 5000 });
@@ -682,13 +687,15 @@ test('Playwright E2E: React app primary flows work', {
         await page.locator('.placement-count', { hasText: `${questionIndex + 2}/15` }).waitFor({ timeout: 3000 });
       }
     }
-    await page.getByText('Resultado').waitFor({ timeout: 5000 });
+    await page.getByText('Resultado', { exact: true }).waitFor({ timeout: 5000 });
 
     await page.getByRole('button', { name: 'Perfil' }).click();
     await page.getByRole('heading', { name: 'Assinatura' }).waitFor({ timeout: 3000 });
+    await page.getByText('Detalhes do plano e consumo', { exact: true }).click();
     await page.getByRole('button', { name: 'Ativar Pro' }).click();
     await page.getByText('Assinatura ativada.').waitFor({ timeout: 5000 });
 
+    await page.getByText('Segurança', { exact: true }).click();
     await page.getByLabel('Senha atual', { exact: true }).fill('oldpass1');
     await page.getByLabel('Nova senha', { exact: true }).fill('newpass1');
     await page.getByLabel('Confirmar nova senha', { exact: true }).fill('newpass1');
@@ -732,7 +739,7 @@ test('Playwright E2E: React desktop and mobile layouts avoid horizontal overflow
         });
 
         await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-        await page.getByRole('heading', { name: 'Olá, E2E User' }).waitFor({ timeout: 5000 });
+        await page.getByText('Olá, E2E User', { exact: true }).waitFor({ timeout: 5000 });
         await assertNoHorizontalOverflow(page, `${viewport.label}: home`);
 
         for (const tab of ['Lições', 'Música', 'Revisão', 'Conversar', 'Nativos', 'Loja', 'Nível', 'Perfil']) {

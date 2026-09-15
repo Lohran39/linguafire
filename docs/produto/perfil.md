@@ -17,3 +17,10 @@ O Perfil reúne identificação, resumo de estudo e configurações sem abrir to
 Validação local: build TypeScript/Vite, testes de privacidade da rota, tokens de uso único e segurança Google; testes de navegador com APIs simuladas cobrem edição, falha de tema, aviso de senha, criação de senha por e-mail e portal de cobrança. Layout conferido em larguras de 320, 390 e 1280 pixels.
 
 Não exige nova migração SQL. Os testes com respostas simuladas não comprovam envio real de e-mail nem configuração de cobrança em produção.
+
+
+## Foto e exclusão
+
+A foto pode ser escolhida e removida no perfil. O navegador recorta e reduz a imagem antes do envio; o servidor valida formato e tamanho e salva em bucket privado do Supabase. A leitura autenticada não usa cache persistente no navegador, evitando apresentar uma foto removida após recarga.
+
+Falhas no armazenamento ou no banco durante a exclusão não são apresentadas como sucesso. A sessão é mantida para permitir nova tentativa. A ausência de uma foto não impede excluir a conta.

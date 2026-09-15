@@ -10,7 +10,8 @@ import {
   type ConversationTopic,
   type GrammarError
 } from '../services/conversation';
-import { getProfile, type UserProfile } from '../services/auth';
+import { getProfile } from '../services/profile';
+import { type UserProfile } from '../services/auth';
 import { englishLevelIndex, normalizeEnglishLevel } from '../data/levels';
 
 type ConversationTabProps = {

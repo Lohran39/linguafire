@@ -1,0 +1,844 @@
+@media (max-width: 680px) {
+  .splash-screen,
+  .auth-screen {
+    min-height: 100svh;
+    min-height: 100dvh;
+  }
+
+  .splash-screen {
+    place-items: center;
+    overflow: hidden;
+    min-height: 100dvh;
+    padding: clamp(0.75rem, 3vw, 1rem);
+    background:
+      radial-gradient(ellipse 92% 34% at 50% 25%, rgb(0 199 255 / 14%), transparent 72%),
+      radial-gradient(ellipse 58% 28% at 10% 18%, rgb(0 212 255 / 12%), transparent 70%),
+      radial-gradient(ellipse 58% 28% at 90% 18%, rgb(255 140 0 / 12%), transparent 70%),
+      linear-gradient(180deg, #053342 0%, #042534 45%, #02111a 100%);
+  }
+
+  .auth-screen {
+    place-items: center;
+    overflow: hidden;
+    padding: clamp(0.75rem, 3vw, 1rem);
+    background:
+      linear-gradient(180deg, rgb(0 0 0 / 18%), rgb(0 0 0 / 4%) 34%, rgb(0 0 0 / 22%)),
+      radial-gradient(ellipse 70% 56% at 50% 42%, rgb(0 0 0 / 20%), transparent 74%),
+      url('/assets/auth-global-pathways.webp') center / cover no-repeat,
+      var(--bg);
+  }
+
+  .splash-screen::before {
+    inset: 25% -1.5rem 32%;
+    opacity: 0.42;
+    background-size: 150% auto;
+  }
+
+  .splash-flag {
+    width: clamp(68px, 21vw, 88px);
+    padding: 0.22rem;
+    border-radius: 10px;
+    box-shadow: 0 10px 22px rgb(0 0 0 / 38%), 0 0 18px rgb(255 255 255 / 10%);
+  }
+
+  .splash-flag-uk {
+    top: max(0.75rem, env(safe-area-inset-top));
+    left: 0.75rem;
+  }
+
+  .splash-flag-us {
+    top: max(0.75rem, env(safe-area-inset-top));
+    right: 0.75rem;
+  }
+
+  .hero,
+  .auth-panel {
+    align-self: center;
+  }
+
+  .splash-screen .hero {
+    align-self: center;
+    width: min(100%, 390px);
+    padding: 2.8rem 0 0;
+  }
+
+  .splash-screen .brand-mark {
+    font-size: clamp(2rem, 8.8vw, 2.55rem);
+  }
+
+  .splash-screen h1 {
+    max-width: calc(100vw - 1.5rem);
+    overflow: hidden;
+    font-size: clamp(2.05rem, 10.8vw, 2.85rem);
+    line-height: 0.92;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  .splash-screen .kicker {
+    margin-top: 0.24rem;
+    font-size: 0.58rem;
+  }
+
+  .splash-screen h2 {
+    max-width: 350px;
+    margin-top: 0.72rem;
+    font-size: clamp(1.35rem, 7.2vw, 1.75rem);
+    line-height: 0.98;
+  }
+
+  .splash-screen .lead {
+    max-width: 320px;
+    margin-top: 0.55rem;
+    font-size: clamp(0.68rem, 3.4vw, 0.78rem);
+    line-height: 1.3;
+  }
+
+  .splash-screen .highlight-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: min(100%, 320px);
+    margin-top: 0.65rem;
+    gap: 0.5rem;
+  }
+
+  .splash-screen .highlight-card {
+    min-height: 64px;
+    padding: 0.46rem;
+  }
+
+  .splash-screen .highlight-card span {
+    width: 20px;
+    height: 20px;
+    margin-bottom: 0.28rem;
+  }
+
+  .splash-screen .highlight-card strong {
+    font-size: 0.68rem;
+  }
+
+  .splash-screen .highlight-card small {
+    font-size: 0.6rem;
+    line-height: 1.15;
+  }
+
+  .splash-screen .actions {
+    margin-top: 0.65rem;
+  }
+
+  .splash-screen .primary-button {
+    min-height: 40px;
+    width: auto;
+    min-width: 148px;
+    padding: 0.65rem 1rem;
+  }
+
+  .splash-screen .form-error {
+    width: min(100%, 340px);
+    margin-right: auto;
+    margin-left: auto;
+    padding: 0.7rem 0.75rem;
+    font-size: 0.78rem;
+    text-align: center;
+  }
+
+  .auth-panel {
+    width: min(100%, 358px);
+    max-height: calc(100dvh - 1.5rem);
+    padding: clamp(0.9rem, 4vw, 1.1rem);
+    overflow-y: auto;
+    border-radius: 28px;
+  }
+
+  .auth-panel .brand-mark {
+    font-size: clamp(3.25rem, 17vw, 4.35rem);
+  }
+
+  .auth-panel p {
+    margin-bottom: 0.55rem;
+    font-size: 0.62rem;
+  }
+
+  .field {
+    min-height: 42px;
+    margin-top: 0.48rem;
+    padding: 0.58rem 0.82rem;
+  }
+
+  .auth-panel .primary-button,
+  .google-button,
+  .auth-panel .secondary-button {
+    min-height: 44px;
+  }
+
+  .google-button img {
+    width: 22px;
+    height: 22px;
+  }
+
+  .ghost-button {
+    min-height: 30px;
+  }
+
+  .highlight-grid,
+  .metric-grid,
+  .flash-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .topbar,
+  .home-layout,
+  .profile-layout,
+  .music-layout,
+  .lesson-layout,
+  .flash-layout,
+  .conversation-layout,
+  .conversation-room,
+  .natives-layout,
+  .shop-layout,
+  .admin-layout,
+  .placement-layout {
+    padding-right: 0.85rem;
+    padding-left: 0.85rem;
+  }
+
+  .topbar {
+    min-height: auto;
+  }
+
+  .topbar > strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-nav {
+    width: 100%;
+    scrollbar-width: none;
+  }
+
+  .app-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-screen {
+    background:
+      linear-gradient(180deg, rgb(5 7 10 / 10%), rgb(5 7 10 / 18%) 42%, rgb(5 7 10 / 32%)),
+      radial-gradient(ellipse 86% 48% at 50% 24%, rgb(255 102 0 / 8%), transparent 72%),
+      url('/assets/app-global-pathways-mobile.webp') center top / cover repeat-y,
+      var(--bg);
+  }
+
+  .app-screen::before {
+    background: rgb(4 5 8 / 8%);
+  }
+
+  .welcome-panel,
+  .streak-panel,
+  .reward-panel,
+  .side-panel,
+  .quests-panel,
+  .profile-hero,
+  .profile-settings,
+  .music-player-panel,
+  .flash-card,
+  .conversation-hero,
+  .conversation-room,
+  .grammar-panel,
+  .natives-hero,
+  .natives-search,
+  .natives-result,
+  .natives-fallback,
+  .shop-hero,
+  .shop-card,
+  .admin-hero,
+  .admin-panel,
+  .admin-metrics article,
+  .placement-layout.active,
+  .placement-layout.result {
+    background: linear-gradient(145deg, rgb(16 16 24 / 72%), rgb(31 29 35 / 54%));
+    backdrop-filter: blur(2px);
+  }
+
+  .reward-panel,
+  .music-actions,
+  .lesson-runner-head,
+  .room-header,
+  .panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reward-panel .primary-button,
+  .music-actions .secondary-button,
+  .music-actions .primary-button,
+  .lesson-runner-head > strong,
+  .room-header .secondary-button {
+    width: 100%;
+  }
+
+  .lesson-runner,
+  .flash-card,
+  .conversation-room {
+    min-height: auto;
+  }
+
+  .flash-layout {
+    gap: 0.85rem;
+    overflow-x: hidden;
+  }
+
+  .flash-side,
+  .flash-main,
+  .flash-card,
+  .side-panel {
+    min-width: 0;
+  }
+
+  .flash-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .flash-card {
+    gap: 0.9rem;
+    padding: 1rem;
+  }
+
+  .flash-card h1 {
+    font-size: clamp(2.15rem, 13vw, 3.35rem);
+    line-height: 0.98;
+  }
+
+  .flash-card h1.compact {
+    font-size: clamp(1.45rem, 8.5vw, 2.25rem);
+    line-height: 1.08;
+  }
+
+  .flash-card-top {
+    flex-wrap: wrap;
+  }
+
+  .translation,
+  .flash-example,
+  .flash-note {
+    max-width: 100%;
+  }
+
+  .flash-example {
+    padding: 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .flash-note {
+    font-size: 0.82rem;
+  }
+
+  .flash-empty-hints,
+  .flash-summary,
+  .flash-actions {
+    width: 100%;
+  }
+
+  .flash-actions .primary-button,
+  .flash-actions .secondary-button,
+  .flash-card.empty .primary-button,
+  .flash-card .primary-button,
+  .audio-button {
+    width: 100%;
+  }
+
+  .conversation-room {
+    grid-template-rows: auto auto minmax(280px, 52vh) auto;
+  }
+
+  .message-list {
+    max-height: 52vh;
+  }
+
+  .message {
+    max-width: 92%;
+    overflow-wrap: anywhere;
+  }
+
+  .native-thumbs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .native-video-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .native-video-actions small {
+    text-align: left;
+  }
+}
+
+@media (max-width: 900px) {
+  .native-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .app-nav {
+    overflow-x: auto;
+  }
+
+  .app-nav button {
+    flex: 0 0 auto;
+  }
+
+  .app-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .home-layout,
+  .music-layout,
+  .lesson-layout,
+  .flash-layout,
+  .profile-layout,
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-layout {
+    gap: 1rem;
+  }
+
+  .lesson-sidebar h1 {
+    max-width: 12ch;
+  }
+
+  .lesson-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lesson-grid.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-runner {
+    min-height: auto;
+  }
+
+  .admin-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-token-row {
+    grid-template-columns: 1fr;
+  }
+
+  .music-header {
+    flex-direction: column;
+  }
+
+  .music-header > div:first-child {
+    flex: 0 1 auto;
+    width: 100%;
+  }
+
+  .music-actions {
+    flex: 0 1 auto;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .music-actions .secondary-button,
+  .music-actions .primary-button {
+    flex: 0 1 auto;
+    min-width: 0;
+    min-height: 48px;
+    white-space: normal;
+  }
+
+  .topic-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .room-header,
+  .conversation-form,
+  .natives-search {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .room-header .secondary-button,
+  .conversation-form .primary-button,
+  .natives-search .primary-button {
+    width: 100%;
+  }
+
+  .conversation-notice {
+    display: grid;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1180px) {
+  .topbar,
+  .home-layout,
+  .profile-layout,
+  .music-layout,
+  .lesson-layout,
+  .flash-layout,
+  .conversation-layout,
+  .conversation-room,
+  .natives-layout,
+  .shop-layout,
+  .admin-layout {
+    width: min(100%, calc(100vw - 2rem));
+  }
+
+  .home-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  }
+
+  .metric-grid,
+  .quest-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .topic-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .native-situation-grid,
+  .native-pack-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .native-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .native-phrase-list {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .native-favorites {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .auth-screen {
+    padding: 0.65rem;
+  }
+
+  .flash-mode-switch {
+    grid-template-columns: 1fr;
+  }
+
+  .flash-layout {
+    padding-right: 0.65rem;
+    padding-left: 0.65rem;
+  }
+
+  .flash-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .natives-layout {
+    gap: 0.85rem;
+    padding-right: 0.65rem;
+    padding-left: 0.65rem;
+  }
+
+  .native-progress-strip {
+    display: grid;
+    width: 100%;
+    gap: 0.25rem;
+  }
+
+  .native-daily-panel {
+    max-width: none;
+  }
+
+  .natives-search,
+  .native-situation-grid,
+  .native-pack-row,
+  .native-compare,
+  .native-explain-grid,
+  .native-actions,
+  .native-drill-grid,
+  .native-review-grid,
+  .native-favorites,
+  .native-saved-videos {
+    grid-template-columns: 1fr;
+  }
+
+  .native-drill-grid article > div {
+    grid-template-columns: 1fr;
+  }
+
+  .native-situation-grid button,
+  .native-pack-row button,
+  .native-phrase-list button,
+  .native-favorites button {
+    padding: 0.85rem;
+  }
+
+  .native-coach textarea {
+    min-height: 108px;
+  }
+
+  .native-history-list button {
+    grid-template-columns: 1fr;
+  }
+
+  .native-history-list span {
+    grid-row: auto;
+  }
+
+  .flash-card {
+    padding: 0.9rem;
+  }
+
+  .flash-card h1 {
+    font-size: clamp(1.9rem, 12vw, 2.65rem);
+  }
+
+  .flash-card h1.compact {
+    font-size: clamp(1.25rem, 7.5vw, 1.8rem);
+  }
+
+  .flash-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .flash-mode-grid button {
+    min-height: 58px;
+  }
+
+  .flash-card-top {
+    justify-content: flex-start;
+  }
+
+  .splash-screen {
+    padding: 0.65rem;
+  }
+
+  .splash-screen::before {
+    inset: 24% -2.5rem 33%;
+    opacity: 0.38;
+    background-size: 170% auto;
+  }
+
+  .splash-screen .hero {
+    padding: 2.45rem 0 0;
+  }
+
+  .splash-screen h2 {
+    max-width: 340px;
+    font-size: clamp(1.25rem, 6.9vw, 1.52rem);
+  }
+
+  .splash-screen .lead {
+    max-width: 320px;
+  }
+
+  .auth-panel {
+    padding: 0.9rem;
+    border-radius: 26px;
+  }
+
+  .brand-mark {
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    font-size: clamp(3.5rem, 20vw, 4.5rem);
+  }
+
+  h1,
+  .auth-panel h1 {
+    font-size: 2.35rem;
+    line-height: 1;
+  }
+
+  .splash-screen h1 {
+    font-size: clamp(1.95rem, 10.2vw, 2.55rem);
+    line-height: 0.92;
+  }
+
+  h2,
+  .welcome-panel h1,
+  .profile-hero h1,
+  .music-header h1,
+  .lesson-sidebar h1,
+  .conversation-hero h1,
+  .room-header h1,
+  .natives-hero h1,
+  .shop-hero h1,
+  .placement-layout h1 {
+    font-size: 2rem;
+    line-height: 1.06;
+  }
+
+  .lesson-sidebar h1 {
+    max-width: 100%;
+  }
+
+  .lesson-grid,
+  .lesson-grid.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-card {
+    min-height: 104px;
+    padding: 0.85rem;
+  }
+
+  .lesson-runner-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .lesson-runner-head > strong {
+    width: fit-content;
+  }
+
+  .lesson-mode-switch button {
+    min-height: 38px;
+  }
+
+  .highlight-card {
+    min-height: 118px;
+    padding: 0.8rem;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .primary-button,
+  .secondary-link,
+  .secondary-button,
+  .google-button {
+    width: 100%;
+  }
+
+  .streak-panel,
+  .reward-panel,
+  .placement-lock {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .learning-path-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .learning-path-panel > span {
+    width: 100%;
+    height: 42px;
+  }
+
+  .streak-number {
+    width: 100%;
+  }
+
+  .lesson-choices,
+  .metric-grid,
+  .admin-metrics,
+  .quality-grid,
+  .topic-grid,
+  .quest-list,
+  .shop-grid,
+  .native-thumbs {
+    grid-template-columns: 1fr;
+  }
+
+  .message {
+    max-width: 100%;
+  }
+
+  .profile-actions .secondary-button,
+  .profile-actions .primary-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .splash-screen {
+    padding: 0.55rem;
+  }
+
+  .splash-flag {
+    width: 60px;
+  }
+
+  .splash-screen .brand-mark {
+    font-size: 2.15rem;
+  }
+
+  .splash-screen h1 {
+    font-size: 2.05rem;
+  }
+
+  .splash-screen h2 {
+    font-size: 1.24rem;
+  }
+
+  .splash-screen .lead {
+    font-size: 0.66rem;
+  }
+
+  .splash-screen .highlight-card {
+    min-height: 62px;
+  }
+
+  .splash-screen .highlight-card small {
+    display: none;
+  }
+
+  .topbar,
+  .home-layout,
+  .profile-layout,
+  .music-layout,
+  .lesson-layout,
+  .flash-layout,
+  .conversation-layout,
+  .conversation-room,
+  .natives-layout,
+  .shop-layout,
+  .placement-layout {
+    padding-right: 0.65rem;
+    padding-left: 0.65rem;
+  }
+
+  .auth-panel {
+    padding: 0.85rem;
+  }
+
+  .field,
+  .primary-button,
+  .secondary-button,
+  .google-button {
+    min-height: 48px;
+    padding-right: 0.8rem;
+    padding-left: 0.8rem;
+  }
+}
+
+@media (max-height: 720px) and (min-width: 421px) {
+  .auth-screen {
+    align-items: start;
+    place-items: start center;
+    overflow-y: auto;
+  }
+
+  .auth-panel {
+    margin: 0 auto;
+  }
+}

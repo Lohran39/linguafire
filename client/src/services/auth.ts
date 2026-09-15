@@ -48,7 +48,6 @@ export type FavoriteSong = {
 };
 
 const PASSWORD_RESET_TIMEOUT_MS = 20000;
-const PROFILE_UPDATE_TIMEOUT_MS = 15000;
 
 const parseJson = createJsonParser('Erro ao processar a solicitação');
 
@@ -88,15 +87,6 @@ export async function register(name: string, email: string, password: string): P
   return data.user;
 }
 
-export async function resendVerification(email: string): Promise<{ message: string }> {
-  return parseJson<{ message: string }>(await fetch(`${API_BASE}/auth/resend-verification`, {
-    method: 'POST', credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    signal: AbortSignal.timeout(20000),
-    body: JSON.stringify({ email })
-  }));
-}
-
 export async function confirmEmail(token: string, newPassword: string): Promise<{ message: string }> {
   return parseJson<{ message: string }>(await fetch(`${API_BASE}/auth/verify-email`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -115,56 +105,6 @@ export async function getSession(): Promise<{ userId: string; email: string } | 
   const data = await parseJson<{ userId: string; email: string }>(response);
   persistUserId(String(data.userId));
   return data;
-}
-
-export async function getProfile(): Promise<UserProfile> {
-  const data = await parseJson<{ user: UserProfile }>(
-    await fetch(`${API_BASE}/profile`, {
-      credentials: 'include', signal: AbortSignal.timeout(10000)
-    })
-  );
-
-  persistUserId(String(data.user.id));
-  return data.user;
-}
-
-export async function updateProfile(updates: Partial<UserProfile> & { lesson_xp?: number; xp_base?: number }): Promise<Partial<UserProfile>> {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), PROFILE_UPDATE_TIMEOUT_MS);
-
-  try {
-    const result = await parseJson<{ success: boolean; updates?: Partial<UserProfile> }>(
-      await fetch(`${API_BASE}/profile`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        signal: controller.signal,
-        body: JSON.stringify(updates)
-      })
-    );
-    return result.updates || {};
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('O salvamento demorou demais. Tente novamente em alguns segundos.');
-    }
-    throw error;
-  } finally {
-    window.clearTimeout(timeout);
-  }
-}
-
-export async function uploadProfileAvatar(avatar: Blob): Promise<string> {
-  const data = await parseJson<{ avatarUrl: string }>(await fetch(`${API_BASE}/profile/avatar`, {
-    method: 'PUT', credentials: 'include', headers: { 'Content-Type': avatar.type }, body: avatar,
-    signal: AbortSignal.timeout(20000)
-  }));
-  return data.avatarUrl;
-}
-
-export async function removeProfileAvatar(): Promise<void> {
-  await parseJson<{ success: boolean }>(await fetch(`${API_BASE}/profile/avatar`, {
-    method: 'DELETE', credentials: 'include', signal: AbortSignal.timeout(20000)
-  }));
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<string> {
@@ -188,60 +128,6 @@ export async function deleteAccount(): Promise<void> {
     })
   );
   clearUserId();
-}
-
-export type SubscriptionStatus = {
-  active: boolean; expires: number; plan: string | null; price: number;
-  aiDailyLimit: number; checkoutConfigured: boolean; checkoutIssues?: string[];
-  aiUsage: { used: number; limit: number; remaining: number; resetsAt: string; monthlyUsed?: number; monthlyLimit?: number | null; monthlyRemaining?: number | null; monthlyResetsAt?: string; legacy?: boolean };
-  billingStatus: string; managed: boolean; cancelAtPeriodEnd: boolean; cancelAt: number;
-  portalAvailable: boolean; hasBillingAccount: boolean; canSubscribe: boolean; syncWarning?: string;
-};
-
-export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
-  return parseJson<SubscriptionStatus>(await fetch(`${API_BASE}/subscription/status`, {
-    credentials: 'include', cache: 'no-store', signal: AbortSignal.timeout(20000)
-  }));
-}
-
-function redirectToStripe(value: string, host: string) {
-  const url = new URL(value);
-  if (url.protocol !== 'https:' || url.hostname !== host || url.username || url.password) {
-    throw new Error('Endereço de pagamento inválido.');
-  }
-  window.location.assign(url.href);
-}
-
-export async function openBillingPortal(): Promise<void> {
-  const data = await parseJson<{ portalUrl: string }>(await fetch(`${API_BASE}/subscription/portal`, {
-    method: 'POST', credentials: 'include', signal: AbortSignal.timeout(20000)
-  }));
-  redirectToStripe(data.portalUrl, 'billing.stripe.com');
-}
-
-export async function createSubscription(plan: 'pro' | 'max' = 'pro') {
-  const data = await parseJson<{
-    checkoutUrl?: string;
-    subscription?: { active: boolean; expires: number; plan: string; price: number; aiDailyLimit?: number };
-  }>(await fetch(`${API_BASE}/subscription/create`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-    body: JSON.stringify({ plan }), signal: AbortSignal.timeout(20000)
-  }));
-  if (data.checkoutUrl) {
-    redirectToStripe(data.checkoutUrl, 'checkout.stripe.com');
-    return null;
-  }
-  if (!data.subscription) throw new Error('Resposta de assinatura inválida');
-  return data.subscription;
-}
-
-export async function cancelSubscription(): Promise<void> {
-  await parseJson<{ success: boolean }>(
-    await fetch(`${API_BASE}/subscription/cancel`, {
-      method: 'POST',
-      credentials: 'include'
-    })
-  );
 }
 
 export async function logout(): Promise<void> {

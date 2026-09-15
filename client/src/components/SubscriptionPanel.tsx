@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createSubscription, getSubscriptionStatus, openBillingPortal, type SubscriptionStatus, type UserProfile } from '../services/auth';
+import { createSubscription, getSubscriptionStatus, openBillingPortal, type SubscriptionStatus } from '../services/subscription';
+import { type UserProfile } from '../services/auth';
 import { useSaveBeforeLeave } from '../hooks/activity-progress';
 
 const billingLabels: Record<string, string> = {

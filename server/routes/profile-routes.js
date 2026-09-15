@@ -1,6 +1,6 @@
+const { resolveLevel } = require('../services/progression');
 const express = require('express');
 const { mutateUser, lessonXp } = require('../services/shop-benefits');
-const { aiUsage } = require('../services/subscription-state');
 const { publicProfile } = require('../utils/public-profile');
 const { profileUpdateSchema, validateBody } = require('../validation');
 const { detectedAvatarType, validateAvatar } = require('../utils/profile-avatar');
@@ -24,7 +24,7 @@ function setupProfileRoutes(app, deps = {}) {
       const contentType = detectedAvatarType(bytes);
       if (!contentType) return res.status(404).end();
       res.set('Content-Type', contentType);
-      res.set('Cache-Control', 'private, max-age=300');
+      res.set('Cache-Control', 'private, no-store');
       res.set('X-Content-Type-Options', 'nosniff');
       return res.send(bytes);
     } catch {
@@ -55,24 +55,7 @@ function setupProfileRoutes(app, deps = {}) {
         return res.status(404).json({ error: 'Usuário não encontrado' });
       }
 
-      const usage = aiUsage(user);
-      res.json({
-        user: {
-          ...publicProfile(user, parseJsonField),
-          theme: user.theme || 'default',
-          subscription_active: usage.plan !== 'free',
-          subscription_expires: user.subscription_expires || 0,
-          plan: usage.plan,
-          ai_daily_limit: usage.limit,
-          ai_monthly_limit: usage.monthlyLimit,
-          ai_uses_month: usage.monthlyUsed,
-          ai_month_resets_at: usage.monthlyResetsAt,
-          ai_legacy: usage.legacy,
-          ai_uses_today: usage.used,
-          ai_limit_resets_at: usage.resetsAt,
-          ai_uses_date: user.ai_uses_date || ''
-        }
-      });
+      res.json({ user: publicProfile(user, parseJsonField) });
     } catch (error) {
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
@@ -100,8 +83,11 @@ function setupProfileRoutes(app, deps = {}) {
           if (Number(user.xp || 0) !== req.validatedBody.xp_base) {
             const error = new Error('Seu saldo mudou. Atualize a página antes de salvar.'); error.status = 409; throw error;
           }
+          if (req.validatedBody.correct_answers_base !== undefined && Number(user.correct_answers || 0) !== req.validatedBody.correct_answers_base) {
+            const error = new Error('O progresso mudou na conta. Atualize para conferir o resultado antes de tentar novamente.'); error.status = 409; throw error;
+          }
           const xp = req.validatedBody.lesson_xp !== undefined ? Number(user.xp || 0) + lessonXp(user, req.validatedBody.lesson_xp) : updates.xp;
-          const level = Math.max(Number(user.level || 1), [200, 400, 700, 1200].filter(threshold => xp >= threshold).length + 1);
+          const level = Math.max(Number(user.level || 1), resolveLevel(xp));
           return { updates: { ...updates, xp, level } };
         });
         return res.json({ success: true, updates: { xp: result.user.xp, level: result.user.level } });

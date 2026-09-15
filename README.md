@@ -13,61 +13,22 @@ Plataforma gamificada de ingles. A interface principal foi migrada para React + 
 
 ## Status atual do projeto
 
-Atualizado em 2026-08-28.
+Atualizado em 2026-09-15.
 
-O projeto ja foi preparado para rodar em producao no Render usando React + Vite no frontend e Node/Express no backend.
+- Interface React + TypeScript com lições, música, revisão, conversa, Nativos, nivelamento, perfil e operação administrativa.
+- Backend Express com Supabase, sessões persistentes configuráveis, integração de IA e cobrança Stripe.
+- Cadastro direto por nome, e-mail e senha, sem confirmação obrigatória por e-mail. O endereço informado não é prova de propriedade. Login Google depende da configuração OAuth; recuperação por e-mail depende do provedor de envio.
+- Atividades salvas na conta, foto de perfil privada e navegação responsiva.
+- Build Vite, deploy Render e verificação automatizada por `npm run release:check`.
+- Código de autenticação, perfil, assinatura, player e prática separado por responsabilidade. Estilos em `client/src/styles/`; níveis de XP em `shared/app-levels.json`.
 
-### Ja foi feito
+### Antes de publicar
 
-- Frontend principal em React + TypeScript, servido pela raiz `/`.
-- App legado preservado em `/legacy/index.html` para compatibilidade.
-- Build de producao com Vite configurado.
-- Deploy no Render configurado por `render.yaml`.
-- Plano do Render ajustado para `free`.
-- Health check em `/health` mostrando status do backend, provider de IA e frontend ativo.
-- Supabase configurado como banco principal do backend.
-- Migration SQL criada em `server/supabase-migration.sql`.
-- Variaveis de ambiente documentadas em `server/.env.example`.
-- Gemini configurado como provider de IA no lugar do Minimax.
-- Rotas de conversa e gramatica usando o gateway Gemini configurado no backend.
-- Login normal com email/senha.
-- Cadastro com validacao de email real/dominio valido.
-- Cadastro e login com Google adicionados na interface.
-- Google OAuth integrado no backend com `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`.
-- Botao "Entrar com Google" com logo oficial do Google em SVG.
-- Tela inicial abrindo primeiro na raiz do site; login aparece depois de clicar em "Comecar agora".
-- Tela de login redesenhada no estilo visual solicitado.
-- Tela inicial redesenhada no estilo LinguaFire com bandeiras, mapa-mundi pontilhado e cards.
-- Bandeira dos Estados Unidos substituida por asset original em SVG.
-- Dashboard com fundo visual aplicado nas telas internas.
-- Saudacao da dashboard usando o nome do usuario logado.
-- Ajustes responsivos para celular, tablet, notebook e desktop.
-- Correcoes especificas para a splash/login no celular, evitando corte lateral do logo e dos avisos.
-- Fundos pesados convertidos de PNG para WebP.
-- Preload ajustado para priorizar splash/login e evitar carregar imagens internas antes da hora.
-- Assets otimizados para melhorar velocidade de abertura no celular.
-- CI configurado em `.github/workflows/ci.yml` com verificacoes de release.
-- Testes unitarios, smoke e E2E documentados.
-- Fluxo de deploy via GitHub: `git add`, `git commit` e `git push origin main`.
+Confira as variáveis de produção em `server/.env.example`, as migrações necessárias à instalação e as configurações dos provedores utilizados. Testes com APIs simuladas não comprovam envio de e-mail, cobrança ou disponibilidade da IA em produção.
 
-### Ultimos ajustes visuais
+O legado em `public/dist` continua servido em `/legacy/index.html` e como fallback quando não há build React. Não remova essa pasta sem retirar essas rotas e verificar a equivalência das atividades.
 
-- Mapa-mundi pontilhado aplicado na tela inicial.
-- Frase principal corrigida para: "Aprenda ingles com musica, contexto real e pratica diaria."
-- Tela inicial voltou a abrir antes do login.
-- Splash mobile ajustada para nao cortar o logo `LinguaFire`.
-- Login e splash ficaram mais leves para carregar.
-
-### O que ainda falta revisar antes de considerar finalizado
-
-- Confirmar no Render se todas as variaveis de ambiente de producao estao preenchidas com valores reais.
-- Rodar a migration no Supabase se ainda nao foi aplicada.
-- Conferir se Google OAuth tem o redirect autorizado correto:
-  `https://linguafire.onrender.com/auth/google/callback`.
-- Configurar SMTP real se quiser recuperacao de senha por email.
-- Configurar Stripe se a assinatura paga for entrar em producao.
-- Testar cadastro, login, Google OAuth, conversa com IA, flashcards, musica, nativos, loja e perfil em celular real.
-- Fazer limpeza final do app legado apenas depois de confirmar que tudo foi migrado para React.
+Veja o [guia de refatoração](docs/operacao/refatoracao.md) para responsabilidades, garantias e limites dos testes.
 
 ## Desenvolvimento
 

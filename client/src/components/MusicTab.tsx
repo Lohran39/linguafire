@@ -1,59 +1,26 @@
+import { useMusicReward } from '../hooks/music-reward';
 import { ContentReview } from './ContentReview';
 import { contentKey, getCurations, isVerified, type CurationItem } from '../services/curation';
 import { recordLearning } from '../services/learning';
-import { loadYouTubeApi } from '../services/youtube-api';
+import { YouTubeFrame } from './YouTubeFrame';
+import { createQuiz, type QuizQuestion } from '../services/music-quiz';
 import { useActivityState } from '../hooks/activity-progress';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { findSong, getSongByKey, SONGS, SUGGESTIONS, type LyricLine, type Song } from '../data/music';
 import { englishLevelDistance, normalizeEnglishLevel } from '../data/levels';
-import { updateProfile, type FavoriteSong, type UserProfile } from '../services/auth';
-import { extractYouTubeId, fetchSongLyrics, fetchYouTubeMetadata, parseYouTubeMusicMetadata, reportMusicVideoStatus, searchMusicByName, translateLyricLines } from '../services/lyrics';
+import { updateProfile } from '../services/profile';
+import { type FavoriteSong, type UserProfile } from '../services/auth';
+import { extractYouTubeId, fetchSongLyrics, fetchYouTubeMetadata, parseYouTubeMusicMetadata, searchMusicByName, translateLyricLines } from '../services/lyrics';
 
 type MusicTabProps = {
   user: UserProfile;
   onProfileRefresh: (user: UserProfile) => void;
 };
 
-type QuizQuestion = {
-  line: LyricLine;
-  choices: string[];
-  correct: string;
-  prompt: string;
-};
-
 function lyricTranslation(line: LyricLine) {
   if (line.translationStatus === 'pending') return 'Traduzindo...';
   if (line.translationStatus === 'unavailable') return 'Tradução indisponível.';
   return line.pt;
-}
-
-declare global {
-  interface Window {
-    YT?: {
-      Player: new (
-        element: HTMLElement,
-        options: {
-          videoId?: string;
-          host?: string;
-          playerVars?: {
-            origin?: string;
-            enablejsapi?: 1;
-            playsinline?: 1;
-            rel?: 0;
-            modestbranding?: 1;
-            start?: number;
-          };
-          events?: {
-            onReady?: (event: { target: { getCurrentTime: () => number } }) => void;
-            onError?: (event: { data?: number | string }) => void;
-            onStateChange?: (event: { data: number }) => void;
-          };
-        }
-      ) => { destroy?: () => void };
-      PlayerState?: Record<string, number>;
-    };
-    onYouTubeIframeAPIReady?: () => void;
-  }
 }
 
 const MUSIC_FILTERS = [
@@ -78,37 +45,6 @@ function toFavorite(song: Song): FavoriteSong {
   };
 }
 
-function shuffleItems<T>(items: T[]) {
-  const next = [...items];
-  for (let index = next.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [next[index], next[randomIndex]] = [next[randomIndex], next[index]];
-  }
-  return next;
-}
-
-function createQuiz(song: Song): QuizQuestion[] {
-  const usableLines = shuffleItems(song.lyrics.filter((line) => line.en && line.pt && (!line.translationStatus || line.translationStatus === 'ready')));
-
-  return usableLines
-    .filter((line) => line.en && line.pt)
-    .slice(0, 5)
-    .map((line, index) => {
-      const wrongChoices = shuffleItems(usableLines)
-        .filter((candidate) => candidate.pt !== line.pt)
-        .map((candidate) => candidate.pt)
-        .slice(0, 3);
-      const fallbackChoices = [
-        'Essa frase fala sobre rotina.',
-        'Essa frase fala sobre sentimento.',
-        'Essa frase fala sobre decisão.'
-      ].filter((choice) => choice !== line.pt);
-      const choices = shuffleItems([line.pt, ...wrongChoices, ...fallbackChoices].slice(0, 4));
-      const prompt = index % 2 === 0 ? 'Qual é a melhor tradução?' : 'Escolha o sentido mais natural da frase.';
-      return { line, choices, correct: line.pt, prompt };
-    });
-}
-
 function songLevelToEnglishLevel(level: string) {
   const normalized = level.toLowerCase();
   if (normalized.includes('iniciante')) return 'A1';
@@ -128,169 +64,6 @@ function sortSongsForLevel(songs: Song[], userLevel: string) {
 function formatMusicTime(value?: number) {
   if (value === undefined || !Number.isFinite(value)) return '';
   return `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}`;
-}
-
-function YouTubeFrame({ song, onTimeChange, startSeconds, onVideoChange }: { song: Song; onTimeChange: (seconds: number) => void; startSeconds: number; onVideoChange: (id: string) => void }) {
-  const resumeAt = useRef(startSeconds);
-  resumeAt.current = startSeconds;
-  const frameHost = useRef<HTMLDivElement | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const playerInstanceRef = useRef<{ destroy?: () => void } | null>(null);
-  const [embedFailed, setEmbedFailed] = useState(false);
-  const [embedLoaded, setEmbedLoaded] = useState(false);
-  const [timingUnavailable, setTimingUnavailable] = useState(false);
-  const [errorReason, setErrorReason] = useState('');
-  const [embedHost, setEmbedHost] = useState<'youtube' | 'nocookie'>('youtube');
-  const [reloadToken, setReloadToken] = useState(0);
-  const candidateIds = useMemo(() => {
-    const ids = [song.ytId, ...(song.videoCandidates || []).map((candidate) => candidate.videoId)];
-    return [...new Set(ids.filter(Boolean))];
-  }, [song.videoCandidates, song.ytId]);
-  const candidatesKey = candidateIds.join(',');
-  const [candidateIndex, setCandidateIndex] = useState(0);
-  const currentVideoId = candidateIds[candidateIndex] || song.ytId;
-  useEffect(() => { onVideoChange(currentVideoId); }, [currentVideoId, onVideoChange]);
-  const watchUrl = `https://www.youtube.com/watch?v=${currentVideoId}`;
-  const thumbUrl = `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`;
-  const embedUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      enablejsapi: '1',
-      origin: window.location.origin,
-      widget_referrer: window.location.href,
-      playsinline: '1',
-      rel: '0',
-      start: String(Math.max(0, Math.floor(resumeAt.current)))
-    });
-    const host = embedHost === 'youtube' ? 'https://www.youtube.com' : 'https://www.youtube-nocookie.com';
-    return `${host}/embed/${currentVideoId}?${params.toString()}`;
-  }, [currentVideoId, embedHost, reloadToken]);
-  const playerKey = `${embedHost}:${currentVideoId}:${reloadToken}`;
-
-  const reportCurrentVideo = useCallback((status: 'working' | 'bad', reason?: string) => {
-    reportMusicVideoStatus({
-      trackKey: song.trackKey,
-      track: song.title,
-      artist: song.artist,
-      videoId: currentVideoId,
-      status,
-      reason
-    });
-  }, [currentVideoId, song.artist, song.title, song.trackKey]);
-
-  const failCurrentVideo = useCallback((reason = 'embed_failed') => {
-    // Network/API failures do not mean the video itself is unavailable.
-    if (['youtube_100', 'youtube_101', 'youtube_150'].includes(reason)) reportCurrentVideo('bad', reason);
-    setEmbedLoaded(false);
-    setErrorReason(reason);
-
-    if (candidateIndex + 1 < candidateIds.length) {
-      setEmbedFailed(false);
-      setCandidateIndex((index) => index + 1);
-      return;
-    }
-
-    setEmbedFailed(true);
-  }, [candidateIds.length, candidateIndex, reportCurrentVideo]);
-
-  useEffect(() => {
-    setEmbedFailed(false);
-    setEmbedLoaded(false);
-    setEmbedHost('youtube');
-    setCandidateIndex(0);
-    onTimeChange(resumeAt.current);
-  }, [candidatesKey, onTimeChange, song.ytId]);
-
-  useEffect(() => {
-    let intervalId: number | undefined;
-    let cancelled = false;
-    setTimingUnavailable(false);
-    // YT.Player.destroy removes its iframe. Keep that DOM outside React's
-    // children so retry, tab changes and StrictMode always get a fresh frame.
-    const frame = document.createElement('iframe');
-    frame.className = 'youtube-player';
-    frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-    frame.allowFullscreen = true;
-    frame.referrerPolicy = 'strict-origin-when-cross-origin';
-    frame.title = `${song.title} - ${song.artist}`;
-    frame.src = embedUrl;
-    frame.onload = () => { if (!cancelled) setEmbedLoaded(true); };
-    frameHost.current?.replaceChildren(frame);
-    iframeRef.current = frame;
-
-    function startPlayer() {
-      if (cancelled || !iframeRef.current || !window.YT?.Player) return;
-      playerInstanceRef.current?.destroy?.();
-      playerInstanceRef.current = new window.YT.Player(iframeRef.current, {
-        events: {
-          onReady: (event) => {
-            if (cancelled) return;
-            setEmbedLoaded(true);
-            setEmbedFailed(false);
-            intervalId = window.setInterval(() => {
-              const currentTime = Number(event.target.getCurrentTime?.() || 0);
-              if (Number.isFinite(currentTime)) onTimeChange(currentTime);
-            }, 600);
-          },
-          onError: (event) => {
-            if (cancelled) return;
-            failCurrentVideo(`youtube_${event.data || 'error'}`);
-          },
-          onStateChange: (event) => {
-            if (!cancelled && event.data === 1) reportCurrentVideo('working');
-          }
-        }
-      });
-    }
-
-    void loadYouTubeApi().then(() => { if (!cancelled) startPlayer(); }).catch(() => {
-      if (!cancelled) { setTimingUnavailable(true); setEmbedLoaded(true); }
-    });
-
-    return () => {
-      cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
-      playerInstanceRef.current?.destroy?.();
-      playerInstanceRef.current = null;
-      frame.remove();
-      iframeRef.current = null;
-    };
-  }, [currentVideoId, failCurrentVideo, onTimeChange, playerKey, reportCurrentVideo]);
-
-  return (<>
-    <section className={`video-frame music-embed${embedFailed ? ' has-video-error' : ''}`} aria-label={`Vídeo de ${song.title}`}>
-      <div className="youtube-frame-host" ref={frameHost} />
-      {!embedLoaded && !embedFailed && (
-        <div className="video-loading">
-          <img src={thumbUrl} alt="" loading="lazy" />
-          <span className="video-play" aria-hidden="true">▶</span>
-          <strong>Carregando vídeo...</strong>
-        </div>
-      )}
-      {embedFailed && (
-        <div className="video-fallback">
-          <img src={thumbUrl} alt="" loading="lazy" />
-          <div>
-            <strong>{['youtube_100', 'youtube_101', 'youtube_150'].includes(errorReason) ? 'Este vídeo não permite reprodução aqui.' : 'Não foi possível iniciar este vídeo.'}</strong>
-            <span>{errorReason === 'youtube_153' ? 'O YouTube não reconheceu a página. Tente novamente ou abra no navegador.' : 'Tente recarregar. Se o bloqueio continuar, abra no YouTube e acompanhe a letra aqui.'}</span>
-            <button
-              type="button"
-              onClick={() => {
-                setEmbedLoaded(false);
-                setEmbedFailed(false);
-                setCandidateIndex(0);
-                setEmbedHost((host) => (host === 'youtube' ? 'nocookie' : 'youtube'));
-                setReloadToken((token) => token + 1);
-              }}
-            >
-              Tentar carregar aqui
-            </button>
-            <a href={watchUrl} target="_blank" rel="noreferrer">Abrir no YouTube</a>
-          </div>
-        </div>
-      )}
-    </section>
-    {timingUnavailable && <p className="music-status" role="status">Toque no vídeo para reproduzir. O destaque automático da letra está indisponível neste navegador.</p>}
-  </>);
 }
 
 export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
@@ -375,6 +148,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   const currentQuestion = quiz[quizIndex] || null;
   const quizDone = quiz.length > 0 && quizIndex >= quiz.length;
   const quizXp = quizCorrect * 10 + (quiz.length > 0 && quizCorrect === quiz.length ? 25 : 0);
+  const reward = useMusicReward(user, onProfileRefresh, learningRun, quizDone, quizRewarded, setQuizRewarded, quizXp, quizCorrect);
   const syncedLyrics = activeSong.lyrics.filter((line) => line.time !== undefined);
   const lyricOffset = Number.isFinite(lyricOffsets[playbackVideoId]) ? lyricOffsets[playbackVideoId] : 0;
   const pausedLyrics = lyricPause?.songKey === activeSong.key && lyricPause.videoId === playbackVideoId ? lyricPause : null;
@@ -448,25 +222,6 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
     searchRequest.current?.abort();
     lyricsRequest.current?.abort();
   }, []);
-
-  useEffect(() => {
-    if (!quizDone || quizRewarded) return;
-
-    const nextUser = {
-      ...user,
-      xp: Number(user.xp || 0) + quizXp,
-      correct_answers: Number(user.correct_answers || 0) + quizCorrect
-    };
-
-    setQuizRewarded(true);
-    updateProfile({ xp_base: Number(user.xp || 0), xp: nextUser.xp, correct_answers: nextUser.correct_answers })
-      .then(() => {
-        onProfileRefresh(nextUser);
-      })
-      .catch(() => {
-        setNotice('Quiz concluído, mas não consegui salvar o XP agora.');
-      });
-  }, [onProfileRefresh, quizCorrect, quizDone, quizRewarded, quizXp, user]);
 
   function openSong(song: Song, source?: { videoTitle?: string; channelName?: string }) {
     searchRequest.current?.abort();
@@ -579,6 +334,7 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
   }
 
   function startQuiz() {
+    if (reward.pending || reward.busy) { setNotice('Há um resultado de quiz aguardando salvamento. Tente salvar o XP antes de iniciar outro.'); return; }
     const questions = createQuiz(activeSong);
     if (!questions.length) {
       setNotice('Esta música ainda não tem linhas suficientes para quiz no React.');
@@ -638,6 +394,11 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
               {isSearching ? 'Buscando...' : 'Buscar'}
             </button>
           </div>
+          {reward.pending && !quizDone && <div className="music-status" role="status">
+            <p>{reward.error || 'Resultado do quiz aguardando salvamento.'}</p>
+            <button type="button" className="secondary-button" disabled={reward.busy} onClick={reward.retry}>{reward.busy ? 'Salvando resultado...' : 'Tentar salvar XP'}</button>
+            {reward.error && <button type="button" className="secondary-button" disabled={reward.busy} onClick={reward.discard}>Continuar sem reenviar XP</button>}
+          </div>}
           {notice && <div className={searchFailed ? 'form-error' : 'music-status'} role="status">{notice}</div>}
         </section>
 
@@ -800,7 +561,10 @@ export function MusicTab({ user, onProfileRefresh }: MusicTabProps) {
                 <h2>
                   {quizCorrect}/{quiz.length} corretas
                 </h2>
-                <p>Você ganhou {quizXp} XP com este treino musical.</p>
+                <p>{quizRewarded ? `Você ganhou ${quizXp} XP com este treino musical.` : reward.discarded ? 'Resultado encerrado sem novo envio de XP.' : `Resultado: ${quizXp} XP aguardando salvamento.`}</p>
+                {reward.error && <p className="form-error" role="alert">{reward.error}</p>}
+                {!quizRewarded && !reward.discarded && <button className="secondary-button" type="button" disabled={reward.busy} onClick={reward.retry}>{reward.busy ? 'Salvando resultado...' : 'Tentar salvar XP'}</button>}
+                {reward.error && <button type="button" className="secondary-button" disabled={reward.busy} onClick={reward.discard}>Continuar sem reenviar XP</button>}
                 <button className="primary-button" type="button" onClick={closeQuiz}>
                   Fechar
                 </button>

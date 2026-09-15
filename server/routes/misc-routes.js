@@ -154,7 +154,8 @@ function setupMiscRoutes(app, deps = {}) {
 
   app.delete('/api/account', authenticateToken, async (req, res) => {
     try {
-      await supabaseDeleteUser(req.user.id);
+      const result = await supabaseDeleteUser(req.user.id);
+      if (!result?.success || result.error) throw new Error('Account deletion failed');
       clearAuthCookie(res);
       res.json({ success: true, message: 'Conta deletada com sucesso' });
     } catch (_error) {

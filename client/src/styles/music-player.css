@@ -1,0 +1,465 @@
+.music-actions {
+  display: flex;
+  flex: 0 1 360px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.music-actions .secondary-button,
+.music-actions .primary-button {
+  width: auto;
+  min-width: 118px;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.video-frame {
+  position: relative;
+  display: grid;
+  min-height: 240px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #fff;
+  background:
+    linear-gradient(145deg, rgb(12 12 18 / 92%), rgb(24 22 30 / 82%)),
+    #000;
+  aspect-ratio: 16 / 9;
+}
+
+.video-frame img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.58;
+  filter: saturate(1.08) contrast(1.02);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.music-embed {
+  width: 100%;
+  min-width: 0;
+  min-height: 200px;
+}
+
+.video-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #000;
+}
+
+.natives-result .video-frame {
+  width: 100%;
+  display: block;
+  min-height: clamp(420px, 64vh, 760px);
+  aspect-ratio: 16 / 9;
+}
+
+.native-video-frame .native-video-iframe {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.youtube-player {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+.video-loading {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+  background:
+    radial-gradient(ellipse 42% 42% at 50% 50%, rgb(255 106 0 / 20%), transparent 72%),
+    rgb(0 0 0 / 72%);
+}
+
+.video-loading img {
+  opacity: 0.36;
+  filter: saturate(0.88) contrast(0.94);
+}
+
+.video-loading .video-play,
+.video-loading strong {
+  position: relative;
+  z-index: 1;
+}
+
+.video-loading strong {
+  margin-top: 0.8rem;
+  color: #fff;
+  font-size: 1rem;
+  text-shadow: 0 2px 14px rgb(0 0 0 / 62%);
+}
+
+.video-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+  background: rgb(0 0 0 / 86%);
+}
+
+.video-fallback img {
+  opacity: 0.28;
+  filter: blur(2px) saturate(0.9);
+}
+
+.music-embed.has-video-error,
+.music-embed.has-video-error .video-fallback {
+  min-height: 200px;
+}
+
+@media (max-width: 600px) {
+  .video-fallback {
+    padding: 0.65rem;
+  }
+
+  .video-fallback div {
+    gap: 0.45rem;
+  }
+
+  .video-fallback strong {
+    font-size: 1rem;
+  }
+
+  .video-fallback span {
+    display: none;
+  }
+}
+
+.video-fallback div {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  max-width: 420px;
+  gap: 0.65rem;
+  justify-items: center;
+}
+
+.video-fallback strong {
+  font-size: clamp(1.1rem, 3vw, 1.65rem);
+}
+
+.video-fallback span {
+  color: var(--muted);
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.video-fallback button,
+.video-fallback a {
+  display: inline-grid;
+  min-height: 42px;
+  place-items: center;
+  padding: 0.7rem 1rem;
+  border: 0;
+  border-radius: 8px;
+  color: #140701;
+  background: linear-gradient(135deg, var(--fire), var(--fire-2));
+  font-weight: 900;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.video-fallback a {
+  color: #f5efe8;
+  background: rgb(20 18 28 / 88%);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.video-link {
+  place-items: center;
+  text-decoration: none;
+}
+
+.video-link::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background:
+    radial-gradient(ellipse 42% 42% at 50% 50%, rgb(255 106 0 / 18%), transparent 70%),
+    linear-gradient(180deg, rgb(0 0 0 / 10%), rgb(0 0 0 / 52%));
+}
+
+.video-link:hover img {
+  opacity: 0.7;
+  transform: scale(1.025);
+}
+
+.video-play {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 74px;
+  height: 74px;
+  place-items: center;
+  padding-left: 0.35rem;
+  border-radius: 50%;
+  color: #150703;
+  background: linear-gradient(135deg, var(--fire), var(--fire-2));
+  font-size: 2rem;
+  box-shadow: 0 16px 42px rgb(255 77 0 / 35%);
+}
+
+.video-link strong {
+  position: relative;
+  z-index: 1;
+  margin-top: 0.85rem;
+  color: #fff;
+  font-size: 1.15rem;
+  text-shadow: 0 2px 14px rgb(0 0 0 / 60%);
+}
+
+.mode-switch {
+  display: inline-flex;
+  width: fit-content;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.mode-switch button {
+  min-height: 36px;
+  padding: 0.45rem 0.75rem;
+  border: 0;
+  border-radius: 10px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.mode-switch button.active {
+  color: #120602;
+  background: var(--fire-3);
+}
+
+.mode-switch.compact {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.mode-switch.compact button {
+  min-height: 30px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.76rem;
+}
+
+.lyrics-sync-controls { padding: 1rem; border: 1px solid var(--border); border-radius: 16px; }
+
+.lyrics-sync-controls summary { cursor: pointer; min-height: 44px; align-content: center; font-weight: 700; }
+
+.lyrics-sync-controls p { margin: .75rem 0; }
+
+.lyrics-sync-controls small { display: block; color: var(--muted); }
+
+.lyrics-sync-controls button { min-height: 44px; white-space: normal; }
+
+.lyrics-sync-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+
+.lyrics-playback-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+
+.lyrics-playback-controls button { min-height: 44px; white-space: normal; }
+
+.lyrics-playback-controls small { color: var(--muted); }
+
+.karaoke-panel {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem;
+  border: 1px solid rgb(255 210 0 / 42%);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgb(255 140 0 / 14%), transparent 58%),
+    rgb(13 13 19 / 78%);
+}
+
+.karaoke-panel span {
+  width: fit-content;
+  color: #120602;
+  background: var(--fire-3);
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 1000;
+}
+
+.karaoke-panel strong {
+  color: var(--text);
+  font-family: var(--display-font);
+  font-size: clamp(1.25rem, 3vw, 2rem);
+  line-height: 1.08;
+}
+
+.karaoke-panel p,
+.karaoke-panel small {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 850;
+  line-height: 1.45;
+}
+
+.empty-inline {
+  padding: 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.lyrics-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.lyric-card {
+  display: grid;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.lyric-card.active {
+  border-color: rgb(255 210 0 / 62%);
+  background:
+    linear-gradient(135deg, rgb(255 140 0 / 12%), transparent 68%),
+    var(--surface);
+}
+
+.lyric-card em {
+  width: fit-content;
+  color: var(--fire-3);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 1000;
+}
+
+.lyric-card strong {
+  font-size: 1rem;
+}
+
+.lyric-card span {
+  color: var(--fire-3);
+  font-weight: 800;
+}
+
+.lyric-card small {
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.empty-lyrics {
+  padding: 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.empty-lyrics h2 {
+  margin: 0;
+  font-family: var(--display-font);
+}
+
+.empty-lyrics p {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.quiz-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 72%);
+}
+
+.quiz-modal section {
+  display: grid;
+  width: min(100%, 520px);
+  gap: 1rem;
+  padding: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 35%);
+}
+
+.quiz-modal h2 {
+  margin: 0;
+  font-family: var(--display-font);
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+}
+
+.quiz-modal p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.quiz-modal .quiz-prompt {
+  color: var(--fire-3);
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quiz-choices {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.quiz-choices button {
+  min-height: 52px;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quiz-choices button.selected {
+  border-color: #ff2d78;
+  background: rgb(255 45 120 / 12%);
+}
+
+.quiz-choices button.correct {
+  border-color: #00ff88;
+  background: rgb(0 255 136 / 12%);
+}

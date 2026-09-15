@@ -1,3 +1,5 @@
+import { createJsonParser } from './http';
+const parseJson = createJsonParser('Não foi possível processar a resposta de Nativos.');
 import { reportContent } from './curation';
 export type NativesLanguage =
   | 'english'
@@ -81,10 +83,8 @@ export async function searchNatives(query: string, lang: NativesLanguage): Promi
     shorts: '1'
   });
   const response = await fetch(`/api/natives/search?${params.toString()}`);
-  const data = (await response.json().catch(() => ({}))) as NativesSearchResult & { error?: string };
-  if (!response.ok) {
-    throw new Error(data.error || 'Erro ao buscar vídeos');
-  }
+  const data = await parseJson<NativesSearchResult>(response);
+  if (!Array.isArray(data.videoIds) || !data.videoIds.every(id => typeof id === 'string')) throw new Error('Resposta de busca inválida.');
   return data;
 }
 
@@ -102,10 +102,10 @@ export async function coachNativeReply(payload: NativeCoachPayload, signal?: Abo
       body: JSON.stringify(payload),
       signal: controller.signal
     });
-    const data = (await response.json().catch(() => ({}))) as NativeCoachResult & { error?: string; message?: string; details?: Array<{ message: string }> };
-
-    if (!response.ok) {
-      throw new Error(data.message || data.details?.[0]?.message || data.error || 'Erro ao corrigir resposta');
+    const data = await parseJson<NativeCoachResult>(response);
+    if (!Number.isFinite(data.score) || data.score < 0 || data.score > 100 ||
+      ![data.natural, data.feedback, data.correction, data.nextReply].every(value => typeof value === 'string')) {
+      throw new Error('A correção recebida está incompleta. Tente novamente.');
     }
 
     return data;
@@ -131,9 +131,9 @@ export async function reportBadNativeVideo(payload: {
 
 export async function getSavedNativeVideos(): Promise<NativeSavedVideo[]> {
   const response = await fetch('/api/natives/saved', { credentials: 'include' });
-  const data = (await response.json().catch(() => ({}))) as { videos?: NativeSavedVideo[]; error?: string };
-  if (!response.ok) throw new Error(data.error || 'Erro ao carregar vídeos salvos');
-  return Array.isArray(data.videos) ? data.videos : [];
+  const data = await parseJson<{ videos: NativeSavedVideo[] }>(response);
+  if (!Array.isArray(data.videos)) throw new Error('Lista de vídeos inválida.');
+  return data.videos;
 }
 
 export async function saveNativeVideo(payload: {
@@ -147,8 +147,7 @@ export async function saveNativeVideo(payload: {
     credentials: 'include',
     body: JSON.stringify(payload)
   });
-  const data = (await response.json().catch(() => ({}))) as { error?: string };
-  if (!response.ok) throw new Error(data.error || 'Erro ao salvar vídeo');
+  await parseJson<{ success: boolean }>(response);
 }
 
 export async function deleteSavedNativeVideo(videoId: string): Promise<void> {
@@ -156,8 +155,7 @@ export async function deleteSavedNativeVideo(videoId: string): Promise<void> {
     method: 'DELETE',
     credentials: 'include'
   });
-  const data = (await response.json().catch(() => ({}))) as { error?: string };
-  if (!response.ok) throw new Error(data.error || 'Erro ao remover vídeo');
+  await parseJson<{ success: boolean }>(response);
 }
 
 export function buildNativesFallbackUrl(query: string, lang: NativesLanguage) {

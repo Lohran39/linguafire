@@ -1,7 +1,8 @@
 import { useActivityState } from '../hooks/activity-progress';
 import { useMemo, useState } from 'react';
 import { createPlacementQuestions, levelResults, PLACEMENT_TEST_SIZE, resolvePlacementLevel, type PlacementLevel } from '../data/placement';
-import { updateProfile, type UserProfile } from '../services/auth';
+import { updateProfile } from '../services/profile';
+import { type UserProfile } from '../services/auth';
 
 type PlacementTabProps = {
   user: UserProfile;

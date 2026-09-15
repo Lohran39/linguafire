@@ -213,6 +213,7 @@ const forgotPasswordSchema = objectSchema((data, output, issues) => {
 const profileUpdateSchema = objectSchema((data, output, issues) => {
   optional(data, 'lesson_xp', numberValidator({ int: true, min: 0, max: 10000 }), output, issues);
   optional(data, 'xp_base', numberValidator({ int: true, min: 0 }), output, issues);
+  optional(data, 'correct_answers_base', numberValidator({ int: true, min: 0 }), output, issues);
   optional(data, 'name', nameValidator, output, issues);
   optional(data, 'level', numberValidator({ int: true, min: 1, max: 99 }), output, issues);
   optional(data, 'xp', numberValidator({ int: true, min: 0 }), output, issues);

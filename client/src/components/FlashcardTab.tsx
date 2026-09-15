@@ -2,7 +2,8 @@ import { recordLearning } from '../services/learning';
 import { useActivityState } from '../hooks/activity-progress';
 import { useEffect, useMemo, useState } from 'react';
 import { getAvailableFlashcards, getFlashcardStats, reviewFlashcard, type Flashcard, type FlashcardStats } from '../services/flashcards';
-import { updateProfile, type UserProfile } from '../services/auth';
+import { updateProfile } from '../services/profile';
+import { type UserProfile } from '../services/auth';
 import { normalizeEnglishLevel, sortByEnglishLevel } from '../data/levels';
 
 type FlashcardTabProps = {

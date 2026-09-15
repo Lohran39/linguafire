@@ -9,62 +9,8 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
-const PROFILE_AVATAR_BUCKET = 'profile-avatars';
-let avatarBucketPromise;
-
-function ensureAvatarBucket() {
-  if (!avatarBucketPromise) {
-    avatarBucketPromise = (async () => {
-      const { data, error } = await supabase.storage.listBuckets();
-      if (error) throw error;
-      if (data?.some(bucket => bucket.name === PROFILE_AVATAR_BUCKET)) return;
-      const created = await supabase.storage.createBucket(PROFILE_AVATAR_BUCKET, {
-        public: false,
-        fileSizeLimit: 600 * 1024,
-        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
-      });
-      if (created.error && !/already exists|duplicate/i.test(created.error.message || '')) throw created.error;
-    })().catch(error => { avatarBucketPromise = null; throw error; });
-  }
-  return avatarBucketPromise;
-}
-
-async function supabaseUploadProfileAvatar(userId, buffer, contentType) {
-  try {
-    await ensureAvatarBucket();
-    const { error } = await supabase.storage.from(PROFILE_AVATAR_BUCKET).upload(`${userId}/avatar`, buffer, {
-      contentType,
-      cacheControl: '300',
-      upsert: true
-    });
-    if (error) throw error;
-    return { success: true };
-  } catch (error) {
-    return { error: error.message || 'Falha ao salvar foto' };
-  }
-}
-
-async function supabaseGetProfileAvatar(userId) {
-  try {
-    await ensureAvatarBucket();
-    const { data, error } = await supabase.storage.from(PROFILE_AVATAR_BUCKET).download(`${userId}/avatar`);
-    if (error) return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-async function supabaseDeleteProfileAvatar(userId) {
-  try {
-    await ensureAvatarBucket();
-    const { error } = await supabase.storage.from(PROFILE_AVATAR_BUCKET).remove([`${userId}/avatar`]);
-    if (error) throw error;
-    return { success: true };
-  } catch (error) {
-    return { error: error.message || 'Falha ao remover foto' };
-  }
-}
+const { createAvatarStorage } = require('./services/avatar-storage');
+const { upload: supabaseUploadProfileAvatar, get: supabaseGetProfileAvatar, remove: supabaseDeleteProfileAvatar } = createAvatarStorage(supabase);
 
 // User operations with Supabase
 async function supabaseGetUserByEmail(email) {
@@ -274,38 +220,6 @@ async function supabaseCompareUpdateUser(id, updates, expected) {
   }
   const { data, error } = await query.select().maybeSingle();
   return { data, error: error?.message };
-}
-
-async function supabaseUpdateUserXP(id, xpToAdd) {
-  const user = await supabaseGetUserById(id);
-  if (!user) return { error: 'User not found' };
-
-  const newXp = (user.xp || 0) + xpToAdd;
-  const newLevel = Math.floor(newXp / 1000) + 1;
-
-  return supabaseUpdateUser(id, { xp: newXp, level: newLevel });
-}
-
-// Daily progress operations
-async function supabaseGetDailyProgress(userId, date) {
-  const { data, error } = await supabase
-    .from('daily_progress')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('date', date)
-    .single();
-  if (error && error.code !== 'PGRST116') return null; // Not found
-  return data;
-}
-
-async function supabaseUpsertDailyProgress(userId, date, updates) {
-  const { data, error } = await supabase
-    .from('daily_progress')
-    .upsert([{ user_id: userId, date, ...updates }], { returning: 'representation' })
-    .select()
-    .single();
-  if (error) return { error: error.message };
-  return { data };
 }
 
 // Push subscription operations
@@ -602,12 +516,13 @@ async function supabaseSyncSubscription(userId, updates) {
 
 // Delete user (cascade should handle related tables)
 async function supabaseDeleteUser(id) {
+  const avatar = await supabaseDeleteProfileAvatar(id);
+  if (avatar.error) return { error: 'Não foi possível excluir a foto. Tente novamente.' };
   const { error } = await supabase
     .from('users')
     .delete()
     .eq('id', id);
   if (error) return { error: error.message };
-  await supabaseDeleteProfileAvatar(id);
   return { success: true };
 }
 
@@ -629,9 +544,6 @@ module.exports = {
   supabaseSetEmailVerificationToken,
   supabaseRestoreEmailVerificationToken,
   supabaseVerifyUserEmail,
-  supabaseUpdateUserXP,
-  supabaseGetDailyProgress,
-  supabaseUpsertDailyProgress,
   supabaseGetPushSubscription,
   supabaseGetAllPushSubscriptions,
   supabaseSavePushSubscription,

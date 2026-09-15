@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 
-import { loadActivities, saveActivity, readPendingDrafts, reconcileDrafts, sameDraft, type ActivityEntry as Entry } from '../services/activity-drafts';
+import { loadActivities, saveActivity, readPendingDrafts, reconcileDrafts, sameDraft, restoreActivityValue, type ActivityEntry as Entry } from '../services/activity-drafts';
 type Store = {
   entries: Record<string, Entry>;
   dirty: Set<string>;
@@ -136,17 +136,17 @@ export function ActivityProgress({ userId, children }: { userId: string; childre
   </Context.Provider>;
 }
 
-export function useActivityState<T>(activity: string, name: string, initial: T | (() => T)): [T, Dispatch<SetStateAction<T>>] {
+export function useActivityState<T>(activity: string, name: string, initial: T | (() => T), validate?: (value: unknown) => boolean): [T, Dispatch<SetStateAction<T>>] {
   const store = useContext(Context);
   const [value, setValue] = useState<T>(() => {
     const entry = store?.entries[activity];
-    if (entry && Object.hasOwn(entry.state, name)) return entry.state[name] as T;
     const fallback = typeof initial === 'function' ? (initial as () => T)() : initial;
+    const restored = restoreActivityValue(entry?.state[name], fallback, validate);
     if (store) {
       store.entries[activity] ||= { activity, revision: 0, state: { version: 1 } };
-      store.entries[activity].state[name] = fallback;
+      store.entries[activity].state[name] = restored;
     }
-    return fallback;
+    return restored;
   });
   const current = useRef(value);
   const set: Dispatch<SetStateAction<T>> = useCallback(next => {

@@ -1,5 +1,6 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
-import { changePassword, deleteAccount, loginWithGoogle, removeProfileAvatar, requestPasswordReset, updateProfile, uploadProfileAvatar, type UserProfile } from '../services/auth';
+import { changePassword, deleteAccount, loginWithGoogle, requestPasswordReset, type UserProfile } from '../services/auth';
+import { removeProfileAvatar, updateProfile, uploadProfileAvatar } from '../services/profile';
 import { getPushStatus, subscribeToPush, supportsPushNotifications, unsubscribeFromPush } from '../services/notifications';
 import { applyTheme, normalizeTheme, themeOptions, type Theme } from '../theme';
 import { SubscriptionPanel } from './SubscriptionPanel';

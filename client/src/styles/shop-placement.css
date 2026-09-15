@@ -1,0 +1,248 @@
+.shop-layout {
+  display: grid;
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  padding: clamp(1rem, 4vw, 2rem);
+  gap: 1rem;
+}
+
+.shop-hero,
+.shop-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgb(16 16 24 / 82%), rgb(31 29 35 / 66%));
+  backdrop-filter: blur(3px);
+}
+
+.shop-hero {
+  display: grid;
+  gap: 0.8rem;
+  padding: clamp(1rem, 3vw, 1.25rem);
+}
+
+.shop-hero h1 {
+  max-width: 760px;
+  font-size: clamp(2.2rem, 6vw, 4.2rem);
+}
+
+.shop-hero .lead {
+  margin-left: 0;
+  text-align: left;
+}
+
+.shop-balance {
+  width: fit-content;
+  min-width: 160px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.shop-balance span,
+.shop-balance strong {
+  display: block;
+}
+
+.shop-balance span {
+  font-family: var(--display-font);
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--fire-3);
+}
+
+.shop-balance strong {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.shop-card {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.85rem;
+  min-height: 260px;
+  padding: 1rem;
+}
+
+.shop-icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-radius: 8px;
+  color: #120602;
+  background: linear-gradient(135deg, var(--fire), var(--fire-2));
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.shop-card h2 {
+  margin: 0;
+  font-family: var(--display-font);
+  font-size: 1.25rem;
+}
+
+.shop-card p {
+  color: var(--muted);
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.shop-card-footer {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.shop-card-footer strong {
+  color: var(--fire-3);
+}
+
+.shop-card-footer .primary-button {
+  width: 100%;
+}
+
+.placement-layout {
+  display: grid;
+  width: min(100%, 860px);
+  min-height: calc(100vh - 120px);
+  align-content: center;
+  gap: 1rem;
+  margin: 0 auto;
+  padding: clamp(1rem, 4vw, 2rem);
+}
+
+.placement-layout.active,
+.placement-layout.result {
+  min-height: auto;
+  margin-top: clamp(1rem, 4vw, 2rem);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgb(16 16 24 / 82%), rgb(31 29 35 / 66%));
+  backdrop-filter: blur(3px);
+}
+
+.placement-layout h1 {
+  max-width: 760px;
+  font-size: clamp(2.2rem, 6vw, 4.4rem);
+}
+
+.placement-layout .lead {
+  margin-left: 0;
+  text-align: left;
+}
+
+.placement-current,
+.placement-score article {
+  width: fit-content;
+  min-width: 140px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.placement-current span,
+.placement-current strong,
+.placement-score span,
+.placement-score strong {
+  display: block;
+}
+
+.placement-current span,
+.placement-score span {
+  font-family: var(--display-font);
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--fire-3);
+}
+
+.placement-current strong,
+.placement-score strong {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.placement-count,
+.placement-badge {
+  width: fit-content;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.placement-count {
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.placement-badge {
+  color: #120602;
+  background: var(--fire-3);
+}
+
+.placement-choices {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.placement-choices button {
+  min-height: 58px;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+}
+
+.placement-choices button.selected {
+  border-color: #ff2d78;
+  background: rgb(255 45 120 / 12%);
+}
+
+.placement-choices button.correct {
+  border-color: #00ff88;
+  background: rgb(0 255 136 / 12%);
+}
+
+.placement-score {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.secondary-kicker {
+  display: block;
+  margin-top: 1.35rem;
+}
+
+.lesson-grid.compact .lesson-card {
+  min-height: 116px;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.16;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.26;
+    transform: scale(1.16);
+  }
+}

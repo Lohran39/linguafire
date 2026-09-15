@@ -58,6 +58,8 @@ test('login endpoint returns stored profile arrays and shop bonuses', async () =
       google_id: 'google-1',
       theme: 'light',
       subscription_active: 1,
+      plan: 'pro',
+      ai_uses_date: new Date().toISOString().slice(0, 10),
       subscription_expires: 1999999999999,
       ai_uses_today: 3,
       lives: 0,

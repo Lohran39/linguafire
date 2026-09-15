@@ -3,6 +3,17 @@ export type ActivityEntry = { activity: string; state: Draft; revision: number; 
 const activities = new Set(['navigation', 'lessons', 'flashcard', 'conversation', 'music', 'natives', 'placement']);
 const record = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
+// Persisted JSON is untrusted at runtime, even when callers provide a TypeScript type.
+export function restoreActivityValue<T>(value: unknown, fallback: T, validate?: (value: unknown) => boolean): T {
+  if (validate) return validate(value) ? value as T : fallback;
+  if (value === undefined) return fallback;
+  if (Array.isArray(fallback)) return Array.isArray(value) ? value as T : fallback;
+  if (typeof fallback === 'number') return typeof value === 'number' && Number.isFinite(value) ? value as T : fallback;
+  if (fallback === null) return value === null || typeof value === 'number' || typeof value === 'string' || record(value) ? value as T : fallback;
+  if (record(fallback)) return record(value) ? value as T : fallback;
+  return typeof value === typeof fallback ? value as T : fallback;
+}
+
 export function isActivityEntry(value: unknown): value is ActivityEntry {
   return record(value) && typeof value.activity === 'string' && activities.has(value.activity)
     && Number.isSafeInteger(value.revision) && Number(value.revision) >= 0 && Number(value.revision) <= 2147483647

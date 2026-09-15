@@ -35,6 +35,7 @@ test('monthly allowance is visible, long conversations send bounded history, and
   await page.getByText('Opções da conversa',{exact:true}).click();await page.getByRole('button',{name:'Sair sem analisar'}).click();
   await page.getByRole('heading',{name:'Pratique inglês em cenários reais'}).waitFor();assert.equal(used,13);
   await page.getByRole('button',{name:'Perfil',exact:true}).click();
+  await page.getByText('Detalhes do plano e consumo',{exact:true}).click();
   await page.getByText('13 de 1000 usos neste mês',{exact:true}).waitFor();
   await page.locator('.subscription-panel').screenshot({path:'/tmp/ai-quota-mobile.png'});
   await page.getByRole('button',{name:'Admin',exact:true}).click();

@@ -1,4 +1,4 @@
-const express = require('express');
+const { publicProfile } = require('../utils/public-profile');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -6,7 +6,6 @@ const { isVerified, sessionIsCurrent, sessionClaims } = require('../utils/auth-s
 const { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, forgotPasswordSchema, validateBody } = require('../validation');
 const { getCookieToken, setAuthCookie, clearAuthCookie } = require('../utils/auth');
 
-const router = express.Router();
 
 function setupAuthRoutes(app, deps = {}) {
   const {
@@ -31,33 +30,6 @@ function setupAuthRoutes(app, deps = {}) {
     logger = console,
     parseJsonField = (value, fallback) => fallback
   } = deps;
-
-  function buildDefaultUserPayload(user) {
-    return {
-      id: user.id, name: user.name, email: user.email,
-      level: user.level ?? 1, xp: user.xp ?? 0, streak: user.streak ?? 0,
-      correct_answers: user.correct_answers ?? 0, lessons_completed: user.lessons_completed ?? 0,
-      english_level: user.english_level || 'A1',
-      placement_completed: user.placement_completed ?? 0,
-      role: user.role || 'user',
-      achievements: parseJsonField(user.achievements, []),
-      favorites: parseJsonField(user.favorites, []),
-      titles: parseJsonField(user.titles, []),
-      google_linked: !!user.google_id,
-      has_password: typeof user.password === 'string' && user.password.length > 0,
-      theme: user.theme || 'default',
-      subscription_active: !!user.subscription_active,
-      subscription_expires: user.subscription_expires || 0,
-      plan: user.plan || (user.subscription_active ? 'pro' : 'free'),
-      ai_daily_limit: user.ai_daily_limit || 10,
-      ai_uses_today: user.ai_uses_today || 0,
-      lives: user.lives ?? 10,
-      has_free_hint: user.has_free_hint || 0,
-      streak_freeze_active: user.streak_freeze_active || 0,
-      xp_multiplier: user.xp_multiplier || 1,
-      xp_multiplier_until: user.xp_multiplier_until || 0
-    };
-  }
 
   async function sendVerificationForUser(user) {
     if (!isTransactionalEmailConfigured()) {
@@ -88,15 +60,6 @@ function setupAuthRoutes(app, deps = {}) {
     }
 
     return verifyUrl;
-  }
-
-  function emailVerificationResponse(verificationUrl) {
-    return {
-      success: true,
-      requiresEmailVerification: true,
-      message: 'Enviamos um link de confirmação para seu email. Confirme antes de entrar.',
-      verificationLink: !IS_PRODUCTION && process.env.ALLOW_DEV_EMAIL_CONFIRMATION_LINK === 'true' ? verificationUrl : null
-    };
   }
 
   function getPublicEmailError(error, fallback) {
@@ -144,7 +107,7 @@ function setupAuthRoutes(app, deps = {}) {
 
       const user = result.data;
       setAuthCookie(res, jwt.sign(sessionClaims(user), JWT_SECRET, { expiresIn: '7d' }));
-      res.status(201).json({ success: true, user: buildDefaultUserPayload(user) });
+      res.status(201).json({ success: true, user: publicProfile(user, parseJsonField) });
     } catch (error) {
       logger.error?.('Unexpected register error', { error: error.message });
       res.status(500).json({ error: 'Erro interno do servidor' });
@@ -171,7 +134,7 @@ function setupAuthRoutes(app, deps = {}) {
 
       res.json({
         success: true,
-        user: buildDefaultUserPayload(user)
+        user: publicProfile(user, parseJsonField)
       });
     } catch (error) {
       res.status(500).json({ error: 'Erro interno do servidor' });
