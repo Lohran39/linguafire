@@ -1,3 +1,4 @@
+import { SiteFooter } from './SiteFooter';
 import { useState, type FormEvent } from 'react';
 import { login, register, loginWithGoogle, requestPasswordReset, resetPassword, confirmEmail, type UserProfile } from '../services/auth';
 
@@ -124,6 +125,7 @@ export function AuthForm({
           Voltar
         </button>
       </form>
+      <SiteFooter />
     </main>
   );
 }
@@ -189,6 +191,7 @@ export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
           Voltar ao login
         </button>
       </form>
+      <SiteFooter />
     </main>
   );
 }
@@ -261,6 +264,7 @@ export function ResetPasswordForm({ token, onDone, verifying = false }: { token:
         </button>
         {verifying && <button className="text-button" type="button" onClick={() => { window.history.replaceState({}, '', '/'); onDone(); }}>Voltar ao login</button>}
       </form>
+      <SiteFooter />
     </main>
   );
 }

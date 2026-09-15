@@ -12,3 +12,14 @@
 @import './styles/shop-placement.css';
 @import './styles/responsive.css';
 @import './styles/study-layout.css';
+
+/* Reserve space for discreet credits inside each screen's own background. */
+.splash-screen,
+.auth-screen,
+.app-screen {
+  padding-bottom: 6rem;
+}
+
+.splash-screen {
+  height: auto;
+}

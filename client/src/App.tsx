@@ -1,12 +1,13 @@
+import { SiteFooter } from './components/SiteFooter';
 import { AuthForm, ForgotPasswordForm, ResetPasswordForm } from './components/AuthForms';
 import { StudyGuide } from './components/StudyGuide';
 import { TabContent } from './components/TabContent';
-const AdminTab = lazy(() => import('./components/AdminTab').then(module => ({ default: module.AdminTab })));
 import { ActivityProgress, useActivityState, useSaveBeforeLeave } from './hooks/activity-progress';
 import { lazy, useEffect, useState } from 'react';
 import { getProfile } from './services/profile';
 import { getSession, logout, type UserProfile } from './services/auth';
 import { HomeDashboard } from './components/HomeDashboard';
+const AdminTab = lazy(() => import('./components/AdminTab').then(module => ({ default: module.AdminTab })));
 const MusicTab = lazy(() => import('./components/MusicTab').then(module => ({ default: module.MusicTab })));
 const FlashcardTab = lazy(() => import('./components/FlashcardTab').then(module => ({ default: module.FlashcardTab })));
 const ConversationTab = lazy(() => import('./components/ConversationTab').then(module => ({ default: module.ConversationTab })));
@@ -137,6 +138,7 @@ function AppHome({
       {activeTab === 'profile' && <ProfileTab user={user} onProfileRefresh={onProfileRefresh} onPlacement={() => navigate('placement')} />}
       </TabContent>
       </div>
+      <SiteFooter />
     </main>
   );
 }
@@ -253,6 +255,7 @@ export function App() {
           <h1>LinguaFire</h1>
           <p className="lead">Carregando sua sessao...</p>
         </section>
+        <SiteFooter />
       </main>
     );
   }
@@ -348,6 +351,7 @@ export function App() {
         </div>
         {authNotice && <div className="form-error">{authNotice}</div>}
       </section>
+      <SiteFooter />
     </main>
   );
 }
