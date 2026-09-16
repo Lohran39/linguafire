@@ -1,3 +1,4 @@
+const additionalFlashcards = require('../data/additional-flashcards.json');
 const { mistakeCards } = require('../services/mistake-review');
 const { flashcardReviewSchema, validateBody } = require('../validation');
 
@@ -231,7 +232,7 @@ function setupFlashcardRoutes(app, deps = {}) {
     { word: 'fall short of', translation: 'Ficar aquém de', level: 'C1', category: 'Expressão', example: 'The result fell short of expectations.', note: 'Muito usado em avaliação.' }
   ];
 
-  const flashcardVocab = [...FLASHCARD_VOCAB, ...EXTRA_FLASHCARD_VOCAB].reduce((items, card) => {
+  const flashcardVocab = [...FLASHCARD_VOCAB, ...EXTRA_FLASHCARD_VOCAB, ...additionalFlashcards].reduce((items, card) => {
     if (!items.some(item => item.word === card.word)) items.push(card);
     return items;
   }, []);
@@ -245,12 +246,15 @@ function setupFlashcardRoutes(app, deps = {}) {
   app.get('/api/flashcards/available', authenticateToken, async (req, res) => {
     try {
       const now = new Date().toISOString();
+      const category = typeof req.query?.category === 'string' ? req.query.category : '';
+      const matchesCategory = card => !category || category === 'Todas' || card.category === category;
       const flashcards = await getCards(req.user.id);
       const today = new Date().toISOString().slice(0, 10);
       const seed = `${req.user.id}-${today}`;
       const due = flashcards
         .filter(f => f.next_review && f.next_review <= now)
         .map(enrichFlashcard)
+        .filter(matchesCategory)
         .sort((a, b) => Number(b.source === 'conversation') - Number(a.source === 'conversation') || dailySortKey(a.word, seed) - dailySortKey(b.word, seed));
       const seen = due.map(d => d.word);
 
@@ -260,7 +264,7 @@ function setupFlashcardRoutes(app, deps = {}) {
         const upcoming = flashcards.filter(f => f.next_review && f.next_review > now);
         seen.push(...upcoming.map(u => u.word));
         const newWords = flashcardVocab
-          .filter(v => !seen.includes(v.word))
+          .filter(v => matchesCategory(v) && !seen.includes(v.word))
           .sort((a, b) => {
             const distance = levelDistance(a.level, userLevel) - levelDistance(b.level, userLevel);
             if (distance !== 0) return distance;

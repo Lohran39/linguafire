@@ -1,3 +1,4 @@
+import { getDailyPhraseWeight } from '../services/daily-order';
 import { nativeDailyGoal, nativeSituations, nativePacks, nativePhrases, getLevelIndex, getRecommendedPhrases, type NativeSituationId } from '../data/native-practice';
 import { normalizePracticeText, comparePracticeText } from '../services/native-practice';
 import { NativeVideoResult } from './NativeVideoResult';
@@ -154,12 +155,13 @@ export function NativesTab({ user, onProfileRefresh }: NativesTabProps) {
     const unseen = nativePhrases
       .filter((phrase) => getLevelIndex(phrase.level) <= getLevelIndex(englishLevel) + 1)
       .filter((phrase) => !completed.has(`native-phrase-${phrase.id}`))
+      .sort((a, b) => Math.abs(getLevelIndex(a.level) - getLevelIndex(englishLevel)) - Math.abs(getLevelIndex(b.level) - getLevelIndex(englishLevel)) || getDailyPhraseWeight(a.id, todayKey) - getDailyPhraseWeight(b.id, todayKey))
       .slice(0, 6);
     const favoriteReview = favoritePhrases.slice(0, 3);
     return [...favoriteReview, ...unseen]
       .filter((phrase, index, items) => items.findIndex((candidate) => candidate.id === phrase.id) === index)
       .slice(0, 6);
-  }, [completedNativePhrases, englishLevel, favoritePhrases]);
+  }, [completedNativePhrases, englishLevel, favoritePhrases, todayKey]);
 
   useEffect(() => {
     try {

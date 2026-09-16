@@ -1,3 +1,5 @@
+import { getDailyPhraseWeight } from '../services/daily-order';
+import { additionalNativePhrases } from './additional-native-practice';
 import type { EnglishLevel } from './levels';
 
 export type NativeSituationId =
@@ -684,17 +686,14 @@ export const nativePhrases: NativePhrase[] = [
     example: 'That sounds really frustrating. I’m here if you want to talk.',
     prompt: 'Um amigo contou uma situação difícil e você quer apoiar.',
     expected: 'I’m here if you want to talk.'
-  }
+  },
+  ...additionalNativePhrases
 ];
 
 export function getLevelIndex(level: EnglishLevel) {
   return levelOrder.indexOf(level);
 }
 
-function getDailyPhraseWeight(id: string) {
-  const today = new Date().toISOString().slice(0, 10);
-  return `${today}:${id}`.split('').reduce((total, char) => total + char.charCodeAt(0), 0);
-}
 
 export function getRecommendedPhrases(userLevel: EnglishLevel, situation: NativeSituationId) {
   const currentIndex = getLevelIndex(userLevel);

@@ -48,3 +48,5 @@ Estes arquivos preservam o que foi observado em cada ocasião; não comprovam o 
 - Links entre documentos são relativos ao arquivo. Caminhos de código e comandos são relativos à raiz do repositório, salvo quando houver um `cd` explícito ou outra indicação.
 - Scripts, casos executáveis e migrações SQL permanecem em `server/`; documentação não altera o lugar desses arquivos.
 - Ao adicionar ou mover um guia, atualize este índice e suas referências.
+
+- [Catálogo de exercícios](produto/catalogo-exercicios.md): novos conteúdos de Lições, Nativos e Revisão.

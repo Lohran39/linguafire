@@ -1,0 +1,352 @@
+[
+  {
+    "word": "desk",
+    "translation": "Escrivaninha",
+    "level": "A1",
+    "category": "Lugar",
+    "example": "My book is on the desk."
+  },
+  {
+    "word": "window",
+    "translation": "Janela",
+    "level": "A1",
+    "category": "Lugar",
+    "example": "Please open the window."
+  },
+  {
+    "word": "chair",
+    "translation": "Cadeira",
+    "level": "A1",
+    "category": "Lugar",
+    "example": "There is a chair next to the table."
+  },
+  {
+    "word": "kitchen",
+    "translation": "Cozinha",
+    "level": "A1",
+    "category": "Lugar",
+    "example": "We cook in the kitchen."
+  },
+  {
+    "word": "bedroom",
+    "translation": "Quarto",
+    "level": "A1",
+    "category": "Lugar",
+    "example": "My bedroom is small."
+  },
+  {
+    "word": "sister",
+    "translation": "Irmã",
+    "level": "A1",
+    "category": "Pessoas",
+    "example": "My sister lives with me."
+  },
+  {
+    "word": "brother",
+    "translation": "Irmão",
+    "level": "A1",
+    "category": "Pessoas",
+    "example": "My brother is at school."
+  },
+  {
+    "word": "bread",
+    "translation": "Pão",
+    "level": "A1",
+    "category": "Restaurante",
+    "example": "I eat bread for breakfast."
+  },
+  {
+    "word": "milk",
+    "translation": "Leite",
+    "level": "A1",
+    "category": "Restaurante",
+    "example": "Would you like some milk?"
+  },
+  {
+    "word": "weekend",
+    "translation": "Fim de semana",
+    "level": "A1",
+    "category": "Tempo",
+    "example": "I work at the weekend."
+  },
+  {
+    "word": "timetable",
+    "translation": "Tabela de horários",
+    "level": "A2",
+    "category": "Viagem",
+    "example": "The train timetable is on the wall."
+  },
+  {
+    "word": "round trip",
+    "translation": "Viagem de ida e volta",
+    "level": "A2",
+    "category": "Viagem",
+    "example": "The round trip takes two hours."
+  },
+  {
+    "word": "suitcase",
+    "translation": "Mala",
+    "level": "A2",
+    "category": "Viagem",
+    "example": "My suitcase is blue."
+  },
+  {
+    "word": "towel",
+    "translation": "Toalha",
+    "level": "A2",
+    "category": "Hotel",
+    "example": "Could I have a clean towel?"
+  },
+  {
+    "word": "blanket",
+    "translation": "Cobertor",
+    "level": "A2",
+    "category": "Hotel",
+    "example": "There is an extra blanket in the room."
+  },
+  {
+    "word": "crossroads",
+    "translation": "Cruzamento",
+    "level": "A2",
+    "category": "Viagem",
+    "example": "Turn left at the crossroads."
+  },
+  {
+    "word": "traffic lights",
+    "translation": "Semáforo",
+    "level": "A2",
+    "category": "Viagem",
+    "example": "Stop at the traffic lights."
+  },
+  {
+    "word": "cash machine",
+    "translation": "Caixa eletrônico",
+    "level": "A2",
+    "category": "Compras",
+    "example": "Is there a cash machine near here?"
+  },
+  {
+    "word": "entrance",
+    "translation": "Entrada",
+    "level": "A2",
+    "category": "Lugar",
+    "example": "The entrance is on the left."
+  },
+  {
+    "word": "exit",
+    "translation": "Saída",
+    "level": "A2",
+    "category": "Lugar",
+    "example": "Please use the main exit."
+  },
+  {
+    "word": "back up",
+    "translation": "Fazer cópia de segurança",
+    "level": "B1",
+    "category": "Phrasal verb",
+    "example": "Back up your files before the update."
+  },
+  {
+    "word": "cut out",
+    "translation": "Parar de funcionar por um momento",
+    "level": "B1",
+    "category": "Phrasal verb",
+    "example": "The audio keeps cutting out."
+  },
+  {
+    "word": "run into",
+    "translation": "Encontrar por acaso",
+    "level": "B1",
+    "category": "Phrasal verb",
+    "example": "I ran into an old friend yesterday."
+  },
+  {
+    "word": "sort out",
+    "translation": "Resolver / organizar",
+    "level": "B1",
+    "category": "Phrasal verb",
+    "example": "We need to sort out this problem."
+  },
+  {
+    "word": "password",
+    "translation": "Senha",
+    "level": "B1",
+    "category": "Rotina",
+    "example": "I have forgotten my password."
+  },
+  {
+    "word": "attachment",
+    "translation": "Anexo",
+    "level": "B1",
+    "category": "Trabalho",
+    "example": "The email has an attachment."
+  },
+  {
+    "word": "charger",
+    "translation": "Carregador",
+    "level": "B1",
+    "category": "Rotina",
+    "example": "I left my phone charger at home."
+  },
+  {
+    "word": "reschedule",
+    "translation": "Remarcar",
+    "level": "B1",
+    "category": "Trabalho",
+    "example": "Could we reschedule the meeting?"
+  },
+  {
+    "word": "spreadsheet",
+    "translation": "Planilha",
+    "level": "B1",
+    "category": "Trabalho",
+    "example": "I recorded the expenses in a spreadsheet."
+  },
+  {
+    "word": "wireless",
+    "translation": "Sem fio",
+    "level": "B1",
+    "category": "Descrição",
+    "example": "We use a wireless connection."
+  },
+  {
+    "word": "consensus",
+    "translation": "Consenso",
+    "level": "B2",
+    "category": "Debate",
+    "example": "The team reached a consensus after the discussion."
+  },
+  {
+    "word": "setback",
+    "translation": "Revés / contratempo",
+    "level": "B2",
+    "category": "Trabalho",
+    "example": "The delay was a temporary setback."
+  },
+  {
+    "word": "bottleneck",
+    "translation": "Gargalo",
+    "level": "B2",
+    "category": "Trabalho",
+    "example": "The approval process is a bottleneck."
+  },
+  {
+    "word": "allocate",
+    "translation": "Destinar / alocar",
+    "level": "B2",
+    "category": "Trabalho",
+    "example": "We need to allocate more time to testing."
+  },
+  {
+    "word": "accountable",
+    "translation": "Responsável e sujeito a prestar contas",
+    "level": "B2",
+    "category": "Trabalho",
+    "example": "Each manager is accountable for the budget."
+  },
+  {
+    "word": "stakeholder",
+    "translation": "Parte interessada",
+    "level": "B2",
+    "category": "Trabalho",
+    "example": "We asked each stakeholder for feedback."
+  },
+  {
+    "word": "biased",
+    "translation": "Tendencioso / parcial",
+    "level": "B2",
+    "category": "Comunicação",
+    "example": "The report presents a biased view of the events."
+  },
+  {
+    "word": "scope",
+    "translation": "Escopo / abrangência",
+    "level": "B2",
+    "category": "Trabalho",
+    "example": "We agreed on the scope of the project."
+  },
+  {
+    "word": "contingency",
+    "translation": "Eventualidade prevista em um plano",
+    "level": "B2",
+    "category": "Trabalho",
+    "example": "We have a contingency plan for delays."
+  },
+  {
+    "word": "workload",
+    "translation": "Carga de trabalho",
+    "level": "B2",
+    "category": "Trabalho",
+    "example": "We need to reduce the team’s workload."
+  },
+  {
+    "word": "caveat",
+    "translation": "Ressalva",
+    "level": "C1",
+    "category": "Argumento",
+    "example": "There is one caveat to this recommendation."
+  },
+  {
+    "word": "discrepancy",
+    "translation": "Divergência / discrepância",
+    "level": "C1",
+    "category": "Formal",
+    "example": "We noticed a discrepancy between the two reports."
+  },
+  {
+    "word": "corroborate",
+    "translation": "Corroborar / dar apoio adicional",
+    "level": "C1",
+    "category": "Argumento",
+    "example": "The new evidence corroborates her account."
+  },
+  {
+    "word": "inconclusive",
+    "translation": "Inconclusivo",
+    "level": "C1",
+    "category": "Argumento",
+    "example": "The results remain inconclusive."
+  },
+  {
+    "word": "concede",
+    "translation": "Admitir / reconhecer um ponto",
+    "level": "C1",
+    "category": "Debate",
+    "example": "I concede that the timeline was unrealistic."
+  },
+  {
+    "word": "qualify",
+    "translation": "Fazer ressalvas a uma afirmação",
+    "level": "C1",
+    "category": "Comunicação",
+    "example": "Let me qualify that statement: it applies only to new users."
+  },
+  {
+    "word": "reconcile",
+    "translation": "Conciliar",
+    "level": "C1",
+    "category": "Argumento",
+    "example": "We need to reconcile these conflicting accounts."
+  },
+  {
+    "word": "underlying",
+    "translation": "Subjacente",
+    "level": "C1",
+    "category": "Argumento",
+    "example": "We have not addressed the underlying cause."
+  },
+  {
+    "word": "unwarranted",
+    "translation": "Injustificado",
+    "level": "C1",
+    "category": "Formal",
+    "example": "The criticism was unwarranted."
+  },
+  {
+    "word": "provisional",
+    "translation": "Provisório",
+    "level": "C1",
+    "category": "Formal",
+    "example": "The figures are provisional and may change."
+  }
+]

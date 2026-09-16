@@ -45,9 +45,9 @@ export async function getFlashcardStats(): Promise<FlashcardStats> {
   return parseJson<FlashcardStats>(await fetchWithTimeout('/api/flashcards/stats', { credentials: 'include' }));
 }
 
-export async function getAvailableFlashcards(): Promise<Flashcard[]> {
+export async function getAvailableFlashcards(category?: string): Promise<Flashcard[]> {
   const data = await parseJson<{ cards: Flashcard[] }>(
-    await fetchWithTimeout('/api/flashcards/available', { credentials: 'include' })
+    await fetchWithTimeout(`/api/flashcards/available${category ? `?${new URLSearchParams({ category })}` : ''}`, { credentials: 'include' })
   );
   return data.cards || [];
 }

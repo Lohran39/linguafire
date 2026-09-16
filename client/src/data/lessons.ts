@@ -1,3 +1,5 @@
+import { additionalLessons } from './additional-lessons.ts';
+
 export type LessonQuestion = {
   id: string;
   prompt: string;
@@ -1665,7 +1667,7 @@ const extraQuestionsByLesson: Record<string, LessonQuestion[]> = {
   ]
 };
 
-export const lessonSets: LessonSet[] = baseLessonSets.map((lesson) => ({
+export const lessonSets: LessonSet[] = [...baseLessonSets, ...additionalLessons].map((lesson) => ({
   ...lesson,
   questions: [...lesson.questions, ...(extraQuestionsByLesson[lesson.id] || [])]
 }));

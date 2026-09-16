@@ -54,7 +54,11 @@ const categoryOptions = [
   'Conectores',
   'Gramática',
   'Opinião',
-  'Formal'
+  'Formal',
+  'Argumento',
+  'Ênfase',
+  'Hábitos',
+  'Habilidade'
 ];
 const dailyGoal = 10;
 
@@ -186,7 +190,10 @@ export function FlashcardTab({ user, onProfileRefresh }: FlashcardTabProps) {
 
     try {
       const storedMissed = readStoredMissedCards(user.id);
-      const available = sortByEnglishLevel(await getAvailableFlashcards(), englishLevel);
+      let available = sortByEnglishLevel(await getAvailableFlashcards(category === 'Todas' || category === 'Erros' ? undefined : category), englishLevel);
+      if (!available.length && category !== 'Todas' && category !== 'Erros') {
+        available = sortByEnglishLevel(await getAvailableFlashcards(), englishLevel);
+      }
       const filtered = category === 'Todas'
         ? available
         : category === 'Erros'
